@@ -1,0 +1,14 @@
+includes:
+  - vendor/nunomaduro/larastan/extension.neon
+
+parameters:
+  level: 7        # bump to max later
+  paths:
+    - app
+    - database
+  checkMissingIterableValueType: true
+  checkGenericClassInNonGenericObjectType: true
+  reportUnmatchedIgnoredErrors: true
+  excludePaths:
+    - database/migrations/*   # optional
+    
