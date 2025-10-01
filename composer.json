@@ -63,10 +63,9 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
-	"analyse": "phpstan analyse",
-	"test": "php artisan test",
-	"format": "pint",
-	"format:check": "pint --test"
+        "analyse": "phpstan analyse",
+        "format": "pint",
+        "format:check": "pint --test"
     },
     "extra": {
         "laravel": {

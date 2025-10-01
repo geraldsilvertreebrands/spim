@@ -34,17 +34,18 @@ services:
       - app
 
   db:
-    image: postgres:16
+    image: mysql:8.0
     container_name: spim_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: spim
-      POSTGRES_USER: spim
-      POSTGRES_PASSWORD: spim
+      MYSQL_DATABASE: spim
+      MYSQL_USER: spim
+      MYSQL_PASSWORD: spim
+      MYSQL_ROOT_PASSWORD: spim
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - spim_pgdata:/var/lib/postgresql/data
+      - spim_mysql_data:/var/lib/mysql
 
   redis:
     image: redis:7-alpine
@@ -54,5 +55,4 @@ services:
       - "6379:6379"
 
 volumes:
-  spim_pgdata:
-  
+  spim_mysql_data:
