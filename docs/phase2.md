@@ -89,3 +89,21 @@ Open questions
 Risks / follow-ups
 - UI classes will grow in complexity; keep defaults minimal and composable.
 - Validation drift between UI and service — ensure single source of truth in `AttributeService`.
+
+Testing plan
+- Databases
+  - Use `.env.testing` with a dedicated MySQL 8 DB (e.g., `spim_test`).
+  - Tests never touch your dev DB.
+- Seeds/fixtures
+  - Base test seeders create: one `entity_types` record, a handful of `attributes` spanning data types, and factories for entities/EAV rows.
+  - Provide factories: `EntityTypeFactory`, `AttributeFactory`, `EntityFactory`.
+- Unit tests
+  - `AttributeCaster` coercion for all types
+  - `AttributeService` validation (allowed_values, confidence gating)
+- Feature tests
+  - Attribute CRUD via Filament HTTP endpoints/forms
+  - EAV write/read via Entity model shims and EavWriter
+  - Resolved views produce expected values for versioned/input/timeseries
+- TDD suggestions
+  - Start from `AttributeService` rules → wire into writer/model → assert end‑to‑end feature.
+  - Keep factories lean with sensible defaults; override per test.

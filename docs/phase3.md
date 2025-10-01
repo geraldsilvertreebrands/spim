@@ -55,3 +55,13 @@ Acceptance criteria
 Open questions
 - Do we expose bulk override/edit? Suggested: defer until after approval workflow.
 - How to search across free-text attributes? Suggested: add a basic LIKE on chosen text attrs; plan full-text later.
+
+Testing plan
+- Seeds/fixtures: factories for entities with common attributes (brand, title, weight) and linked categories.
+- Feature tests:
+  - Listing renders selected columns and paginates.
+  - Sorting by attribute works via scope join.
+  - Filtering via `whereAttr` applies correctly.
+  - Detail slide-over fetches JSON bag and shows override/current.
+  - Override action persists and reflects immediately in detail view.
+- Performance checks (lightweight): assert number of queries stays bounded for list and detail.

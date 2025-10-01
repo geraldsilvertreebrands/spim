@@ -41,3 +41,11 @@ Acceptance criteria
 Open questions
 - Should we capture reviewer notes? Suggested: minimal notes field in a new `approval_notes` table keyed by (entity_id, attribute_id, timestamp).
 - Should low-confidence threshold be configurable per attribute? Suggested: attribute-level override field, default 0.8.
+
+Testing plan
+- Fixtures: create entities with versioned attributes where current != approved, including low_confidence edge cases.
+- Feature tests:
+  - Review query lists correct entities/attributes.
+  - Diff components render expected changes.
+  - Single and bulk approval update `value_approved` and remove from queue.
+  - Confidence gating: items with confidence >= 0.8 auto-approve when review_required=low_confidence.

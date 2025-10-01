@@ -48,3 +48,14 @@ Acceptance criteria
 Open questions
 - Use SKU or numeric ID for `entity_id`? Choose per type and document in `entity_types`.
 - How to handle select-type mapping (labels vs option IDs)? Suggest: maintain a small mapping table per attribute if Magento requires option IDs.
+
+Testing plan
+- Unit: mapping functions between SPIM attributes and Magento payloads; error handling.
+- Feature/integration-light:
+  - Fake Magento HTTP responses with Http::fake and assert DB writes for pull.
+  - For push, assert correct payloads are sent and DB `value_live` advances on success.
+- Fixtures: attributes marked `is_synced`, entities with `value_approved != value_live`.
+
+Environment
+- `.env.testing` uses MySQL 8; Http::fake ensures no real outbound calls.
+- Optional: a `MAGENTO_FAKE` flag to switch to a local stub server in dev.
