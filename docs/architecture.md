@@ -1,61 +1,130 @@
 SilverteePIM — Architecture & Intention
+---------------------------------------
+
+# Conceptual approach
+
+SilvertreePIM is a tool for managing product and related content, where AI transformations are the principle way in which content will be updated and managed, and where the code is as lean as possible and customisation is done by code edits (using AI) rather than an over-engineered platform to allow all sorts of config-driven customisation.
+
+Key concepts include:
+
+## Entities
+
+These are "things" with attributes. Each entity type has a corresponding set of attributes.
+
+Entity types include:
+- products, with a type per Magento attribute set
+- categories
+- brands
+- scraped products
+- supplier-provided products
+- supplier ranges, grouped together for e.g., approval processes
+- ingredients, for ingredient information pages.
+
+Entities are related to each other with relationships of various types, e.g., "belongs to", "related to", etc.
+
+## Pipelines
+
+These are AI or automation pipelines that take a set of attributes, from the current entity or related entities, and produce an updated value of an attribute for an entity. Pipelines run when source attribute values change. 
+
+Associated with pipelines are "evals", which are example outputs, used for refining AI prompts and ensuring that outputs don't change over time, similar in concept to unit or acceptance tests.
+
+Pipelines also track stats like token usage, etc.
+
+## Syncs
+
+We sync attributes for products (and other entities) to Magento. In general, this system is the master for attribute values, but Magento is the master for attributes which are not included in this system (e.g., inventory data), and we can sync starting attribute values from Magento into SPIM.
+
+## Attributes
+
+There are several types of attributes, with different schemas and concepts for each attribute type, as follows. Entities are a combination of the attributes of each type.
+
+A master attributes table stores all requried information on all attribute types, uniquely identified by entity_type_id and attribute name. Properties include:
+- data_type: One of integer, text, html, json, select, multiselect, belongs_to, belongs_to_multi
+- attribute_type: One of "versioned", "input", "timeseries"
+- require_approval: whether automated updates to an attribute need approval before going live
+- allowed_values: for select and multiselect attributes, available options
+- linked_entity_type: for belongs_to fields, the name of the entity_type that the field refers to, and the field is the entity ID (or comma-separated list of IDs for multi fields)
+- is_synced: whether the attribute is synced to external systems. Depending on attribute_type, this will be a read or write sync. Sync works using matching attribute names, and the sync logic handles matching data types.
+- ui_class: if specified, a name of a class within a namespace, that handles displaying the attribute -- see below.
+
+The ui_class object is a pluggable interface for:
+- displaying the attribute value in a table (ie summarised)
+- in a detail view page (full value, readonly). For example, this will also show the "justification" field for the attribute value, in a small font and grey writing, under the value.
+- editing interface for the attribute.
+- handling the data from the editing UI and turning back into the correct value format.
+If not specific, falls back on a default class that renders the value sanely. Useful for showing, e.g., category paths and names instead of just IDs, etc.
+
+
+## Versioned attributes
+
+EAV-type structure. For sanity, we do NOT use a typed database field for attribute values, rather just a text field for values that can hold numbers, text, JSON, etc. Each attribute value has a number of fields:
+- value_current: latest value, not necessarily approved
+- value_approved: value approved for sync (but not yet synced)
+- value_live: the value of the field as synced to external systems
+- value_override: if not null, the value of the field forced by human override. The "current" value is still tracked separately as the value that would be used if not for the override.
+- updated_at: timestamp
+- input_hash: hash of input data used to calculate the field values by pipeline
+- justification: AI-generated short phrase explaining the logic of the current value
+
+Updates to this attribute obviously affect one or more of the value_... fields. Reads of the attribute value will in general return the value_current value, unless specifically requesting the override value.
+
+## Input attributes
+
+These are attributes pulled from other sources (e.g., sycned from external systems, or scraped). They are not versioned or produced by pipelines. This EAV table contains just the current value, and an updated_at field.
+
+## Timeseries attributes
+
+This EAV table has multiple values per attribute-entity pair, with a timestamp column to record timestamps. Used for, e.g., price and stock history for scraped products.
+
+## Tech architecture
+	•	Core app: Laravel (PHP) + Filament admin for back‑office UI and API.
+	•	Worker(s) (later phases): Python service for scraping (Scrapy) and AI pipeline execution (FastAPI/Celery optional).
+	•	Storage: MySQL
+	•	Integration: Magento 2 via REST; thin Magento module only if/where APIs fall short.
+	•	Secrets: env vars for now (12‑factor); revisit KMS/SM when needed.
+
+
+---
+
+# Implementation plan
+
+## Phase 0: Project infrastructure
+0.1 Laravel setup, Filament, etc and docker configs, with sane PHP defaults for local docker development
+0.2 Access control and user accounts and simple role access levels
+
+## Phase 1: Database and models
+1.1 Set up database schema and migrations (no seeders needed, as we'll use real data for testing, except we need user accounts)
+1.2 Create basic models for the entities, attributes
+
+## Phase 2: UI and infrastructure for attributes
+2.1 Basic filament UI
+2.2 Attribute CRUD and config
+2.3 Create an interface and base class for viewing/editing attributes: method for the current value (return HTML probably), interface for editing (HTML) and method for saving the results from the editing interface. Then, allow overrides in ui_class field for attributes.
+
+## Phase 3: Entity browsing
+3.1 UI menu item for each entity type
+3.2 For each entity type, a "listing" page with configurable column choice (remembered), searchable and sortable. Use the ui_class field to render attributes, if required
+3.3 Entity view page, using ui_class. Structure as a form with a column for attribute names (and some supporting icons: attribute_type, whether current version is synced or not, whether overridden). Then on the right, a column of the values using the ui_class to render each value. Ideally, have this as a slide out (or similar idea) from the right, so that the main product list is still a little visible, and it's quick to click between items in the list without closing, reopening the edit window each time
+3.4 Button on each versioned attribute, to "override", which exposes editing UI and save button.
+
+## Phase 4: Approval workflow
+4.1 Table of entities needing approval (ie approved value differs from current value), with list of attributes changed for each
+4.2 Click to review and approvec changes, and bulk approval tickboxes.
+
+## Phase 5: Sync to/from Magento
+4.1 Sync from Magento for input attributes
+4.2 Sync to Magento for versioned attributes. Sync code needs to handle mapping between our and their data_types, eg we might store something as text, and Magento as a select, in which case we need to add attribute option values.
+
+(later phases: pipelines, relationships, etc)
+
 
 ⸻
 
-1) Project posture & goals
-	•	Primary goal: materially improve product info quality and speed of publication for ~8–10k SKUs.
-	•	Audience: internal merchandisers + ops; small team, high iteration rate.
-	•	Tenancy: single‑tenant per brand/installation (separate DB). No hard multi‑tenant features.
-	•	Orchestration: batch/cron‑centric; queues for work; no event bus required.
-	•	Complexity posture: prefer simpler DB + code; avoid heavy idempotency, mapping versioning, or audit logs unless value‑add is clear.
-
-2) Architecture
-
-2.1 Products:
-Products are a key quantity. We manage them with a `products` table, but there are different types of products, related to each other. Rather than a super complex EAV, we have various products_... tables for the different product types, and these have the relevant attributes as columns in that table.
-
-Product types include:
-1) live: live products on our ecomm platform, where the attributes are a subset of the attributes that Magento provides. These attributes are then synced to and from Magento, when edit and approved. Can have multiple product types here corresponding to different Magento attribute sets
-2) scraped: products scraped from websites, with just basic fields like brand, category, price, stock, description, etc. We also have a second table products_scraped_data which is a log of price and stock data over time
-3) supplier: product data provided by suppliers via a supplier portal, that will be manipulated into the ecomm attributes
-
-Products are linked to each other with a product_links table, where links can be of various types, e.g., same product, related product, possible same product, etc
-
-Each product_... row has a status, mapped in the product_statuses table. These include "synced", "pending_review", "override" (for human overrides of automated attributes), as well as a timestamp, so we can record different versions during approval flows. "override" will have values only for attributes that are actually overrides. Otherwise the highest priority status is assumed to be to active row
-
-2.2 Product attributes:
-The attributes table stores supporting information on product attributes, including type, description, source, syncing info for mapping to external platforms (eg magento attribute name).
-
-When creating/deleting attributes, we add/remove fields from the relevant products_... table.
-
-Attributes can be one of:
-- readonly: pulled from external systems, not editable locally
-- editable: expected to be edited in this system, and written to remote systems
-- automated: produced by an automation pipeline (AI or code) based on other attributes of this or linked products.
-
-2.3 Syncs:
-We can import products from Magento, where we pull in all matching attributes for some or all Magento products
-
-We can sync to Magento, which will:
-- compare our last known "synced" attribute values, with what is available in Magento
-- on differences, for editable or automated attributes, sync those back to our version with status "override". For readonly attributes, just overwrite our values
-- send our values to Magento.
-
-2.4 Scrapes:
-For future work
-
-2.5 Automation pipelines:
-For future work
-
-2.6 Categories
-- multiple category trees per product type, e.g., one for traditional categories, one for supplier->brand->range
-- multi- and single-select category attributes on products
-
-2.6 UI structure (partial)
+# UI structure (partial)
 Menu:
 - Dashboard
 - Review
-- Products
+- Entities
     - (one per product type)
 - Attributes
     - Product types
@@ -64,27 +133,10 @@ Menu:
 - Settings
     - Syncs
 
-Key pages:
-- Products: 
-    - Have a main table, with configurable columns displayed, and ideally remember these in the user session.
-    - filters for each of the category trees, as a dropdown showing number of products next to each category level
-    - quick filters for other attribues
-    - click / edit a product to open the product form. Have this as a slide out (or similar idea) from the right, so that the main product list is still a little visible, and it's quick to click between items in the list without closing, reopening the edit window each time
-    - product form is generated from attributes, in a form display. Next to attribute name put an icon for each of the attribute types. If there are multiple different values for the product with different statuses other than stale, have a little text with the current highest-priorty status, and a little dropdown arrow to change the version to show.  
 
 ⸻
 
-3) Tech architecture
-	•	Core app: Laravel (PHP) + Filament admin for back‑office UI and API.
-	•	Worker(s): Python service for scraping (Scrapy) and AI pipeline execution (FastAPI/Celery optional).
-	•	Storage: PostgreSQL (catalog + scraping), S3‑compatible object store for images if needed.
-	•	Queues: Redis + Horizon for monitoring.
-	•	Integration: Magento 2 via REST; thin Magento module only if/where APIs fall short.
-	•	Secrets: env vars for now (12‑factor); revisit KMS/SM when needed.
-
-⸻
-
-4) Data model
+# Data model
 
 4.1 Core catalogue
 
@@ -93,8 +145,8 @@ attributes
     •	product_type_id FK
 	•	code (unique per product type)
 	•	name, section_id, display_order
-	•	type (string|number|bool|json|category|category_list|select|multiselect)
-	•	type ("readonly", "editable", "automated")
+	•	data_type (string|number|bool|json|category|category_list|select|multiselect)
+	•	behaviour ("readonly", "editable", "automated")
     •	review_required (always|low_confidence|never)
 	•	external_source_id (nullable FK → external_platform)
 	•	source_attributes (json array of attribute_ids) — lightweight graph reference
@@ -103,6 +155,7 @@ attributes
 
 attribute_sections
 	•	id PK, name, display_order
+    •	product_type_id FK
 
 external_platform
 	•	id PK, type (e.g., magento2), name
@@ -112,15 +165,17 @@ product_types
 	•	id
 	•	name
 	•	description
+    •	external_platform_id FK to which this produt type is synced, nullable
+    •	external_platform_config json eg attribute set for magento
 
 products
-	•	id PK (internal UUID or serial), sku
+	•	id PK
+    •	sku (unique per product_type)
 
 products_live etc
 	•	id FK
     •	(various attributes, none to start)
 	•	status_id
-	•	status (stale|pending_review|approved|queued_for_sync|syncing|synced) — current state only
 	•	overridden (bool), value_override (string/json), override_at (ts)
 	•	confidence (float 0..1), justification (text)
 	•	minimal lineage: pipeline_version (copied from attribute at time of production), input_hash (hash of source inputs), produced_at (ts)
@@ -129,7 +184,7 @@ products_live etc
 product_statuses
 	•	id
 	•	name. Seeder for values: "synced", "pending_review", "approved", "stale", "override"
-    •	priority (int). Highest priority is viewed as the "current" value
+    •	priority (int). Highest priority is viewed as the "current" value.
     •	readonly (bool). Some statuses (eg stale) no longer allow values to be edited
 
 product_links
@@ -187,134 +242,3 @@ pipeline_steps (if you want granular editing)
 
 pipeline_runs (for visibility/cost)
 	•	id PK, attribute_id, started_at, ended_at, status, num_items, model_name, tokens_input, tokens_output, cost_estimate
-
-⸻
-
-4) Pipelines — execution & determinism (minimal)
-	•	Deterministic runs: a value is a function of (attribute.pipeline_version, input_hash).
-	•	Pipeline version contract: when you publish pipeline changes, bump attributes.pipeline_version. That version freezes prompt, model, and code used.
-	•	Input hash: hash source attributes’ current values (and any observation payloads). Store on the values row so recomputation is idempotent.
-	•	Confidence & justification: always stored on the value.
-	•	Review policy: evaluate review_required at produce‑time:
-        •	always ⇒ pending_review
-        •	low_confidence ⇒ compare confidence to per‑attribute threshold
-        •	never ⇒ auto‑approved
-	•	State machine: enforced in code; only status column reflects current state. No history log.
-
-Recompute triggers
-	1.	Any source attribute value changed (compare updated_at) or input_hash differs.
-	2.	Attribute pipeline_version incremented.
-	3.	Manual “recompute” action from UI.
-
-⸻
-
-6) Scraping & matching
-	•	Scraper: Scrapy (with Playwright when needed). Schedule by scrape_sources.scrape_cron.
-	•	Quality checks: basic counters per run (pages fetched, products parsed, error rate). Alert if sharp drop vs last run.
-	•	Matching: brand normalisation → candidate gen (GTIN exact, else title/pack‑size fuzzy) → AI/ML classifier. Write to scrape_product_matches and surface to a review queue.
-
-⸻
-
-7) Security, RBAC, compliance
-	•	RBAC roles: Admin (configure attributes/pipelines/platforms), Editor (edit values/overrides), Reviewer (approve/decline), Ops (scraping/exports).
-	•	Secrets: env variables only; keep platform API secrets out of DB.
-	•	Compliance: scraping posture managed outside product scope; prefer public feeds/APIs when available.
-
-⸻
-
-8) Observability & dashboards (thin v1)
-	•	Dashboard:
-        •	Products by sync status; exceptions (failed exports).
-        •	Scrape recency & volumetrics; simple trend vs previous run.
-        •	Pipeline runs: items processed, avg latency, token/cost summaries by model.
-	•	Logging: application logs with job correlation IDs; no external APM required initially.
-
-⸻
-
-10) Technology choices
-	•	Laravel 12 (API, queues), Filament v3 (admin UI), Redis + Horizon (queues/monitoring), PostgreSQL 16.
-	•	Python: Scrapy for crawling; simple FastAPI/Celery worker for pipeline execution (optional if you prefer plain scripts + queue).
-	•	Front‑end: Filament components; reserve Inertia/React only for a future complex visual (e.g., advanced diff/pipeline graph) if needed.
-
-⸻
-
-11) Staged approach (execution plan)
-
-Stage 1 — Project setup
-	•	Laravel repo bootstrapped; Docker Compose; .env templates; environments (local/stage/prod).
-	•	Tooling: PHPStan, Pint, PHPUnit, Infection (optional); CI (GitHub Actions) with unit + feature tests; basic PR checks.
-	•	Horizon installed; Redis set up; healthcheck endpoint.
-
-Stage 2 — Database schema
-	•	Migrate core tables: products, attributes, attribute_sections, values (typed cols + status + minimal lineage), categories, category_trees, product types.
-	•	Seeders for demo data. Repositories/services for values read/write with the state machine in code.
-
-Stage 3 — Product browser UI
-	•	Filament resources: Products (list/detail), Attributes (list/detail), basic Dashboard cards.
-    •	Product types, attributes
-	•	Product detail shows sections, value + justification + confidence, override toggle.
-
-Stage 4 — Magento sync (to/from)
-	•	Configure platform (base URL, tokens via env). Implement push of approved values; simple retry/backoff.
-	•	Basic reconciliation fetch (nightly): detect downstream edits ⇒ mark overrides.
-	•	Attribute mapping stored in attribute_exports.mapping_json (no versioning).
-	•	Review queue: table with bulk approve; filter by confidence and section.
-
-Stage 5 — Pipelines (deterministic minimal)
-	•	Implement pipeline executor (Python worker or PHP if simpler for v1) reading source attributes, computing output, setting confidence, justification, input_hash, pipeline_version.
-	•	Recompute triggers (source change, pipeline version bump, manual recompute).
-	•	pipeline_runs table + Dashboard card for run stats and token/cost estimates.
-
-Stage 6 — Scraping & matching
-	•	Scrapy one competitor site; store in scrape_products/scrape_product_data.
-	•	Brand/category normalisation tables + simple UI; product matching pipeline feeding scrape_product_matches.
-	•	Matching review queue; action to confirm/deny link to internal products.
-
-Stage 7 — Pipelines over scraped info
-	•	Extend pipelines to read from observations (or directly from scrape_* if you skip observations) to enrich/normalise attributes (e.g., units, pack size).
-	•	Route outputs into standard values flow (status, review policy, sync where relevant).
-
-⸻
-
-12) Risks consciously accepted (and escape hatches)
-	•	No idempotency keys / export history: acceptable for internal use; add export_jobs later if retries cause issues.
-	•	No value history/audit: acceptable now; add values_history append‑only later if needed.
-	•	Single pipeline version per attribute: keeps things simple; if parallel versions become useful, evolve to explicit versions per value.
-	•	Units as pipeline logic: faster now; if rules proliferate, introduce lightweight attribute_constraints later.
-
-⸻
-
-13) Backend components
-
-1. Scraping infrastructure, using scrapy most likely to do the scraping
-    1. Scraping
-    2. Quality control on scraping, eg spotting drop in number of products
-    3. Matching, using AI: match brands, categories, then match products within brands
-2. Attribute pipelines. On a cron or manually triggered
-    1. Detect attribute values that have an updated_at before the latest of the updated_ats of source attribute values, OR where a pipeline step has been updated more recently
-    2. Run the pipeline, updating appropriately
-3. Sync to external platforms, when reviewed
-    1. Sync all “for sync” attribute values to the external platform
-
-----
-
-14) Other conventions
-
-	•	Conventions
-        •	Timestamps everywhere (created_at, updated_at).
-        •	Use Postgres JSON (maps to JSONB) and create GIN index where JSON queries matter.
-	•	Status machine (code-level)
-        •	Allowed transitions:
-    stale → pending_review → approved → queued_for_sync → syncing → synced
-    With shortcuts: stale → approved (if review_required=never) and approved ↔ pending_review (if new info arrives).
-        •	A helper service (e.g., ValueStateService) enforces transitions.
-	•	Review policy
-        •	always → set pending_review.
-        •	low_confidence → compare confidence against attribute-level threshold (default, say, 0.8).
-        •	never → set approved.
-	•	Determinism
-        •	On compute: copy attributes.pipeline_version into the values.pipeline_version, compute an input_hash from source inputs; set produced_at=now().
-	•	Initial env
-        •	DB_CONNECTION=pgsql with your container host db
-        •	QUEUE_CONNECTION=redis
-        •	APP_URL=http://spim.test:8080
