@@ -67,10 +67,6 @@ Tasks
     - unique (entity_type_id, name)
     - allowed_values required for select/multiselect
 
-6) API endpoints (optional if UI-only)
-  - GET entity types, GET/POST attributes (scoped by entity type)
-  - Simple auth middleware
-
 7) Tests
   - Unit tests for AttributeService validation and coercion
   - Feature tests for Attribute CRUD and writer interaction
@@ -82,9 +78,9 @@ Acceptance criteria
 - UI classes render basic summary and edit forms for default types.
 
 Open questions
-- Do we allow renaming attribute `name` once created? Suggested: allow but migrate data with a safe task.
-- For `allowed_values`, store labels vs keys? Suggested: store keys, UI maps labels.
-- What’s the canonical `entity_id` format per type (SKU vs numeric)? Define per `entity_types` description.
+- Do we allow renaming attribute `name` once created? Suggested: allow but migrate data with a safe task. Answer: agree
+- For `allowed_values`, store labels vs keys? Suggested: store keys, UI maps labels. Answer: store both labels and keys in JSON dictionary
+- What’s the canonical `entity_id` format per type (SKU vs numeric)? Define per `entity_types` description. Answer: text. Eg. "sku123" or might be number. But not guaranteed numeric
 
 Risks / follow-ups
 - UI classes will grow in complexity; keep defaults minimal and composable.

@@ -39,9 +39,8 @@ Acceptance criteria
 - Bulk approval works.
 
 Open questions
-- Should we capture reviewer notes? Suggested: minimal notes field in a new `approval_notes` table keyed by (entity_id, attribute_id, timestamp).
+- Should we capture reviewer notes? Suggested: minimal notes field in a new `approval_notes` table keyed by (entity_id, attribute_id, timestamp). 
 - Should low-confidence threshold be configurable per attribute? Suggested: attribute-level override field, default 0.8.
-
 Testing plan
 - Fixtures: create entities with versioned attributes where current != approved, including low_confidence edge cases.
 - Feature tests:

@@ -53,9 +53,8 @@ Acceptance criteria
 - Preferences persist per user and type.
 
 Open questions
-- Do we expose bulk override/edit? Suggested: defer until after approval workflow.
-- How to search across free-text attributes? Suggested: add a basic LIKE on chosen text attrs; plan full-text later.
-
+- Do we expose bulk override/edit? Suggested: defer until after approval workflow. Answer: agree
+- How to search across free-text attributes? Suggested: add a basic LIKE on chosen text attrs; plan full-text later. Answer: agree
 Testing plan
 - Seeds/fixtures: factories for entities with common attributes (brand, title, weight) and linked categories.
 - Feature tests:
