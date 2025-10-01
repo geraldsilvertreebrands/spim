@@ -1,9 +1,9 @@
-SilverteePIM — Architecture & Intention
+SilvertreePIM — Architecture & Intention
 ---------------------------------------
 
 # Conceptual approach
 
-SilvertreePIM is a tool for managing product and related content, where AI transformations are the principle way in which content will be updated and managed, and where the code is as lean as possible and customisation is done by code edits (using AI) rather than an over-engineered platform to allow all sorts of config-driven customisation.
+SilvertreePIM is a tool for managing product and related content, where AI transformations are the principal way in which content will be updated and managed, and where the code is as lean as possible and customisation is done by code edits (using AI) rather than an over-engineered platform to allow all sorts of config-driven customisation.
 
 Key concepts include:
 
@@ -20,7 +20,9 @@ Entity types include:
 - supplier ranges, grouped together for e.g., approval processes
 - ingredients, for ingredient information pages.
 
-Entities are related to each other with relationships of various types, e.g., "belongs to", "related to", etc.
+Each entity has a stable natural identifier, `entity_id`, that matches the external system’s identifier for that entity type. It is unique per entity type.
+
+Entities are related to each other with relationships of various types, e.g., "belongs_to", "related_to", etc.
 
 ## Pipelines
 
@@ -38,12 +40,12 @@ We sync attributes for products (and other entities) to Magento. In general, thi
 
 There are several types of attributes, with different schemas and concepts for each attribute type, as follows. Entities are a combination of the attributes of each type.
 
-A master attributes table stores all requried information on all attribute types, uniquely identified by entity_type_id and attribute name. Properties include:
+A master `attributes` table stores all required information on all attribute types, uniquely identified by `entity_type_id` and attribute `name`. Properties include:
 - data_type: One of integer, text, html, json, select, multiselect, belongs_to, belongs_to_multi
 - attribute_type: One of "versioned", "input", "timeseries"
-- require_approval: whether automated updates to an attribute need approval before going live
+- review_required: one of "always" | "low_confidence" | "no". When set to "always", automated updates require human approval. When set to "low_confidence", automated updates are auto-approved only if confidence ≥ 0.8. When set to "no", automated updates are auto-approved.
 - allowed_values: for select and multiselect attributes, available options
-- linked_entity_type: for belongs_to fields, the name of the entity_type that the field refers to, and the field is the entity ID (or comma-separated list of IDs for multi fields)
+- linked_entity_type: for belongs_to fields, the name of the `entity_type` that the field refers to (for multi, it refers to multiple). Storage uses a link table (`entity_attr_links`) rather than comma-separated IDs.
 - is_synced: whether the attribute is synced to external systems. Depending on attribute_type, this will be a read or write sync. Sync works using matching attribute names, and the sync logic handles matching data types.
 - ui_class: if specified, a name of a class within a namespace, that handles displaying the attribute -- see below.
 
@@ -52,7 +54,7 @@ The ui_class object is a pluggable interface for:
 - in a detail view page (full value, readonly). For example, this will also show the "justification" field for the attribute value, in a small font and grey writing, under the value.
 - editing interface for the attribute.
 - handling the data from the editing UI and turning back into the correct value format.
-If not specific, falls back on a default class that renders the value sanely. Useful for showing, e.g., category paths and names instead of just IDs, etc.
+If not specified, falls back on a default class that renders the value sanely. Useful for showing, e.g., category paths and names instead of just IDs, etc.
 
 
 ## Versioned attributes
@@ -65,16 +67,26 @@ EAV-type structure. For sanity, we do NOT use a typed database field for attribu
 - updated_at: timestamp
 - input_hash: hash of input data used to calculate the field values by pipeline
 - justification: AI-generated short phrase explaining the logic of the current value
+- confidence: score 0..1
 
-Updates to this attribute obviously affect one or more of the value_... fields. Reads of the attribute value will in general return the value_current value, unless specifically requesting the override value.
+Updates to this attribute affect one or more of the `value_*` fields. Reads of the attribute value will in general return the `value_current` value, unless specifically requesting the override value. If approvals are required and `value_current` changes, we do not clear `value_approved` so it remains comparable and easy to restore.
 
 ## Input attributes
 
-These are attributes pulled from other sources (e.g., sycned from external systems, or scraped). They are not versioned or produced by pipelines. This EAV table contains just the current value, and an updated_at field.
+These are attributes pulled from other sources (e.g., synced from external systems, or scraped). They are not versioned or produced by pipelines. This EAV table contains just the current value, and an updated_at field.
 
 ## Timeseries attributes
 
 This EAV table has multiple values per attribute-entity pair, with a timestamp column to record timestamps. Used for, e.g., price and stock history for scraped products.
+
+## Resolved values and JSON bags
+
+To avoid dynamic SQL pivots, we use MySQL views to unify values from the three EAV buckets and pre-aggregate them into per-entity JSON objects:
+- `eav_timeseries_latest`: latest datapoint per `(entity_id, attribute_id)` using a window function.
+- `entity_attribute_resolved`: unified rowset from `versioned`, `input`, and latest `timeseries`.
+- `entity_attr_json`: aggregates resolved values into two JSON bags per entity (with overrides applied vs current-only) for quick reads.
+
+Relations (`belongs_to`, `belongs_to_multi`) are stored in `entity_attr_links` and can be exposed via a companion aggregation view when needed.
 
 ## Tech architecture
 	•	Core app: Laravel (PHP) + Filament admin for back‑office UI and API.
@@ -109,7 +121,7 @@ This EAV table has multiple values per attribute-entity pair, with a timestamp c
 
 ## Phase 4: Approval workflow
 4.1 Table of entities needing approval (ie approved value differs from current value), with list of attributes changed for each
-4.2 Click to review and approvec changes, and bulk approval tickboxes.
+4.2 Click to review and approve changes, and bulk approval tickboxes.
 
 ## Phase 5: Sync to/from Magento
 4.1 Sync from Magento for input attributes
@@ -136,23 +148,20 @@ Menu:
 
 ⸻
 
-# Data model
+# Data model - OLD, NEEDS REVISION!!!
 
 4.1 Core catalogue
 
 attributes
 	•	id PK
     •	product_type_id FK
-	•	code (unique per product type)
-	•	name, section_id, display_order
-	•	data_type (string|number|bool|json|category|category_list|select|multiselect)
-	•	behaviour ("readonly", "editable", "automated")
-    •	review_required (always|low_confidence|never)
+	•	name (unique per product type)
+	•	display_name, section_id, display_order
+	•	data_type
+    •	attribute_type (versioned|input|timeseries)
+    •	review_required (always|low_confidence|no)
 	•	external_source_id (nullable FK → external_platform)
-	•	source_attributes (json array of attribute_ids) — lightweight graph reference
-	•	pipeline_version (int) — the current version used to produce values
-	•	pipeline_updated_at (ts)
-
+	
 attribute_sections
 	•	id PK, name, display_order
     •	product_type_id FK
@@ -161,49 +170,29 @@ external_platform
 	•	id PK, type (e.g., magento2), name
 	•	config_json (non‑secret config; secrets live in env)
 
-product_types
+entity_types
 	•	id
 	•	name
 	•	description
-    •	external_platform_id FK to which this produt type is synced, nullable
+    •	external_platform_id FK to which this product type is synced, nullable
     •	external_platform_config json eg attribute set for magento
 
-products
+entities
 	•	id PK
-    •	sku (unique per product_type)
+    •	entity_id (natural ID from external system, unique per entity_type)
+    •	entity_type
 
-products_live etc
-	•	id FK
-    •	(various attributes, none to start)
-	•	status_id
-	•	overridden (bool), value_override (string/json), override_at (ts)
-	•	confidence (float 0..1), justification (text)
-	•	minimal lineage: pipeline_version (copied from attribute at time of production), input_hash (hash of source inputs), produced_at (ts)
-	•	updated_at, created_at
-
-product_statuses
-	•	id
-	•	name. Seeder for values: "synced", "pending_review", "approved", "stale", "override"
-    •	priority (int). Highest priority is viewed as the "current" value.
-    •	readonly (bool). Some statuses (eg stale) no longer allow values to be edited
-
-product_links
-	•	id PK
-	•	from_product_id FK
-	•	to_product_id FK
-    •	product_link_type_id
-
-product_link_types
-	•	id PK
-    •	name, seeders for "is", "confirmed_match", "likely_match", "not_match", "related", "upsell", "crosssell"
-	•	description
-
-categories
-	•	id PK, name, description, parent_category_id, category_tree_id
-	•	category_path (int[]), category_breadcrumbs (text)
-
-category_trees
-	•	id PK, name, description
+values
+    •	id PK
+    •	attribute_id
+    •	entity_id
+    •	value_current
+    •	value_approved
+    •	value_live
+    •	value_override
+    •	input_hash
+    •	justification
+    •	confidence
 
 3.2 Scraping & matching
 
