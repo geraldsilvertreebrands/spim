@@ -60,10 +60,26 @@ class Entity extends Model
     /** Laravel-like fallback getter: $entity->name */
     public function getAttribute($key)
     {
+        // Don't intercept relationship keys or known columns
+        $knownKeys = ['id', 'entity_id', 'entity_type_id', 'created_at', 'updated_at'];
+        $relationshipMethods = ['entityType', 'attributes'];
+
+        if (in_array($key, $knownKeys) || in_array($key, $relationshipMethods)) {
+            return parent::getAttribute($key);
+        }
+
+        // Try parent first
         $value = parent::getAttribute($key);
-        if ($value !== null || $this->hasGetMutator($key) || $this->hasAttributeGetMutator($key)) {
+        if ($value !== null) {
             return $value;
         }
+
+        // Check if relationship is loaded
+        if ($this->relationLoaded($key)) {
+            return parent::getAttribute($key);
+        }
+
+        // Only fall back to EAV for unknown keys
         return $this->getAttr($key, 'override');
     }
 
@@ -170,5 +186,10 @@ class Entity extends Model
                 DB::table('entity_attr_links')->insert($rows);
             }
         });
+    }
+
+    public function entityType()
+    {
+        return $this->belongsTo(EntityType::class, 'entity_type_id');
     }
 }

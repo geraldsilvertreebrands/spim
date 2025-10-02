@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\EntityTypeResource\Pages;
 use App\Models\EntityType;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -16,7 +18,7 @@ class EntityTypeResource extends Resource
 {
     protected static ?string $model = EntityType::class;
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-collection';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static string|UnitEnum|null $navigationGroup = 'Entities';
 
     public static function form(Schema $schema): Schema
@@ -39,10 +41,10 @@ class EntityTypeResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                DeleteBulkAction::make(),
             ]);
     }
 

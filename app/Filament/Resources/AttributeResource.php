@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AttributeResource\Pages;
 use App\Models\Attribute;
 use App\Models\EntityType;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -97,10 +99,10 @@ class AttributeResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                DeleteBulkAction::make(),
             ]);
     }
 
