@@ -48,7 +48,7 @@ class GenerateEntityTypeResources extends Command
         File::ensureDirectoryExists($directory);
         File::put($filePath, $stub);
 
-        // Generate the Pages directory and files
+        // Generate page classes
         $this->generatePages($entityType, $className);
 
         $this->info("  Generated {$className}");
@@ -61,144 +61,68 @@ class GenerateEntityTypeResources extends Command
 
         File::ensureDirectoryExists($pagesDirectory);
 
-        // List page
-        $listPageClass = "List" . Str::plural(Str::studly($entityType->name));
-        $listPagePath = "{$pagesDirectory}/{$listPageClass}.php";
+        $pluralStudly = Str::plural(Str::studly($entityType->name));
 
+        // List page
+        $listPageClass = "List{$pluralStudly}";
+        $listPagePath = "{$pagesDirectory}/{$listPageClass}.php";
         if (!File::exists($listPagePath)) {
-            File::put($listPagePath, $this->getListPageStub($entityType, $resourceClass, $listPageClass));
+            File::put($listPagePath, $this->getListPageStub($resourceClass, $listPageClass));
+        }
+
+        // Create page
+        $createPageClass = "Create" . Str::studly($entityType->name);
+        $createPagePath = "{$pagesDirectory}/{$createPageClass}.php";
+        if (!File::exists($createPagePath)) {
+            File::put($createPagePath, $this->getCreatePageStub($resourceClass, $createPageClass));
+        }
+
+        // Edit page
+        $editPageClass = "Edit" . Str::studly($entityType->name);
+        $editPagePath = "{$pagesDirectory}/{$editPageClass}.php";
+        if (!File::exists($editPagePath)) {
+            File::put($editPagePath, $this->getEditPageStub($resourceClass, $editPageClass));
         }
     }
+
 
     protected function getResourceStub(EntityType $entityType, string $className, string $namespace): string
     {
         $entityTypeName = $entityType->name;
-        $entityTypeId = $entityType->id;
-        $studlyName = Str::studly($entityType->name);
-        $pluralStudly = Str::plural($studlyName);
-        $listPageClass = "List" . $pluralStudly;
+        $pluralStudly = Str::plural(Str::studly($entityType->name));
+        $listPageClass = "List{$pluralStudly}";
+        $createPageClass = "Create" . Str::studly($entityType->name);
+        $editPageClass = "Edit" . Str::studly($entityType->name);
 
         return <<<PHP
 <?php
 
 namespace {$namespace};
 
+use App\Filament\Resources\AbstractEntityTypeResource;
 use App\Filament\Resources\\{$className}\\Pages;
-use App\Models\Attribute;
-use App\Models\Entity;
-use App\Models\UserPreference;
-use App\Support\AttributeUiRegistry;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
-class {$className} extends Resource
+class {$className} extends AbstractEntityTypeResource
 {
-    protected static ?string \$model = Entity::class;
-
-    protected static ?string \$navigationGroup = 'Entities';
-
-    protected static ?string \$navigationIcon = 'heroicon-o-cube';
-
-    protected static ?string \$navigationLabel = '{$entityTypeName}';
-
-    public static function getEloquentQuery(): Builder
+    public static function getEntityTypeName(): string
     {
-        return parent::getEloquentQuery()->where('entity_type_id', {$entityTypeId});
-    }
-
-    public static function table(Table \$table): Table
-    {
-        return \$table
-            ->columns(static::getTableColumns())
-            ->filters([])
-            ->actions([
-                Tables\\Actions\\Action::make('view')
-                    ->label('View')
-                    ->icon('heroicon-o-eye')
-                    ->modalHeading(fn (Entity \$record): string => "{$entityTypeName}: {\$record->id}")
-                    ->modalContent(fn (Entity \$record) => view('filament.components.entity-detail-modal', [
-                        'entity' => \$record,
-                        'entityType' => \$record->entityType,
-                    ]))
-                    ->modalWidth('7xl')
-                    ->slideOver(),
-            ])
-            ->bulkActions([
-                Tables\\Actions\\BulkActionGroup::make([
-                    Tables\\Actions\\DeleteBulkAction::make(),
-                ]),
-            ])
-            ->defaultSort('id', 'desc');
-    }
-
-    protected static function getTableColumns(): array
-    {
-        \$columns = [
-            Tables\\Columns\\TextColumn::make('id')
-                ->label('ID')
-                ->searchable()
-                ->sortable(),
-        ];
-
-        \$entityTypeId = {$entityTypeId};
-        \$preferenceKey = "entity_type_{\$entityTypeId}_columns";
-        \$userId = Auth::id();
-
-        \$selectedAttributes = \$userId
-            ? UserPreference::get(\$userId, \$preferenceKey, static::getDefaultColumns())
-            : static::getDefaultColumns();
-
-        \$attributes = Attribute::where('entity_type_id', \$entityTypeId)
-            ->whereIn('name', \$selectedAttributes)
-            ->get();
-
-        \$registry = app(AttributeUiRegistry::class);
-
-        foreach (\$attributes as \$attribute) {
-            \$columns[] = Tables\\Columns\\TextColumn::make("attr_{\$attribute->name}")
-                ->label(\$attribute->name)
-                ->formatStateUsing(function (Entity \$record) use (\$attribute, \$registry) {
-                    try {
-                        \$ui = \$registry->resolve(\$attribute);
-                        return \$ui->summarise(\$record, \$attribute);
-                    } catch (\\Exception \$e) {
-                        return \$record->getAttr(\$attribute->name) ?? '';
-                    }
-                })
-                ->searchable(false);
-        }
-
-        return \$columns;
-    }
-
-    protected static function getDefaultColumns(): array
-    {
-        return Attribute::where('entity_type_id', {$entityTypeId})
-            ->limit(5)
-            ->pluck('name')
-            ->toArray();
+        return '{$entityTypeName}';
     }
 
     public static function getPages(): array
     {
         return [
             'index' => Pages\\{$listPageClass}::route('/'),
+            'create' => Pages\\{$createPageClass}::route('/create'),
+            'edit' => Pages\\{$editPageClass}::route('/{record}/edit'),
         ];
-    }
-
-    public static function canCreate(): bool
-    {
-        return false; // Disable create for now
     }
 }
 
 PHP;
     }
 
-    protected function getListPageStub(EntityType $entityType, string $resourceClass, string $pageClass): string
+    protected function getListPageStub(string $resourceClass, string $pageClass): string
     {
         return <<<PHP
 <?php
@@ -206,9 +130,45 @@ PHP;
 namespace App\\Filament\\Resources\\{$resourceClass}\\Pages;
 
 use App\\Filament\\Resources\\{$resourceClass};
-use Filament\\Resources\\Pages\\ListRecords;
+use App\\Filament\\Resources\\Pages\\AbstractListEntityRecords;
 
-class {$pageClass} extends ListRecords
+class {$pageClass} extends AbstractListEntityRecords
+{
+    protected static string \$resource = {$resourceClass}::class;
+}
+
+PHP;
+    }
+
+    protected function getCreatePageStub(string $resourceClass, string $pageClass): string
+    {
+        return <<<PHP
+<?php
+
+namespace App\\Filament\\Resources\\{$resourceClass}\\Pages;
+
+use App\\Filament\\Resources\\{$resourceClass};
+use App\\Filament\\Resources\\Pages\\AbstractCreateEntityRecord;
+
+class {$pageClass} extends AbstractCreateEntityRecord
+{
+    protected static string \$resource = {$resourceClass}::class;
+}
+
+PHP;
+    }
+
+    protected function getEditPageStub(string $resourceClass, string $pageClass): string
+    {
+        return <<<PHP
+<?php
+
+namespace App\\Filament\\Resources\\{$resourceClass}\\Pages;
+
+use App\\Filament\\Resources\\{$resourceClass};
+use App\\Filament\\Resources\\Pages\\AbstractEditEntityRecord;
+
+class {$pageClass} extends AbstractEditEntityRecord
 {
     protected static string \$resource = {$resourceClass}::class;
 }
@@ -216,4 +176,5 @@ class {$pageClass} extends ListRecords
 PHP;
     }
 }
+
 
