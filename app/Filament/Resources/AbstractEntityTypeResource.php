@@ -33,7 +33,28 @@ abstract class AbstractEntityTypeResource extends Resource
      */
     public static function getNavigationLabel(): string
     {
+        return static::getPluralLabel();
+    }
+
+    /**
+     * Get the singular model label.
+     */
+    public static function getModelLabel(): string
+    {
         return static::getEntityTypeName();
+    }
+
+    /**
+     * Get the plural model label (from entity_types.display_name).
+     */
+    public static function getPluralLabel(): ?string
+    {
+        try {
+            return static::getEntityType()->display_name;
+        } catch (\Exception $e) {
+            // Fallback if entity type doesn't exist yet
+            return \Illuminate\Support\Str::plural(static::getEntityTypeName());
+        }
     }
 
     /**
@@ -41,13 +62,16 @@ abstract class AbstractEntityTypeResource extends Resource
      */
     public static function getEntityType(): EntityType
     {
-        static $entityType = null;
+        // Use a per-class cache to avoid conflicts between different resources
+        static $entityTypes = [];
 
-        if ($entityType === null) {
-            $entityType = EntityType::where('name', static::getEntityTypeName())->firstOrFail();
+        $className = static::class;
+
+        if (!isset($entityTypes[$className])) {
+            $entityTypes[$className] = EntityType::where('name', static::getEntityTypeName())->firstOrFail();
         }
 
-        return $entityType;
+        return $entityTypes[$className];
     }
 
     /**

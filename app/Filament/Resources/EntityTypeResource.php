@@ -28,6 +28,10 @@ class EntityTypeResource extends Resource
             Forms\Components\TextInput::make('name')
                 ->required()
                 ->unique(ignoreRecord: true),
+            Forms\Components\TextInput::make('display_name')
+                ->required()
+                ->label('Display Name (Plural)')
+                ->helperText('e.g., "Products", "Categories"'),
             Forms\Components\Textarea::make('description')
                 ->columnSpanFull(),
         ]);
@@ -38,6 +42,7 @@ class EntityTypeResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('display_name')->searchable()->sortable()->label('Display Name'),
                 Tables\Columns\TextColumn::make('description')->limit(60),
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
             ])
