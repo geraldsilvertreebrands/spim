@@ -59,14 +59,14 @@ class EntityTableBuilder
         return TextColumn::make($attribute->name)
             ->label(ucfirst(str_replace('_', ' ', $attribute->name)))
             ->getStateUsing(function (Entity $record) use ($attribute) {
-                return $record->getAttr($attribute->name);
-            })
-            ->formatStateUsing(function ($state, Entity $record) use ($attribute) {
+                // Get the formatted value directly, not the raw array
+                // This prevents TextColumn from treating arrays as lists to iterate over
                 try {
                     $ui = $this->registry->resolve($attribute);
                     return $ui->summarise($record, $attribute);
                 } catch (\Exception $e) {
-                    return $state ?? '';
+                    // Fallback: get the raw value
+                    return $record->getAttr($attribute->name) ?? '';
                 }
             })
             ->searchable(false)

@@ -40,6 +40,11 @@ Tasks
 6) Tests (integration-light)
   - Mock Magento client; verify mapping and persistence
 
+7) Change editing form for entities
+  - Attributes of attribute_type "versioned" that have a pipeline, should no longer allow simple editing. They need to show both (i) the value_current field (ie pipeline output), and then: 
+    - if value_override is not null, a form field to edit value_override, as well as a button to "Remove override" (sets to null)
+    - if value_override is null, a button called "override" that shows value editing controls to set value_override
+
 Acceptance criteria
 - Pull sync writes input attributes correctly and creates entities as needed.
 - Push sync updates Magento and advances `value_live` accurately.

@@ -42,7 +42,8 @@ RUN { \
   echo "xdebug.start_with_request=trigger"; \
   echo "xdebug.client_host=host.docker.internal"; \
   echo "xdebug.client_port=9003"; \
-  echo "xdebug.log_level=0"; \
+  echo "xdebug.log=/tmp/xdebug.log"; \
+  echo "xdebug.log_level=7"; \
 } > /usr/local/etc/php/conf.d/xdebug.ini
 
 # Healthcheck (php-fpm ping)
