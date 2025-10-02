@@ -2,11 +2,23 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use App\Policies\UserPolicy;
 use App\Support\AttributeUiRegistry;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * The policy mappings for the application.
+     *
+     * @var array<class-string, class-string>
+     */
+    protected $policies = [
+        User::class => UserPolicy::class,
+    ];
+
     public function register(): void
     {
         $this->app->singleton(AttributeUiRegistry::class, function () {
@@ -25,6 +37,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        // Register policies
+        foreach ($this->policies as $model => $policy) {
+            Gate::policy($model, $policy);
+        }
     }
 }
