@@ -1,4 +1,5 @@
-import tailwindcss from '@tailwindcss/vite'
+import defaultTheme from 'tailwindcss/defaultTheme';
+import forms from '@tailwindcss/forms';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -11,8 +12,10 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
         },
     },
+
+    plugins: [forms],
 };

@@ -17,14 +17,18 @@ final class AttributeCaster
                 $decoded = json_decode((string) $value, true);
                 return $decoded === null && $value !== 'null' ? (string) $value : $decoded;
             case 'multiselect':
-                if (is_array($value)) return $value;
+                if (is_array($value)) return array_values($value);
                 $decoded = json_decode((string) $value, true);
-                return is_array($decoded) ? $decoded : [(string) $value];
+                if (is_array($decoded)) {
+                    return array_values($decoded);
+                }
+                return [(string) $value];
+            case 'select':
             case 'text':
             case 'html':
-            case 'select':
-            default:
                 return (string) $value;
+            default:
+                return $value;
         }
     }
 
@@ -39,10 +43,11 @@ final class AttributeCaster
             case 'json':
                 return is_string($value) ? $value : json_encode($value);
             case 'multiselect':
-                return is_string($value) ? $value : json_encode(array_values((array) $value));
+                return json_encode(array_values((array) $value));
+            case 'select':
+                return (string) $value;
             case 'text':
             case 'html':
-            case 'select':
             default:
                 return (string) $value;
         }

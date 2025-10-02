@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use App\Support\AttributeCaster;
+use App\Services\AttributeService;
 
 class Entity extends Model
 {
+    use HasFactory;
+
     public $incrementing = false;
     protected $keyType = 'string';
     protected $guarded = [];
@@ -17,7 +21,11 @@ class Entity extends Model
 
     protected function loadAttrBags(): array
     {
-        $row = DB::table('entity_attr_json')->where('entity_id', $this->id)->first();
+        $id = $this->getKey();
+        if (!$id) {
+            return ['override' => [], 'current' => []];
+        }
+        $row = DB::table('entity_attr_json')->where('entity_id', $id)->first();
         return [
             'override' => $row?->attrs_with_override ? json_decode($row->attrs_with_override, true) : [],
             'current'  => $row?->attrs_current        ? json_decode($row->attrs_current, true) : [],
@@ -73,14 +81,18 @@ class Entity extends Model
             ->first();
 
         if ($attr) {
+            $attributeModel = app(AttributeService::class)->findByName($this->entity_type_id, $key);
             if (in_array($attr->data_type, ['belongs_to','belongs_to_multi'], true)) {
                 $ids = $attr->data_type === 'belongs_to' ? [$value] : (array) $value;
+                app(AttributeService::class)->validateValue($attributeModel, $ids);
                 $this->setRelated($attr->name, $ids);
             } elseif ($attr->attribute_type === 'versioned') {
-                $encoded = AttributeCaster::castIn($attr->data_type, $value);
+                app(AttributeService::class)->validateValue($attributeModel, $value);
+                $encoded = app(AttributeService::class)->coerceIn($attributeModel, $value);
                 app(\App\Services\EavWriter::class)->upsertVersioned($this->id, (int) $attr->id, $encoded, []);
             } elseif ($attr->attribute_type === 'input') {
-                $encoded = AttributeCaster::castIn($attr->data_type, $value);
+                app(AttributeService::class)->validateValue($attributeModel, $value);
+                $encoded = app(AttributeService::class)->coerceIn($attributeModel, $value);
                 app(\App\Services\EavWriter::class)->upsertInput($this->id, (int) $attr->id, $encoded, 'manual');
             }
             // bust local cache so next read is fresh

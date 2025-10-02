@@ -32,8 +32,8 @@ RUN { \
   echo 'opcache.enable=1'; \
   echo 'opcache.enable_cli=1'; \
   echo 'opcache.validate_timestamps=1'; \
-  echo 'opcache.memory_consumption=256'; \
-  echo 'opcache.max_accelerated_files=20000'; \
+  echo 'opcache.memory_consumption=128'; \
+  echo 'opcache.max_accelerated_files=10000'; \
 } > /usr/local/etc/php/conf.d/opcache.ini
 
 # Xdebug defaults (off; enable via env at runtime)
