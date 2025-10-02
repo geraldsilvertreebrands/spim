@@ -6,6 +6,8 @@ use App\Models\Attribute;
 use App\Models\Entity;
 use App\Models\EntityType;
 use Filament\Forms;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 
 class EntityFormBuilder
 {
@@ -19,17 +21,64 @@ class EntityFormBuilder
                 ->label('ID / SKU')
                 ->required()
                 ->unique(Entity::class, 'entity_id', ignoreRecord: true)
-                ->helperText('Unique identifier for this entity'),
+                ->helperText('Unique identifier for this entity')
+                ->columnSpanFull(),
         ];
 
+        // Get all attributes with their sections
         $attributes = Attribute::where('entity_type_id', $entityType->id)
-            ->orderBy('name')
+            ->with('attributeSection')
+            ->orderBy('sort_order')
             ->get();
 
-        foreach ($attributes as $attribute) {
-            $component = $this->buildComponent($attribute);
-            if ($component) {
-                $components[] = $component;
+        // Group attributes by section
+        $grouped = $attributes->groupBy(function ($attr) {
+            return $attr->attribute_section_id ?? 'unsectioned';
+        });
+
+        // Get sections in order
+        $sections = \App\Models\AttributeSection::where('entity_type_id', $entityType->id)
+            ->orderBy('sort_order')
+            ->get()
+            ->keyBy('id');
+
+        // Add sections with attributes
+        foreach ($sections as $sectionId => $section) {
+            if (isset($grouped[$sectionId])) {
+                $sectionComponents = [];
+                foreach ($grouped[$sectionId] as $attribute) {
+                    $component = $this->buildComponent($attribute);
+                    if ($component) {
+                        $sectionComponents[] = $component;
+                    }
+                }
+
+                if (!empty($sectionComponents)) {
+                    $components[] = Section::make($section->name)
+                        ->schema($sectionComponents)
+                        ->columns(1)  // Changed to 1 column since fields now have their own two-column layout
+                        ->collapsible()
+                        ->columnSpanFull();  // Force full width
+                }
+            }
+        }
+
+        // Add unsectioned attributes
+        if (isset($grouped['unsectioned'])) {
+            $unsectionedComponents = [];
+            foreach ($grouped['unsectioned'] as $attribute) {
+                $component = $this->buildComponent($attribute);
+                if ($component) {
+                    $unsectionedComponents[] = $component;
+                }
+            }
+
+            if (!empty($unsectionedComponents)) {
+                $components[] = Section::make('Other Attributes')
+                    ->schema($unsectionedComponents)
+                    ->columns(1)  // Changed to 1 column since fields now have their own two-column layout
+                    ->collapsible()
+                    ->columnSpanFull();  // Force full width
             }
         }
 
@@ -38,60 +87,101 @@ class EntityFormBuilder
 
     /**
      * Build a single form component for an attribute.
+     * Uses Magento-style two-column layout with attribute name/type on left, field on right.
      */
     public function buildComponent(Attribute $attribute)
     {
         $name = $attribute->name;
-        $label = ucfirst(str_replace('_', ' ', $attribute->name));
-        $helperText = $attribute->attribute_type;
+        $displayName = $attribute->display_name ?? ucfirst(str_replace('_', ' ', $attribute->name));
+
+        // Create the form field without label (since we'll show it in the left column)
+        $field = $this->buildFieldComponent($attribute);
+
+        // Wrap in a grid with label on left, field on right
+        return Grid::make([
+            'default' => 12,
+        ])
+            ->schema([
+                // Left column: Attribute name and metadata (using Placeholder with hiddenLabel)
+                Forms\Components\Placeholder::make('_label_' . $name)
+                    ->hiddenLabel()
+                    ->content(function () use ($displayName, $attribute) {
+                        $typeColor = match ($attribute->attribute_type) {
+                            'versioned' => 'text-blue-600',
+                            'input' => 'text-green-600',
+                            'timeseries' => 'text-purple-600',
+                            default => 'text-gray-600',
+                        };
+
+                        return view('filament.components.attribute-label-wrapper', [
+                            'displayName' => $displayName,
+                            'attributeType' => $attribute->attribute_type,
+                            'dataType' => $attribute->data_type,
+                        ]);
+                    })
+                    ->columnSpan(3),
+
+                // Right column: Form field
+                $field->columnSpan(9),
+            ])
+            ->columnSpanFull()
+            ->extraAttributes(['style' => 'margin-bottom: 0;']); // Minimal spacing between rows
+    }
+
+    /**
+     * Build the actual form field component for an attribute.
+     */
+    protected function buildFieldComponent(Attribute $attribute)
+    {
+        $name = $attribute->name;
 
         return match ($attribute->data_type) {
             'integer' => Forms\Components\TextInput::make($name)
-                ->label($label)
+                ->hiddenLabel()
                 ->numeric()
-                ->helperText($helperText),
+                ->placeholder('Enter integer value'),
 
             'text' => Forms\Components\TextInput::make($name)
-                ->label($label)
+                ->hiddenLabel()
                 ->maxLength(255)
-                ->helperText($helperText),
+                ->placeholder('Enter text value'),
 
             'html' => Forms\Components\RichEditor::make($name)
-                ->label($label)
-                ->helperText($helperText),
+                ->hiddenLabel()
+                ->placeholder('Enter HTML content'),
 
             'json' => Forms\Components\Textarea::make($name)
-                ->label($label)
-                ->helperText('Enter valid JSON')
+                ->hiddenLabel()
+                ->placeholder('Enter valid JSON')
                 ->rows(5),
 
             'select' => Forms\Components\Select::make($name)
-                ->label($label)
+                ->hiddenLabel()
                 ->options($attribute->allowedValues())
-                ->helperText($helperText),
+                ->placeholder('Select an option'),
 
             'multiselect' => Forms\Components\Select::make($name)
-                ->label($label)
+                ->hiddenLabel()
                 ->options($attribute->allowedValues())
                 ->multiple()
-                ->helperText($helperText),
+                ->placeholder('Select one or more options'),
 
             'belongs_to' => Forms\Components\Select::make($name)
-                ->label($label)
+                ->hiddenLabel()
                 ->options($this->getRelatedEntityOptions($attribute))
                 ->searchable()
-                ->helperText('Select related entity'),
+                ->placeholder('Select related entity'),
 
             'belongs_to_multi' => Forms\Components\Select::make($name)
-                ->label($label)
+                ->hiddenLabel()
                 ->options($this->getRelatedEntityOptions($attribute))
                 ->multiple()
                 ->searchable()
-                ->helperText('Select related entities'),
+                ->placeholder('Select related entities'),
 
             default => Forms\Components\TextInput::make($name)
-                ->label($label)
-                ->helperText($helperText),
+                ->hiddenLabel()
+                ->placeholder('Enter value'),
         };
     }
 

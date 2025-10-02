@@ -20,7 +20,8 @@ class AttributeResource extends Resource
     protected static ?string $model = Attribute::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-adjustments-horizontal';
-    protected static string|UnitEnum|null $navigationGroup = 'Entities';
+    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {
@@ -28,10 +29,35 @@ class AttributeResource extends Resource
             Forms\Components\Select::make('entity_type_id')
                 ->label('Entity Type')
                 ->options(EntityType::pluck('name', 'id'))
-                ->required(),
+                ->required()
+                ->reactive(),
             Forms\Components\TextInput::make('name')
                 ->required()
-                ->unique(ignoreRecord: true),
+                ->unique(ignoreRecord: true)
+                ->helperText('Internal attribute code (e.g., product_name)'),
+            Forms\Components\TextInput::make('display_name')
+                ->label('Display Name')
+                ->nullable()
+                ->helperText('Human-readable name shown in forms (e.g., Product Name). Leave empty to auto-generate from name.'),
+            Forms\Components\Select::make('attribute_section_id')
+                ->label('Attribute Section')
+                ->options(function (callable $get) {
+                    $entityTypeId = $get('entity_type_id');
+                    if (!$entityTypeId) {
+                        return [];
+                    }
+                    return \App\Models\AttributeSection::where('entity_type_id', $entityTypeId)
+                        ->orderBy('sort_order')
+                        ->pluck('name', 'id');
+                })
+                ->searchable()
+                ->nullable()
+                ->helperText('Optional: Group this attribute under a section'),
+            Forms\Components\TextInput::make('sort_order')
+                ->numeric()
+                ->default(0)
+                ->required()
+                ->helperText('Controls the display order within the section. Lower numbers appear first.'),
             Forms\Components\Select::make('data_type')
                 ->options([
                     'integer' => 'Integer',

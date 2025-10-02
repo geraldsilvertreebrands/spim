@@ -19,7 +19,8 @@ class EntityTypeResource extends Resource
     protected static ?string $model = EntityType::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static string|UnitEnum|null $navigationGroup = 'Entities';
+    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
     {

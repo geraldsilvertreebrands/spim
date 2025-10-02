@@ -26,6 +26,11 @@ class Attribute extends Model
         return $this->belongsTo(EntityType::class, 'linked_entity_type_id');
     }
 
+    public function attributeSection()
+    {
+        return $this->belongsTo(AttributeSection::class, 'attribute_section_id');
+    }
+
     public function allowedValues(): array
     {
         $values = $this->allowed_values ?? [];
