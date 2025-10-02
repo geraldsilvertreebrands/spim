@@ -56,9 +56,15 @@ class Attribute extends Model
         if (is_array($value)) {
             $normalized = [];
             foreach ($value as $key => $label) {
-                if (is_int($key)) {
+                // Check if this is a sequential array (0, 1, 2...) with no explicit keys
+                // by checking if the key matches the iteration position
+                $isSequentialArray = is_int($key) && $key === count($normalized);
+
+                if ($isSequentialArray) {
+                    // No meaningful keys provided, use label as key
                     $normalized[$label] = $label;
                 } else {
+                    // Preserve all keys (including numeric keys like "1", "2")
                     $normalized[(string) $key] = (string) $label;
                 }
             }
