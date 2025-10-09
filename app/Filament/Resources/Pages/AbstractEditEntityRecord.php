@@ -34,6 +34,30 @@ class AbstractEditEntityRecord extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            \Filament\Actions\Action::make('syncToMagento')
+                ->label('Sync to Magento')
+                ->icon('heroicon-o-cloud-arrow-up')
+                ->color('primary')
+                ->requiresConfirmation()
+                ->modalHeading('Sync to Magento')
+                ->modalDescription('This will sync this product to Magento immediately.')
+                ->action(function () {
+                    /** @var int|null $userId */
+                    $userId = auth()->id();
+
+                    \App\Jobs\Sync\SyncSingleProduct::dispatch(
+                        $this->record,
+                        $userId,
+                        'user'
+                    );
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Sync queued')
+                        ->body('Product will be synced to Magento shortly. Check the Magento Sync page for results.')
+                        ->success()
+                        ->send();
+                }),
+
             \Filament\Actions\DeleteAction::make(),
         ];
     }

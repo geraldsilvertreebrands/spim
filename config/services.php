@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'magento' => [
+        'base_url' => env('MAGENTO_BASE_URL'),
+        'access_token' => env('MAGENTO_ACCESS_TOKEN'),
+    ],
+
 ];

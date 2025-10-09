@@ -95,6 +95,34 @@ Relations (`belongs_to`, `belongs_to_multi`) are stored in `entity_attr_links` a
 	•	Integration: Magento 2 via REST; thin Magento module only if/where APIs fall short.
 	•	Secrets: env vars for now (12‑factor); revisit KMS/SM when needed.
 
+---
+
+# Magento sync
+
+We will sync products, categories, and maybe more. Each sync type is its own logic, as they are fairly similar, though based on an abstract parent sync class.
+
+## Connection and setup:
+- .env file contains vars MAGENTO_BASE_URL and MAGENTO_ACCESS_TOKEN
+- use Magento 2 REST API
+
+## Attribute types:
+- "versioned" attribute value updates will sync from spim to Magento
+- "input" attribute values sync from Magento to spim, and not editable in spim
+- no "timeseries" attributes sync
+
+## Sync workflow:
+0. Run the whole thing in a big database transaction to avoid database corruption.
+1. Match up all attributes that have is_sync true. Matching is done on attribute name being identical. Match attribute types, too, to ensure that attributes can be synced due to compatible types. Any missing/unsyncable attributes cause an fatal error at this stage.
+2. Sync select and multiselect attribute value options from Magento to spim (sync keys and values), and from spim to Magento (bi-directional). Fatal error on impossible syncs, e.g., same key different values, different keys same value, etc. (E.g., sort and match by value, check no different keys; sort and match by key, check no different values; sync missing on both sides).
+3. Sync products in Magento, not in spim: sync into spim. Match products by Magento sku equals spim entity_id. Sync all synced attribute values from Magento to spim. For versioned attributes, set for value_current, value_approved and value_live.
+4. For existing products: sync as follows:
+    - for "versioned" attribute_types, sync the value_approved from spim to Magento, and update value_live to the value too
+    - for "input" attribute_types, sync from Magento to spim
+5. Sync products in spim not in Magento: create products in Magento. Sync them as status disabled unless status is one of the sync fields.
+
+## Attribute type mapping:
+- in general, most mappings are obvious
+- images (media) stored as URLs, when syncing to Magento: upload the image to Magento. When syncing from Magento, keep the URL as-is,
 
 ---
 
