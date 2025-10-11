@@ -31,11 +31,10 @@ class ReviewQueueService
                 'a.name as attribute_name',
                 'a.display_name as attribute_display_name',
                 'a.data_type',
-                'a.review_required',
+                'a.needs_approval',
                 'a.ui_class',
                 'a.allowed_values',
                 'a.linked_entity_type_id',
-                'a.attribute_type',
                 'ev.value_current',
                 'ev.value_override',
                 'ev.value_approved',
@@ -46,9 +45,9 @@ class ReviewQueueService
             // Compare display value (override if exists, else current) to approved
             ->whereRaw('COALESCE(NULLIF(ev.value_override, ""), ev.value_current) != COALESCE(ev.value_approved, "")')
             ->where(function ($query) {
-                $query->where('a.review_required', 'always')
+                $query->where('a.needs_approval', 'yes')
                     ->orWhere(function ($q) {
-                        $q->where('a.review_required', 'low_confidence')
+                        $q->where('a.needs_approval', 'only_low_confidence')
                           ->where(function ($q2) {
                               $q2->whereNull('ev.confidence')
                                  ->orWhereRaw('ev.confidence < 0.8');
@@ -82,11 +81,10 @@ class ReviewQueueService
                 'attribute_name' => $row->attribute_name,
                 'attribute_display_name' => $row->attribute_display_name,
                 'data_type' => $row->data_type,
-                'attribute_type' => $row->attribute_type,
                 'ui_class' => $row->ui_class,
                 'allowed_values' => $row->allowed_values,
                 'linked_entity_type_id' => $row->linked_entity_type_id,
-                'review_required' => $row->review_required,
+                'needs_approval' => $row->needs_approval,
                 'value_current' => $row->value_current,
                 'value_override' => $row->value_override,
                 'value_display' => $displayValue,
@@ -112,9 +110,9 @@ class ReviewQueueService
             // Compare display value (override if exists, else current) to approved
             ->whereRaw('COALESCE(NULLIF(ev.value_override, ""), ev.value_current) != COALESCE(ev.value_approved, "")')
             ->where(function ($query) {
-                $query->where('a.review_required', 'always')
+                $query->where('a.needs_approval', 'yes')
                     ->orWhere(function ($q) {
-                        $q->where('a.review_required', 'low_confidence')
+                        $q->where('a.needs_approval', 'only_low_confidence')
                           ->where(function ($q2) {
                               $q2->whereNull('ev.confidence')
                                  ->orWhereRaw('ev.confidence < 0.8');

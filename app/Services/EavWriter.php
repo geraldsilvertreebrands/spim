@@ -8,7 +8,13 @@ class EavWriter
 {
     /**
      * Upsert a VERSIONED attribute.
-     * review_required: 'always' | 'low_confidence' | 'no'
+     *
+     * Logic based on attribute configuration:
+     * - Always sets value_current
+     * - If needs_approval='no', also sets value_approved
+     * - If needs_approval='only_low_confidence' AND confidence>=0.8, also sets value_approved
+     * - If is_sync='no' AND value_approved was set, also sets value_live
+     *
      * Options: input_hash, justification, confidence (0..1), meta (array)
      */
     public function upsertVersioned(string $entityId, int $attributeId, ?string $newValue, array $opts = []): void
@@ -19,13 +25,16 @@ class EavWriter
             throw new \InvalidArgumentException('Attribute not found: '.$attributeId);
         }
 
-        // Auto-approval decision
+        // Auto-approval decision based on needs_approval setting
         $confidence = array_key_exists('confidence', $opts) ? (float) $opts['confidence'] : null;
-        $autoApprove = match ($attr->review_required) {
-            'always' => false,
-            'low_confidence' => ($confidence !== null && $confidence >= 0.8),
-            default => true,
+        $autoApprove = match ($attr->needs_approval) {
+            'yes' => false,
+            'only_low_confidence' => ($confidence !== null && $confidence >= 0.8),
+            default => true, // 'no' means always auto-approve
         };
+
+        // Also set value_live if auto-approved AND is_sync='no'
+        $autoSetLive = $autoApprove && $attr->is_sync === 'no';
 
         // Ensure row exists to avoid created_at being overwritten on updates
         $existing = DB::table('eav_versioned')->where([
@@ -39,7 +48,7 @@ class EavWriter
                 'attribute_id'   => $attributeId,
                 'value_current'  => $newValue,
                 'value_approved' => $autoApprove ? $newValue : null,
-                'value_live'     => null,
+                'value_live'     => $autoSetLive ? $newValue : null,
                 'value_override' => null,
                 'input_hash'     => $opts['input_hash'] ?? null,
                 'justification'  => $opts['justification'] ?? null,
@@ -66,7 +75,11 @@ class EavWriter
         ];
 
         if ($autoApprove) {
-            $updates['value_approved'] = $newValue; // keep approved in sync when auto-approved
+            $updates['value_approved'] = $newValue;
+        }
+
+        if ($autoSetLive) {
+            $updates['value_live'] = $newValue;
         }
 
         DB::table('eav_versioned')->where('id', $existing->id)->update($updates);
@@ -99,35 +112,11 @@ class EavWriter
         ]);
     }
 
-    /** INPUT write */
-    public function upsertInput(string $entityId, int $attributeId, ?string $value, ?string $source = null): void
-    {
-        $existing = DB::table('eav_input')->where([
-            'entity_id' => $entityId,
-            'attribute_id' => $attributeId,
-        ])->first();
-
-        if ($existing) {
-            DB::table('eav_input')->where('id', $existing->id)->update([
-                'value' => $value,
-                'source' => $source,
-                'updated_at' => now(),
-            ]);
-        } else {
-            DB::table('eav_input')->insert([
-                'entity_id' => $entityId,
-                'attribute_id' => $attributeId,
-                'value' => $value,
-                'source' => $source,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-    }
 
     /**
      * Approve a versioned attribute value (set value_approved = override or current)
      * If an override exists, approve the override value. Otherwise approve the current value.
+     * Also sets value_live if is_sync='no'
      */
     public function approveVersioned(string $entityId, int $attributeId): void
     {
@@ -140,13 +129,26 @@ class EavWriter
             throw new \InvalidArgumentException("Versioned attribute not found for entity {$entityId} and attribute {$attributeId}");
         }
 
+        // Get attribute configuration
+        $attr = DB::table('attributes')->find($attributeId);
+        if (!$attr) {
+            throw new \InvalidArgumentException('Attribute not found: '.$attributeId);
+        }
+
         // Use override if it exists, otherwise use current
         $valueToApprove = $existing->value_override ?? $existing->value_current;
 
-        DB::table('eav_versioned')->where('id', $existing->id)->update([
+        $updates = [
             'value_approved' => $valueToApprove,
             'updated_at' => now(),
-        ]);
+        ];
+
+        // Also set value_live if is_sync='no' (not synced to external systems)
+        if ($attr->is_sync === 'no') {
+            $updates['value_live'] = $valueToApprove;
+        }
+
+        DB::table('eav_versioned')->where('id', $existing->id)->update($updates);
     }
 
     /**

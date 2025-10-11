@@ -106,16 +106,29 @@ class EntityFormBuilder
                 Forms\Components\Placeholder::make('_label_' . $name)
                     ->hiddenLabel()
                     ->content(function () use ($displayName, $attribute) {
-                        $typeColor = match ($attribute->attribute_type) {
-                            'versioned' => 'text-blue-600',
-                            'input' => 'text-green-600',
-                            'timeseries' => 'text-purple-600',
+                        // Determine color based on editable + sync status
+                        $typeColor = match ($attribute->editable) {
+                            'yes' => 'text-blue-600',
+                            'overridable' => 'text-purple-600',
+                            'no' => 'text-gray-500',
                             default => 'text-gray-600',
+                        };
+
+                        $editableLabel = match ($attribute->editable) {
+                            'yes' => 'Editable',
+                            'overridable' => 'Overridable',
+                            'no' => 'Read-only',
+                        };
+
+                        $syncLabel = match ($attribute->is_sync) {
+                            'from_external' => ' (← Sync)',
+                            'to_external' => ' (Sync →)',
+                            default => '',
                         };
 
                         return view('filament.components.attribute-label-wrapper', [
                             'displayName' => $displayName,
-                            'attributeType' => $attribute->attribute_type,
+                            'attributeType' => $editableLabel . $syncLabel,
                             'dataType' => $attribute->data_type,
                         ]);
                     })
@@ -134,8 +147,13 @@ class EntityFormBuilder
     protected function buildFieldComponent(Attribute $attribute)
     {
         $name = $attribute->name;
+        $isReadOnly = $attribute->editable === 'no';
 
-        return match ($attribute->data_type) {
+        $helperText = $attribute->editable === 'overridable'
+            ? 'Override the current value (leave empty to use current value)'
+            : null;
+
+        $field = match ($attribute->data_type) {
             'integer' => Forms\Components\TextInput::make($name)
                 ->hiddenLabel()
                 ->numeric()
@@ -183,6 +201,18 @@ class EntityFormBuilder
                 ->hiddenLabel()
                 ->placeholder('Enter value'),
         };
+
+        // Disable field if read-only
+        if ($isReadOnly) {
+            $field = $field->disabled();
+        }
+
+        // Add helper text for overridable fields
+        if ($helperText) {
+            $field = $field->helperText($helperText);
+        }
+
+        return $field;
     }
 
     /**

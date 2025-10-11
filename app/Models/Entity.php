@@ -98,19 +98,30 @@ class Entity extends Model
 
         if ($attr) {
             $attributeModel = app(AttributeService::class)->findByName($this->entity_type_id, $key);
+
+            // Handle relationship attributes separately
             if (in_array($attr->data_type, ['belongs_to','belongs_to_multi'], true)) {
                 $ids = $attr->data_type === 'belongs_to' ? [$value] : (array) $value;
                 app(AttributeService::class)->validateValue($attributeModel, $ids);
                 $this->setRelated($attr->name, $ids);
-            } elseif ($attr->attribute_type === 'versioned') {
-                app(AttributeService::class)->validateValue($attributeModel, $value);
-                $encoded = app(AttributeService::class)->coerceIn($attributeModel, $value);
-                app(\App\Services\EavWriter::class)->upsertVersioned($this->id, (int) $attr->id, $encoded, []);
-            } elseif ($attr->attribute_type === 'input') {
-                app(AttributeService::class)->validateValue($attributeModel, $value);
-                $encoded = app(AttributeService::class)->coerceIn($attributeModel, $value);
-                app(\App\Services\EavWriter::class)->upsertInput($this->id, (int) $attr->id, $encoded, 'manual');
+            } else {
+                // Handle regular attributes based on editable setting
+                if ($attr->editable === 'no') {
+                    throw new \InvalidArgumentException("Attribute '{$key}' is read-only and cannot be edited.");
+                } elseif ($attr->editable === 'overridable') {
+                    // For overridable attributes, set the override value
+                    // Passing null clears the override
+                    app(AttributeService::class)->validateValue($attributeModel, $value);
+                    $encoded = app(AttributeService::class)->coerceIn($attributeModel, $value);
+                    app(\App\Services\EavWriter::class)->setOverride($this->id, (int) $attr->id, $encoded);
+                } else { // editable === 'yes'
+                    // For editable attributes, update value_current (and possibly value_approved/value_live)
+                    app(AttributeService::class)->validateValue($attributeModel, $value);
+                    $encoded = app(AttributeService::class)->coerceIn($attributeModel, $value);
+                    app(\App\Services\EavWriter::class)->upsertVersioned($this->id, (int) $attr->id, $encoded, []);
+                }
             }
+
             // bust local cache so next read is fresh
             $this->attrCache = [];
             return $this;

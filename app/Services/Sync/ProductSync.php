@@ -80,7 +80,7 @@ class ProductSync extends AbstractSync
         $this->logInfo('Validating synced attributes');
 
         $this->syncedAttributes = Attribute::where('entity_type_id', $this->entityType->id)
-            ->where('is_synced', true)
+            ->whereIn('is_sync', ['from_external', 'to_external'])
             ->get()
             ->keyBy('name')
             ->all();
@@ -93,11 +93,6 @@ class ProductSync extends AbstractSync
         // Validate data type compatibility
         $errors = [];
         foreach ($this->syncedAttributes as $attribute) {
-            // Check if attribute type makes sense for sync
-            if ($attribute->attribute_type === 'timeseries') {
-                $errors[] = "Attribute '{$attribute->name}' is timeseries type, which cannot be synced";
-            }
-
             // Check if belongs_to types are not marked for sync
             if (in_array($attribute->data_type, ['belongs_to', 'belongs_to_multi'])) {
                 $errors[] = "Attribute '{$attribute->name}' is a relationship type, which cannot be synced";
@@ -195,15 +190,16 @@ class ProductSync extends AbstractSync
                 // Convert value to string for storage
                 $stringValue = $this->convertValueToString($value, $attribute->data_type);
 
-                if ($attribute->attribute_type === 'input') {
-                    // Input attributes always sync from Magento
-                    $this->eavWriter->upsertInput($entity->id, $attribute->id, $stringValue, 'magento');
-                } elseif ($attribute->attribute_type === 'versioned') {
-                    if ($isNew) {
-                        // For new products, set all three value fields to the same value
+                if ($isNew) {
+                    // For new products, import ALL synced attributes (treat all as from_external for initial creation)
+                    // Set all three value fields to the same value
+                    $this->importVersionedAttribute($entity->id, $attribute->id, $stringValue);
+                } else {
+                    // For existing products, only update attributes with is_sync='from_external'
+                    if ($attribute->is_sync === 'from_external') {
                         $this->importVersionedAttribute($entity->id, $attribute->id, $stringValue);
                     }
-                    // For existing products, versioned attributes are not updated from Magento
+                    // Attributes with is_sync='to_external' are not updated from Magento
                 }
             }
 
@@ -339,11 +335,14 @@ class ProductSync extends AbstractSync
             return array_keys($this->syncedAttributes);
         }
 
-        // For existing products, only sync versioned attributes where value_approved != value_live
+        // For existing products, only sync attributes where:
+        // 1. is_sync='to_external'
+        // 2. AND value_approved != value_live
         $attributesToSync = [];
 
         foreach ($this->syncedAttributes as $attributeName => $attribute) {
-            if ($attribute->attribute_type === 'versioned') {
+            // Only sync 'to_external' attributes (not 'from_external')
+            if ($attribute->is_sync === 'to_external') {
                 $versionedRecord = DB::table('eav_versioned')
                     ->where('entity_id', $entity->id)
                     ->where('attribute_id', $attribute->id)
@@ -408,28 +407,18 @@ class ProductSync extends AbstractSync
      */
     private function getAttributeValue(Entity $entity, Attribute $attribute): ?string
     {
-        if ($attribute->attribute_type === 'versioned') {
-            $record = DB::table('eav_versioned')
-                ->where('entity_id', $entity->id)
-                ->where('attribute_id', $attribute->id)
-                ->first();
+        // All attributes now use eav_versioned table
+        $record = DB::table('eav_versioned')
+            ->where('entity_id', $entity->id)
+            ->where('attribute_id', $attribute->id)
+            ->first();
 
-            if (!$record) {
-                return null;
-            }
-
-            // Use override if present, otherwise use approved value
-            return $record->value_override ?? $record->value_approved;
-        } elseif ($attribute->attribute_type === 'input') {
-            $record = DB::table('eav_input')
-                ->where('entity_id', $entity->id)
-                ->where('attribute_id', $attribute->id)
-                ->first();
-
-            return $record?->value;
+        if (!$record) {
+            return null;
         }
 
-        return null;
+        // Use override if present, otherwise use approved value
+        return $record->value_override ?? $record->value_approved;
     }
 
     /**
@@ -467,29 +456,27 @@ class ProductSync extends AbstractSync
     }
 
     /**
-     * Update value_live for synced versioned attributes
+     * Update value_live for synced attributes
      */
     private function updateValueLive(Entity $entity, array $attributesToSync): void
     {
         foreach ($attributesToSync as $attributeName) {
             $attribute = $this->syncedAttributes[$attributeName];
 
-            if ($attribute->attribute_type === 'versioned') {
-                $record = DB::table('eav_versioned')
-                    ->where('entity_id', $entity->id)
-                    ->where('attribute_id', $attribute->id)
-                    ->first();
+            $record = DB::table('eav_versioned')
+                ->where('entity_id', $entity->id)
+                ->where('attribute_id', $attribute->id)
+                ->first();
 
-                if ($record) {
-                    $valueToSync = $record->value_override ?? $record->value_approved;
+            if ($record) {
+                $valueToSync = $record->value_override ?? $record->value_approved;
 
-                    DB::table('eav_versioned')
-                        ->where('id', $record->id)
-                        ->update([
-                            'value_live' => $valueToSync,
-                            'updated_at' => now(),
-                        ]);
-                }
+                DB::table('eav_versioned')
+                    ->where('id', $record->id)
+                    ->update([
+                        'value_live' => $valueToSync,
+                        'updated_at' => now(),
+                    ]);
             }
         }
     }
