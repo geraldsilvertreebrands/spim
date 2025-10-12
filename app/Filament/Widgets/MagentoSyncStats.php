@@ -17,7 +17,7 @@ class MagentoSyncStats extends BaseWidget
         // Count products pending sync (where value_approved != value_live)
         $pendingCount = DB::table('eav_versioned as v')
             ->join('attributes as a', 'v.attribute_id', '=', 'a.id')
-            ->where('a.is_synced', true)
+            ->whereIn('a.is_sync', ['from_external', 'to_external'])
             ->whereRaw('COALESCE(v.value_approved, "") != COALESCE(v.value_live, "")')
             ->distinct('v.entity_id')
             ->count('v.entity_id');

@@ -31,17 +31,20 @@ class ApprovalWorkflowTest extends TestCase
         // Create entity type
         $this->entityType = EntityType::create([
             'name' => 'Test Product',
+            'display_name' => 'Test Product',
             'description' => 'Test products',
         ]);
 
-        // Create test attributes with different review requirements
+        // Create test attributes with different approval requirements
         $this->alwaysReviewAttr = Attribute::create([
             'entity_type_id' => $this->entityType->id,
             'name' => 'always_review_field',
             'display_name' => 'Always Review Field',
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'always',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'yes',
         ]);
 
         $this->lowConfidenceAttr = Attribute::create([
@@ -49,8 +52,10 @@ class ApprovalWorkflowTest extends TestCase
             'name' => 'low_confidence_field',
             'display_name' => 'Low Confidence Field',
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'low_confidence',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'only_low_confidence',
         ]);
 
         $this->noReviewAttr = Attribute::create([
@@ -58,8 +63,10 @@ class ApprovalWorkflowTest extends TestCase
             'name' => 'no_review_field',
             'display_name' => 'No Review Field',
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         // Create test entity
@@ -147,6 +154,8 @@ class ApprovalWorkflowTest extends TestCase
         // Should be auto-approved regardless of confidence
         $this->assertEquals('Auto Approved Value', $row->value_current);
         $this->assertEquals('Auto Approved Value', $row->value_approved);
+        // Since is_sync='no', value_live should also be set
+        $this->assertEquals('Auto Approved Value', $row->value_live);
     }
 
     public function test_approve_versioned_updates_approved_value(): void
@@ -296,9 +305,9 @@ class ApprovalWorkflowTest extends TestCase
 
         $this->assertEquals('First Value', $row->value_approved);
 
-        // Update the attribute with always-review setting
+        // Update the attribute to always need approval
         DB::table('attributes')->where('id', $this->noReviewAttr->id)->update([
-            'review_required' => 'always',
+            'needs_approval' => 'yes',
         ]);
 
         // Update value again
@@ -332,9 +341,9 @@ class ApprovalWorkflowTest extends TestCase
         // Set an override (different from approved)
         $writer->setOverride($this->entity->id, $this->noReviewAttr->id, 'Override Value');
 
-        // Change to always review
+        // Change to always need approval
         DB::table('attributes')->where('id', $this->noReviewAttr->id)->update([
-            'review_required' => 'always',
+            'needs_approval' => 'yes',
         ]);
 
         // Should appear in review queue because override != approved
@@ -382,9 +391,9 @@ class ApprovalWorkflowTest extends TestCase
         // Set override to match approved
         $writer->setOverride($this->entity->id, $this->noReviewAttr->id, 'Current Value');
 
-        // Change to always review
+        // Change to always need approval
         DB::table('attributes')->where('id', $this->noReviewAttr->id)->update([
-            'review_required' => 'always',
+            'needs_approval' => 'yes',
         ]);
 
         // Should NOT appear in queue (override == approved)
@@ -571,6 +580,116 @@ class ApprovalWorkflowTest extends TestCase
         $totalAttributes = array_sum(array_map(fn($e) => count($e['attributes']), $pending));
         $this->assertEquals($totalAttributes, $count);
         $this->assertEquals(3, $count);
+    }
+
+    public function test_is_sync_no_sets_value_live_when_auto_approved(): void
+    {
+        $writer = app(EavWriter::class);
+
+        // Create attribute with is_sync='no'
+        $localAttr = Attribute::create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'local_field',
+            'display_name' => 'Local Field',
+            'data_type' => 'text',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
+        ]);
+
+        // Write value - should auto-approve AND set value_live
+        $writer->upsertVersioned($this->entity->id, $localAttr->id, 'Local Value', []);
+
+        $row = DB::table('eav_versioned')
+            ->where('entity_id', $this->entity->id)
+            ->where('attribute_id', $localAttr->id)
+            ->first();
+
+        $this->assertEquals('Local Value', $row->value_current);
+        $this->assertEquals('Local Value', $row->value_approved);
+        $this->assertEquals('Local Value', $row->value_live);
+    }
+
+    public function test_is_sync_to_external_does_not_set_value_live_when_auto_approved(): void
+    {
+        $writer = app(EavWriter::class);
+
+        // Create attribute with is_sync='to_external'
+        $syncAttr = Attribute::create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'sync_field',
+            'display_name' => 'Sync Field',
+            'data_type' => 'text',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'to_external',
+            'needs_approval' => 'no',
+        ]);
+
+        // Write value - should auto-approve but NOT set value_live (needs external sync)
+        $writer->upsertVersioned($this->entity->id, $syncAttr->id, 'Sync Value', []);
+
+        $row = DB::table('eav_versioned')
+            ->where('entity_id', $this->entity->id)
+            ->where('attribute_id', $syncAttr->id)
+            ->first();
+
+        $this->assertEquals('Sync Value', $row->value_current);
+        $this->assertEquals('Sync Value', $row->value_approved);
+        $this->assertNull($row->value_live); // Should be null, awaiting external sync
+    }
+
+    public function test_approve_with_is_sync_no_sets_value_live(): void
+    {
+        $writer = app(EavWriter::class);
+
+        // Create pending approval with is_sync='no'
+        $writer->upsertVersioned($this->entity->id, $this->alwaysReviewAttr->id, 'Pending Value', []);
+
+        // Approve it
+        $writer->approveVersioned($this->entity->id, $this->alwaysReviewAttr->id);
+
+        $row = DB::table('eav_versioned')
+            ->where('entity_id', $this->entity->id)
+            ->where('attribute_id', $this->alwaysReviewAttr->id)
+            ->first();
+
+        $this->assertEquals('Pending Value', $row->value_approved);
+        // Since is_sync='no', value_live should also be set
+        $this->assertEquals('Pending Value', $row->value_live);
+    }
+
+    public function test_approve_with_is_sync_to_external_does_not_set_value_live(): void
+    {
+        $writer = app(EavWriter::class);
+
+        // Create attribute with is_sync='to_external' and needs_approval='yes'
+        $syncAttr = Attribute::create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'sync_field',
+            'display_name' => 'Sync Field',
+            'data_type' => 'text',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'to_external',
+            'needs_approval' => 'yes',
+        ]);
+
+        // Write value - should NOT auto-approve
+        $writer->upsertVersioned($this->entity->id, $syncAttr->id, 'Sync Value', []);
+
+        // Approve it
+        $writer->approveVersioned($this->entity->id, $syncAttr->id);
+
+        $row = DB::table('eav_versioned')
+            ->where('entity_id', $this->entity->id)
+            ->where('attribute_id', $syncAttr->id)
+            ->first();
+
+        $this->assertEquals('Sync Value', $row->value_approved);
+        // Since is_sync='to_external', value_live should NOT be set (needs external sync)
+        $this->assertNull($row->value_live);
     }
 }
 

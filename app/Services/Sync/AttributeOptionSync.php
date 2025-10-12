@@ -37,7 +37,7 @@ class AttributeOptionSync extends AbstractSync
 
         // Get all synced select/multiselect attributes for this entity type
         $attributes = Attribute::where('entity_type_id', $this->entityType->id)
-            ->where('is_synced', true)
+            ->whereIn('is_sync', ['from_external', 'to_external'])
             ->whereIn('data_type', ['select', 'multiselect'])
             ->get();
 

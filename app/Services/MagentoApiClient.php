@@ -28,34 +28,39 @@ class MagentoApiClient
      */
     private function client(): PendingRequest
     {
-        return Http::withToken($this->token)
+        $client = Http::withToken($this->token)
             ->timeout(30)
             ->retry(3, 100, function ($exception, $request) {
                 // Retry on connection errors and 5xx responses
                 return $exception instanceof \Illuminate\Http\Client\ConnectionException ||
                        ($exception instanceof \Illuminate\Http\Client\RequestException && $exception->response->status() >= 500);
             })
+            ->acceptJson()
             ->baseUrl($this->baseUrl);
+
+        // For local development, disable SSL verification
+        if (app()->environment('local')) {
+            $client = $client->withoutVerifying();
+        }
+
+        return $client;
     }
 
     /**
      * Fetch all products from Magento
      *
      * @param array $filters Search criteria filters
-     * @return array Products array from Magento
+     * @return array Products response with 'items' and 'total_count'
      */
     public function getProducts(array $filters = []): array
     {
         $searchCriteria = $this->buildSearchCriteria($filters);
 
-        $response = $this->client()->get('/rest/V1/products', [
-            'searchCriteria' => $searchCriteria,
-        ]);
+        $response = $this->client()->get('/rest/V1/products', $searchCriteria);
 
         $this->ensureSuccessful($response, 'Failed to fetch products from Magento');
 
-        $data = $response->json();
-        return $data['items'] ?? [];
+        return $response->json();
     }
 
     /**
@@ -239,17 +244,18 @@ class MagentoApiClient
      */
     private function buildSearchCriteria(array $filters): array
     {
+        $criteria = [];
+
         if (empty($filters)) {
-            return [];
+            // Empty search criteria - return all products
+            return $criteria;
         }
 
-        $criteria = [];
         $filterIndex = 0;
-
         foreach ($filters as $field => $value) {
-            $criteria["filterGroups[{$filterIndex}][filters][0][field]"] = $field;
-            $criteria["filterGroups[{$filterIndex}][filters][0][value]"] = $value;
-            $criteria["filterGroups[{$filterIndex}][filters][0][conditionType]"] = 'eq';
+            $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][field]"] = $field;
+            $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][value]"] = $value;
+            $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][conditionType]"] = 'eq';
             $filterIndex++;
         }
 
@@ -271,7 +277,7 @@ class MagentoApiClient
                 'status' => $response->status(),
                 'error' => $error,
             ]);
-            throw new RuntimeException("{$message}: {$error}");
+            throw new RuntimeException("Magento API error: {$message} - {$error}");
         }
     }
 }

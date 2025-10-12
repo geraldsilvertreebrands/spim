@@ -119,7 +119,7 @@ To avoid dynamic SQL pivots, we use MySQL views to pre-aggregate values into per
 - `entity_attribute_resolved`: Resolves values from `eav_versioned`, computing both override and current-only values
 - `entity_attr_json`: Aggregates resolved values into JSON bags per entity:
   - `attrs_with_override`: Uses value_override if present, else value_current
-  - `attrs_current_only`: Always uses value_current
+  - `attrs_current`: Always uses value_current
   - `attrs_approved`: Uses value_approved
   - `attrs_live`: Uses value_live
 

@@ -37,13 +37,7 @@ class JsonAttributeUi implements AttributeUi
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \InvalidArgumentException('Invalid JSON supplied');
         }
-        app(AttributeService::class)->validateValue($attribute, $decoded);
-        $encoded = app(AttributeService::class)->coerceIn($attribute, $decoded);
-
-        if ($attribute->attribute_type === 'versioned') {
-            app(EavWriter::class)->upsertVersioned($entity->id, $attribute->id, $encoded);
-        } elseif ($attribute->attribute_type === 'input') {
-            app(EavWriter::class)->upsertInput($entity->id, $attribute->id, $encoded, 'ui');
-        }
+        // Entity setAttribute handles validation and editable mode logic
+        $entity->{$attribute->name} = $decoded;
     }
 }

@@ -93,11 +93,11 @@
                                                 <span style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background-color: #f3f4f6; color: #374151;">
                                                     {{ $attr['data_type'] }}
                                                 </span>
-                                                @if($attr['review_required'] === 'always')
+                                                @if($attr['needs_approval'] === 'yes')
                                                     <span style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background-color: #fee2e2; color: #991b1b;">
-                                                        Always requires review
+                                                        Always requires approval
                                                     </span>
-                                                @elseif($attr['review_required'] === 'low_confidence')
+                                                @elseif($attr['needs_approval'] === 'only_low_confidence')
                                                     <span style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background-color: #fef3c7; color: #92400e;">
                                                         Low confidence ({{ number_format($attr['confidence'] ?? 0, 2) }})
                                                     </span>

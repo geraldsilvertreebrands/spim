@@ -19,7 +19,7 @@ class EditAttribute extends EditRecord
                 ->label('Test Magento Mapping')
                 ->icon('heroicon-o-arrow-path')
                 ->color('gray')
-                ->visible(fn () => $this->record->is_synced)
+                ->visible(fn () => $this->record->is_sync !== 'no')
                 ->action(function () {
                     try {
                         $magentoClient = app(\App\Services\MagentoApiClient::class);
@@ -46,7 +46,7 @@ class EditAttribute extends EditRecord
                 ->icon('heroicon-o-cloud-arrow-down')
                 ->color('primary')
                 ->visible(fn () =>
-                    $this->record->is_synced &&
+                    $this->record->is_sync !== 'no' &&
                     in_array($this->record->data_type, ['select', 'multiselect'])
                 )
                 ->requiresConfirmation()

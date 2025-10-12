@@ -15,7 +15,6 @@ class AttributeFactory extends Factory
     {
         $entityTypeId = EntityType::query()->inRandomOrder()->value('id') ?? EntityType::factory()->create()->id;
         $dataTypes = ['integer','text','html','json','select','multiselect','belongs_to','belongs_to_multi'];
-        $attributeTypes = ['versioned','input','timeseries'];
         $dataType = $this->faker->randomElement($dataTypes);
 
         $allowedValues = null;
@@ -31,15 +30,28 @@ class AttributeFactory extends Factory
             $linkedTypeId = EntityType::factory()->create()->id;
         }
 
+        // Generate valid attribute configuration that passes validation rules
+        $isSync = $this->faker->randomElement(['no', 'from_external', 'to_external']);
+        $needsApproval = $this->faker->randomElement(['yes', 'only_low_confidence', 'no']);
+        $editable = $this->faker->randomElement(['yes', 'no', 'overridable']);
+
+        // Enforce validation rules to prevent conflicts
+        if ($isSync === 'from_external') {
+            // Attributes from external cannot be editable/overridable or need approval
+            $editable = 'no';
+            $needsApproval = 'no';
+        }
+
         return [
             'entity_type_id' => $entityTypeId,
             'name' => Str::slug($this->faker->unique()->words(2, true), '_'),
             'data_type' => $dataType,
-            'attribute_type' => $this->faker->randomElement($attributeTypes),
-            'review_required' => $this->faker->randomElement(['always','low_confidence','no']),
+            'editable' => $editable,
+            'is_pipeline' => 'no',
+            'is_sync' => $isSync,
+            'needs_approval' => $needsApproval,
             'allowed_values' => $allowedValues,
             'linked_entity_type_id' => $linkedTypeId,
-            'is_synced' => false,
             'ui_class' => null,
         ];
     }

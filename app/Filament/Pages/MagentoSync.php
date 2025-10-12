@@ -13,7 +13,6 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Actions\Action as TableAction;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
@@ -91,7 +90,7 @@ class MagentoSync extends Page implements HasTable
                     }),
             ])
             ->actions([
-                TableAction::make('viewErrors')
+                Action::make('viewErrors')
                     ->label('Errors')
                     ->icon('heroicon-o-exclamation-circle')
                     ->color('danger')
@@ -107,7 +106,7 @@ class MagentoSync extends Page implements HasTable
                         return view('filament.components.sync-errors', ['errors' => $errors]);
                     }),
 
-                TableAction::make('viewDetails')
+                Action::make('viewDetails')
                     ->label('Details')
                     ->icon('heroicon-o-information-circle')
                     ->modalHeading('Sync Details')

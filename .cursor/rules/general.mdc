@@ -3,3 +3,9 @@ alwaysApply: true
 ---
 
 When running terminal commands, use `docker exec spim_app bash` or similar.
+
+Be careful about namespaces with Filament, and when in doubt check existing code first. E.g., `Filament\Tables\Actions\Action` is wrong, `Filament\Actions\Action` is right.
+
+When doing changes or refactoring, fixing, updating and running tests is always part of the tasks to be done. Don't skip this!
+
+When editing tests or fixing linting issues, NEVER remove functionality or hide issues in order to make it look like it passes. Always fix the underlying problem correctly. When you HAVE to remove a test due to functionality changing so test is no longer relevant, then you HAVE to raise this as an important issue for me to approve.

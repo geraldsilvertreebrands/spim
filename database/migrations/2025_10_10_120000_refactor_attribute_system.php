@@ -72,13 +72,13 @@ return new class extends Migration
             FROM eav_versioned v
         ");
 
-        // Recreate entity_attr_json view
+        // Recreate entity_attr_json view (keep attrs_current name for backward compatibility)
         DB::statement("
             CREATE VIEW entity_attr_json AS
             SELECT
                 ear.entity_id,
                 JSON_OBJECTAGG(a.name, ear.resolved_with_override) AS attrs_with_override,
-                JSON_OBJECTAGG(a.name, ear.resolved_current_only) AS attrs_current_only,
+                JSON_OBJECTAGG(a.name, ear.resolved_current_only) AS attrs_current,
                 JSON_OBJECTAGG(a.name, ear.resolved_approved) AS attrs_approved,
                 JSON_OBJECTAGG(a.name, ear.resolved_live) AS attrs_live
             FROM entity_attribute_resolved ear

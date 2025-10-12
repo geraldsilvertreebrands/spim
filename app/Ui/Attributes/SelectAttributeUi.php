@@ -35,13 +35,7 @@ class SelectAttributeUi implements AttributeUi
     public function save(Entity $entity, Attribute $attribute, $input): void
     {
         $value = (string) ($input['value'] ?? '');
-        app(AttributeService::class)->validateValue($attribute, $value);
-        $encoded = app(AttributeService::class)->coerceIn($attribute, $value);
-
-        if ($attribute->attribute_type === 'versioned') {
-            app(EavWriter::class)->upsertVersioned($entity->id, $attribute->id, $encoded);
-        } elseif ($attribute->attribute_type === 'input') {
-            app(EavWriter::class)->upsertInput($entity->id, $attribute->id, $encoded, 'ui');
-        }
+        // Entity setAttribute handles validation and editable mode logic
+        $entity->{$attribute->name} = $value;
     }
 }

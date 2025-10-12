@@ -19,16 +19,20 @@ class EntityBrowsingTest extends TestCase
             'entity_type_id' => $entityType->id,
             'name' => 'title',
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         $priceAttr = Attribute::factory()->create([
             'entity_type_id' => $entityType->id,
             'name' => 'price',
             'data_type' => 'integer',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         $entity = Entity::factory()->create([
@@ -53,8 +57,10 @@ class EntityBrowsingTest extends TestCase
             'entity_type_id' => $entityType->id,
             'name' => 'title',
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         $entity = Entity::factory()->create([
@@ -75,8 +81,10 @@ class EntityBrowsingTest extends TestCase
             'entity_type_id' => $entityType->id,
             'name' => 'title',
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         $entity = Entity::factory()->create([
@@ -107,8 +115,10 @@ class EntityBrowsingTest extends TestCase
             'entity_type_id' => $entityType->id,
             'name' => 'status',
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         $entity1 = Entity::factory()->create(['entity_type_id' => $entityType->id]);
@@ -118,7 +128,7 @@ class EntityBrowsingTest extends TestCase
         $entity2->status = 'inactive';
 
         // Test whereAttr scope
-        $activeEntities = Entity::where('entity_type_id', $entityType->id)
+        $activeEntities = Entity::where('entities.entity_type_id', $entityType->id)
             ->whereAttr('status', '=', 'active')
             ->get();
 

@@ -118,7 +118,7 @@ class ProductSync extends AbstractSync
         // Get products from Magento
         $magentoProducts = $this->sku
             ? [$this->magentoClient->getProduct($this->sku)]
-            : $this->magentoClient->getProducts();
+            : ($this->magentoClient->getProducts()['items'] ?? []);
 
         $magentoProducts = array_filter($magentoProducts); // Remove nulls from failed fetches
 

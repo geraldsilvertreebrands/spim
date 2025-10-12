@@ -16,6 +16,7 @@ class AttributeCrudTest extends TestCase
     {
         $type = EntityType::create([
             'name' => 'test_type',
+            'display_name' => 'Test Type',
             'description' => 'Test type',
         ]);
 
@@ -29,8 +30,10 @@ class AttributeCrudTest extends TestCase
             'entity_type_id' => $type->id,
             'name' => 'title',
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         $entity = Entity::factory()->create([
