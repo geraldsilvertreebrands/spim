@@ -4,6 +4,9 @@ namespace App\Filament\Resources\AttributeResource\Pages;
 
 use App\Filament\Resources\AttributeResource;
 use App\Jobs\Sync\SyncAttributeOptions;
+use App\Models\SyncRun;
+use App\Services\MagentoApiClient;
+use App\Services\Sync\AttributeOptionSync;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -53,21 +56,63 @@ class EditAttribute extends EditRecord
                 ->modalHeading('Sync Options from Magento')
                 ->modalDescription('This will replace SPIM options with options from Magento. Magento is the source of truth.')
                 ->action(function () {
-                    // Dispatch job to sync options for this specific attribute's entity type
-                    /** @var int|null $userId */
-                    $userId = auth()->id();
+                    try {
+                        // Create sync run record for tracking
+                        $syncRun = SyncRun::create([
+                            'entity_type_id' => $this->record->entity_type_id,
+                            'sync_type' => 'options',
+                            'started_at' => now(),
+                            'status' => 'running',
+                            'triggered_by' => 'user',
+                            'user_id' => auth()->id(),
+                        ]);
 
-                    SyncAttributeOptions::dispatch(
-                        $this->record->entityType,
-                        $userId,
-                        'user'
-                    );
+                        // Run sync synchronously for this specific attribute
+                        $magentoClient = app(MagentoApiClient::class);
+                        $sync = app(AttributeOptionSync::class, [
+                            'magentoClient' => $magentoClient,
+                            'entityType' => $this->record->entityType,
+                            'syncRun' => $syncRun,
+                        ]);
 
-                    Notification::make()
-                        ->title('Option sync queued')
-                        ->body('Options will be synced from Magento shortly. Check the Magento Sync page for results.')
-                        ->success()
-                        ->send();
+                        // Sync only this specific attribute
+                        $sync->syncSingleAttribute($this->record);
+
+                        // Update sync run with results
+                        $syncRun->update([
+                            'completed_at' => now(),
+                            'status' => 'completed',
+                            'total_items' => 1,
+                            'successful_items' => 1,
+                            'failed_items' => 0,
+                            'skipped_items' => 0,
+                        ]);
+
+                        Notification::make()
+                            ->title('Options synced successfully')
+                            ->body("Options for '{$this->record->name}' have been synced from Magento.")
+                            ->success()
+                            ->send();
+
+                    } catch (\Exception $e) {
+                        // Update sync run with error if it exists
+                        if (isset($syncRun)) {
+                            $syncRun->update([
+                                'completed_at' => now(),
+                                'status' => 'failed',
+                                'total_items' => 1,
+                                'successful_items' => 0,
+                                'failed_items' => 1,
+                                'skipped_items' => 0,
+                            ]);
+                        }
+
+                        Notification::make()
+                            ->title('Sync failed')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
                 }),
         ];
     }

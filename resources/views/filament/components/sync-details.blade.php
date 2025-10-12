@@ -1,55 +1,59 @@
-<div class="space-y-4">
-    <dl class="grid grid-cols-2 gap-4">
+<div style="padding: 1.5rem;">
+    {{-- Basic Info --}}
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
         <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Sync Type</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ ucfirst($syncRun->sync_type) }}</dd>
+            <div style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Sync Type</div>
+            <div style="font-size: 0.875rem; color: #111827;">{{ ucfirst($syncRun->sync_type) }}</div>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Entity Type</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $syncRun->entityType->name ?? 'N/A' }}</dd>
+            <div style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Entity Type</div>
+            <div style="font-size: 0.875rem; color: #111827;">{{ $syncRun->entityType->name ?? 'N/A' }}</div>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Started</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $syncRun->started_at->format('M j, Y H:i:s') }}</dd>
+            <div style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Started</div>
+            <div style="font-size: 0.875rem; color: #111827;">{{ $syncRun->started_at->format('M j, Y H:i:s') }}</div>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
-                {{ $syncRun->completed_at ? $syncRun->completed_at->format('M j, Y H:i:s') : 'In progress...' }}
-            </dd>
+            <div style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Completed</div>
+            <div style="font-size: 0.875rem; color: #111827;">
+                @if($syncRun->completed_at)
+                    {{ $syncRun->completed_at->format('M j, Y H:i:s') }}
+                @else
+                    <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: #fef3c7; color: #92400e;">In progress...</span>
+                @endif
+            </div>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Duration</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $syncRun->duration ? $syncRun->duration . 's' : 'N/A' }}</dd>
+            <div style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Duration</div>
+            <div style="font-size: 0.875rem; color: #111827;">{{ $syncRun->duration ? $syncRun->duration . 's' : 'N/A' }}</div>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Triggered By</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
-                {{ $syncRun->user ? $syncRun->user->name : ucfirst($syncRun->triggered_by) }}
-            </dd>
+            <div style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Triggered By</div>
+            <div style="font-size: 0.875rem; color: #111827;">{{ $syncRun->user ? $syncRun->user->name : ucfirst($syncRun->triggered_by) }}</div>
         </div>
-    </dl>
+    </div>
 
-    <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Statistics</h4>
-        <dl class="grid grid-cols-4 gap-4">
-            <div>
-                <dt class="text-sm text-gray-500 dark:text-gray-400">Total</dt>
-                <dd class="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ $syncRun->total_items }}</dd>
+    {{-- Statistics --}}
+    <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem;">
+        <h4 style="font-size: 0.875rem; font-weight: 500; color: #111827; margin-bottom: 1rem;">Statistics</h4>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+            <div style="text-align: center;">
+                <div style="font-size: 0.875rem; color: #6b7280;">Total</div>
+                <div style="margin-top: 0.25rem; font-size: 1.5rem; font-weight: 600; color: #111827;">{{ $syncRun->total_items ?? 0 }}</div>
             </div>
-            <div>
-                <dt class="text-sm text-gray-500 dark:text-gray-400">Successful</dt>
-                <dd class="mt-1 text-2xl font-semibold text-success-600">{{ $syncRun->successful_items }}</dd>
+            <div style="text-align: center;">
+                <div style="font-size: 0.875rem; color: #6b7280;">Successful</div>
+                <div style="margin-top: 0.25rem; font-size: 1.5rem; font-weight: 600; color: #059669;">{{ $syncRun->successful_items ?? 0 }}</div>
             </div>
-            <div>
-                <dt class="text-sm text-gray-500 dark:text-gray-400">Errors</dt>
-                <dd class="mt-1 text-2xl font-semibold text-danger-600">{{ $syncRun->failed_items }}</dd>
+            <div style="text-align: center;">
+                <div style="font-size: 0.875rem; color: #6b7280;">Errors</div>
+                <div style="margin-top: 0.25rem; font-size: 1.5rem; font-weight: 600; color: #dc2626;">{{ $syncRun->failed_items ?? 0 }}</div>
             </div>
-            <div>
-                <dt class="text-sm text-gray-500 dark:text-gray-400">Skipped</dt>
-                <dd class="mt-1 text-2xl font-semibold text-gray-600 dark:text-gray-400">{{ $syncRun->skipped_items }}</dd>
+            <div style="text-align: center;">
+                <div style="font-size: 0.875rem; color: #6b7280;">Skipped</div>
+                <div style="margin-top: 0.25rem; font-size: 1.5rem; font-weight: 600; color: #6b7280;">{{ $syncRun->skipped_items ?? 0 }}</div>
             </div>
-        </dl>
+        </div>
     </div>
 
     @if($syncRun->error_summary)

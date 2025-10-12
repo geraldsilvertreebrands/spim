@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SyncRun extends Model
 {
+    use HasFactory;
     protected $guarded = [];
 
     protected $casts = [
@@ -100,6 +102,22 @@ class SyncRun extends Model
             'completed_at' => now(),
             'status' => 'failed',
             'error_summary' => $error,
+        ]);
+    }
+
+    /**
+     * Cancel a running sync
+     */
+    public function cancel(): void
+    {
+        if (!$this->isRunning()) {
+            throw new \InvalidArgumentException('Cannot cancel a sync that is not running');
+        }
+
+        $this->update([
+            'completed_at' => now(),
+            'status' => 'cancelled',
+            'error_summary' => 'Sync was cancelled by user',
         ]);
     }
 

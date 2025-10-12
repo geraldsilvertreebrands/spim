@@ -238,3 +238,4 @@ docker exec spim_app php artisan test --coverage
 5. Run tests and fix any issues found
 6. Add CI/CD integration (optional)
 
+

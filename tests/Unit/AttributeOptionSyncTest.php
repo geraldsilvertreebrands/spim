@@ -28,9 +28,11 @@ class AttributeOptionSyncTest extends TestCase
             ['name' => 'product'],
             ['display_name' => 'Product', 'description' => 'Test product type']
         );
-        $this->syncRun = SyncRun::factory()->forSchedule()->create([
+        $this->syncRun = SyncRun::factory()->create([
             'entity_type_id' => $this->entityType->id,
             'sync_type' => 'options',
+            'triggered_by' => 'schedule',
+            'user_id' => null, // No user for schedule
         ]);
         $this->magentoClient = Mockery::mock(MagentoApiClient::class);
     }
@@ -151,7 +153,7 @@ class AttributeOptionSyncTest extends TestCase
         $result = $sync->sync();
 
         // No attributes should be processed
-        $this->assertEquals(0, $result['stats']['total']);
+        $this->assertEquals(0, $result['stats']['created'] + $result['stats']['updated'] + $result['stats']['skipped'] + $result['stats']['errors']);
     }
 
     /** @test */
@@ -170,7 +172,7 @@ class AttributeOptionSyncTest extends TestCase
         $sync = new AttributeOptionSync($this->magentoClient, $this->entityType, $this->syncRun);
         $result = $sync->sync();
 
-        $this->assertEquals(0, $result['stats']['total']);
+        $this->assertEquals(0, $result['stats']['created'] + $result['stats']['updated'] + $result['stats']['skipped'] + $result['stats']['errors']);
     }
 
     /** @test */
@@ -274,7 +276,8 @@ class AttributeOptionSyncTest extends TestCase
         $result = $sync->sync();
 
         // Verify stats
-        $this->assertEquals(2, $result['stats']['total']);
+        $totalProcessed = $result['stats']['created'] + $result['stats']['updated'] + $result['stats']['skipped'] + $result['stats']['errors'];
+        $this->assertEquals(2, $totalProcessed);
         $this->assertEquals(1, $result['stats']['updated']); // color updated
         $this->assertEquals(1, $result['stats']['skipped']); // size already in sync
         $this->assertEquals(0, $result['stats']['errors']);
@@ -307,6 +310,41 @@ class AttributeOptionSyncTest extends TestCase
         $this->assertEquals(1, $this->syncRun->total_items);
         $this->assertEquals(0, $this->syncRun->failed_items);
         $this->assertNotNull($this->syncRun->completed_at);
+    }
+
+    /** @test */
+    public function test_handles_no_synced_attributes_gracefully(): void
+    {
+        // Create attributes that are not marked for sync
+        Attribute::factory()->create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'internal_color',
+            'data_type' => 'select',
+            'is_sync' => 'no', // Not synced
+            'allowed_values' => ['RED' => 'Red'],
+        ]);
+
+        Attribute::factory()->create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'description',
+            'data_type' => 'text', // Not select/multiselect
+            'is_sync' => 'to_external',
+        ]);
+
+        // Should not call Magento API at all
+        $this->magentoClient->shouldNotReceive('getAttributeOptions');
+
+        $sync = new AttributeOptionSync($this->magentoClient, $this->entityType, $this->syncRun);
+        $result = $sync->sync();
+
+        // Should complete successfully with no operations
+        $this->assertEquals(0, $result['stats']['created']);
+        $this->assertEquals(0, $result['stats']['updated']);
+        $this->assertEquals(0, $result['stats']['skipped']);
+        $this->assertEquals(0, $result['stats']['errors']);
+
+        // Note: The sync run status is updated by the job, not the service
+        // This test only verifies the service behavior
     }
 
     protected function tearDown(): void

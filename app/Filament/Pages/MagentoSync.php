@@ -61,7 +61,7 @@ class MagentoSync extends Page implements HasTable
                     ->colors([
                         'success' => 'completed',
                         'warning' => 'partial',
-                        'danger' => 'failed',
+                        'danger' => ['failed', 'cancelled'],
                         'secondary' => 'running',
                     ]),
 
@@ -90,6 +90,32 @@ class MagentoSync extends Page implements HasTable
                     }),
             ])
             ->actions([
+                Action::make('cancel')
+                    ->label('Cancel')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn ($record) => $record->isRunning())
+                    ->requiresConfirmation()
+                    ->modalHeading('Cancel Sync')
+                    ->modalDescription('Are you sure you want to cancel this running sync? This action cannot be undone.')
+                    ->action(function ($record) {
+                        try {
+                            $record->cancel();
+                            
+                            Notification::make()
+                                ->title('Sync cancelled')
+                                ->body('The sync has been successfully cancelled.')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Cancel failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
                 Action::make('viewErrors')
                     ->label('Errors')
                     ->icon('heroicon-o-exclamation-circle')
@@ -110,9 +136,12 @@ class MagentoSync extends Page implements HasTable
                     ->label('Details')
                     ->icon('heroicon-o-information-circle')
                     ->modalHeading('Sync Details')
+                    ->modalWidth('2xl')
                     ->modalContent(function ($record) {
-                        return view('filament.components.sync-details', ['syncRun' => $record]);
-                    }),
+                        return view('filament.components.sync-details', ['syncRun' => $record, 'cache_bust' => time()]);
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close'),
             ])
             ->defaultSort('started_at', 'desc');
     }

@@ -101,6 +101,51 @@ class MagentoSyncJobsTest extends TestCase
     }
 
     /** @test */
+    public function test_sync_attribute_options_job_handles_no_synced_attributes(): void
+    {
+        // Create attributes that are not marked for sync
+        Attribute::factory()->create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'internal_color',
+            'data_type' => 'select',
+            'is_sync' => 'no', // Not synced
+            'allowed_values' => ['RED' => 'Red'],
+        ]);
+
+        Attribute::factory()->create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'description',
+            'data_type' => 'text', // Not select/multiselect
+            'is_sync' => 'to_external',
+        ]);
+
+        // Should not make any HTTP calls to Magento
+        Http::fake([
+            'magento.test/*' => Http::response(['error' => 'Should not be called'], 500),
+        ]);
+
+        $job = new SyncAttributeOptions($this->entityType, $this->user->id, 'user');
+        $job->handle(app(\App\Services\MagentoApiClient::class));
+
+        // Should still create a sync run and mark it as completed
+        $syncRun = SyncRun::where('entity_type_id', $this->entityType->id)
+            ->where('sync_type', 'options')
+            ->first();
+
+        $this->assertNotNull($syncRun);
+        $this->assertEquals('completed', $syncRun->status);
+        $this->assertEquals(0, $syncRun->total_items);
+        $this->assertEquals(0, $syncRun->successful_items);
+        $this->assertEquals(0, $syncRun->failed_items);
+        $this->assertNotNull($syncRun->completed_at);
+
+        // Should not have any sync results since no attributes were processed
+        $this->assertDatabaseMissing('sync_results', [
+            'sync_run_id' => $syncRun->id,
+        ]);
+    }
+
+    /** @test */
     public function test_sync_attribute_options_job_tracks_user(): void
     {
         Attribute::factory()->create([

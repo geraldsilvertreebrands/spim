@@ -37,6 +37,7 @@ class SyncAttributeOptions implements ShouldQueue
 
         try {
             $sync = app(AttributeOptionSync::class, [
+                'magentoClient' => app(MagentoApiClient::class),
                 'entityType' => $this->entityType,
                 'syncRun' => $syncRun, // Pass sync run to service
             ]);

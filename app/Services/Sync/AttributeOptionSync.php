@@ -26,6 +26,15 @@ class AttributeOptionSync extends AbstractSync
     }
 
     /**
+     * Sync options for a single attribute
+     * Public method for syncing individual attributes
+     */
+    public function syncSingleAttribute(Attribute $attribute): void
+    {
+        $this->syncAttributeOptions($attribute);
+    }
+
+    /**
      * Sync attribute options bi-directionally between SPIM and Magento
      * Uses Magento as source of truth for conflicts
      *

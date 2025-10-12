@@ -159,3 +159,5 @@ Potential additions to the test suite:
 - Image upload integration tests with real files
 - Filament UI tests (optional, using Dusk or similar)
 
+
+
