@@ -43,7 +43,7 @@
                                 // Format values based on data type
                                 $formatValue = function($value, $dataType) {
                                     if (empty($value)) {
-                                        return '<span style="font-style: italic; color: #9ca3af;">No value</span>';
+                                        return '<span class="italic text-gray-400">No value</span>';
                                     }
 
                                     switch ($dataType) {
@@ -59,7 +59,7 @@
                                         case 'json':
                                             // Pretty print JSON
                                             $decoded = json_decode($value, true);
-                                            return '<pre style="margin: 0; font-family: monospace; font-size: 11px;">' . e(json_encode($decoded, JSON_PRETTY_PRINT)) . '</pre>';
+                                            return '<pre class="m-0 font-mono text-xs">' . e(json_encode($decoded, JSON_PRETTY_PRINT)) . '</pre>';
                                         case 'select':
                                         case 'multiselect':
                                             return e($value);
@@ -71,57 +71,57 @@
                                 $renderedApproved = $formatValue($attr['value_approved'], $attr['data_type']);
                                 $renderedDisplay = $formatValue($attr['value_display'], $attr['data_type']);
                             @endphp
-                            <div style="padding: 1.5rem; {{ $isSelected ? 'background-color: #eff6ff;' : '' }}">
-                                <div style="display: flex; gap: 1rem; align-items: start;">
+                            <div class="p-6 {{ $isSelected ? 'bg-blue-50' : '' }}">
+                                <div class="flex gap-4 items-start">
                                     {{-- Checkbox --}}
-                                    <div style="padding-top: 2px;">
+                                    <div class="pt-0.5">
                                         <input
                                             type="checkbox"
                                             wire:click="toggleSelection('{{ $entity['entity_id'] }}', {{ $attr['attribute_id'] }})"
                                             {{ $isSelected ? 'checked' : '' }}
-                                            style="width: 16px; height: 16px; cursor: pointer;"
+                                            class="w-4 h-4 cursor-pointer"
                                         >
                                     </div>
 
                                     {{-- Attribute Info --}}
-                                    <div style="flex: 1;">
-                                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
-                                            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                                                <h4 style="font-size: 14px; font-weight: 600; margin: 0;">
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <div class="flex gap-2 flex-wrap items-center">
+                                                <h4 class="text-sm font-semibold m-0">
                                                     {{ $attr['attribute_display_name'] ?? $attr['attribute_name'] }}
                                                 </h4>
-                                                <span style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background-color: #f3f4f6; color: #374151;">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
                                                     {{ $attr['data_type'] }}
                                                 </span>
                                                 @if($attr['needs_approval'] === 'yes')
-                                                    <span style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background-color: #fee2e2; color: #991b1b;">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                                                         Always requires approval
                                                     </span>
                                                 @elseif($attr['needs_approval'] === 'only_low_confidence')
-                                                    <span style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background-color: #fef3c7; color: #92400e;">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
                                                         Low confidence ({{ number_format($attr['confidence'] ?? 0, 2) }})
                                                     </span>
                                                 @endif
                                             </div>
-                                            <span style="font-size: 11px; color: #6b7280; white-space: nowrap;">
+                                            <span class="text-xs text-gray-500 whitespace-nowrap">
                                                 {{ \Carbon\Carbon::parse($attr['updated_at'])->diffForHumans() }}
                                             </span>
                                         </div>
 
                                         {{-- Value Changes --}}
-                                        <div style="margin-top: 12px;">
-                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                        <div class="mt-3">
+                                            <div class="grid grid-cols-2 gap-4">
                                                 <div>
-                                                    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Approved Value</div>
-                                                    <div style="background-color: #fee2e2; border: 2px solid #fca5a5; border-radius: 6px; padding: 12px; max-height: 120px; overflow-y: auto; font-size: 13px;">
+                                                    <div class="text-xs font-semibold uppercase text-gray-500 mb-1">Approved Value</div>
+                                                    <div class="bg-red-100 border-2 border-red-300 rounded-lg p-3 max-h-30 overflow-y-auto text-sm">
                                                         {!! $renderedApproved !!}
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">
+                                                    <div class="text-xs font-semibold uppercase text-gray-500 mb-1">
                                                         {{ $attr['has_override'] ? 'Override Value' : 'Current Value' }}
                                                     </div>
-                                                    <div style="background-color: #dcfce7; border: 2px solid #86efac; border-radius: 6px; padding: 12px; max-height: 120px; overflow-y: auto; font-size: 13px;">
+                                                    <div class="bg-green-100 border-2 border-green-300 rounded-lg p-3 max-h-30 overflow-y-auto text-sm">
                                                         {!! $renderedDisplay !!}
                                                     </div>
                                                 </div>
@@ -130,8 +130,8 @@
 
                                         {{-- Justification --}}
                                         @if(!empty($attr['justification']))
-                                            <div style="margin-top: 12px; padding: 12px; background-color: #dbeafe; border-radius: 6px;">
-                                                <p style="font-size: 13px; color: #1e40af; margin: 0;">
+                                            <div class="mt-3 p-3 bg-blue-100 rounded-lg">
+                                                <p class="text-sm text-blue-800 m-0">
                                                     <strong>Justification:</strong> {{ $attr['justification'] }}
                                                 </p>
                                             </div>
@@ -139,7 +139,7 @@
                                     </div>
 
                                     {{-- Action Button --}}
-                                    <div style="flex-shrink: 0;">
+                                    <div class="flex-shrink-0">
                                         <x-filament::button
                                             wire:click="approveSingle('{{ $entity['entity_id'] }}', {{ $attr['attribute_id'] }})"
                                             size="sm"
@@ -157,4 +157,3 @@
     @endif
     </div>
 </x-filament-panels::page>
-

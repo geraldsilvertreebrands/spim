@@ -302,15 +302,25 @@ class AttributeOptionSyncTest extends TestCase
                 ['label' => 'Red', 'value' => 'RED'],
             ]);
 
-        $sync = new AttributeOptionSync($this->magentoClient, $this->entityType, $this->syncRun);
-        $sync->sync();
+        // Use SyncRunService to properly update sync run
+        $service = new \App\Services\Sync\SyncRunService();
+        $syncRun = $service->run(
+            'options',
+            $this->entityType,
+            null,
+            'schedule',
+            function($run) {
+                $sync = new AttributeOptionSync($this->magentoClient, $this->entityType, $run);
+                $result = $sync->sync();
+                return $result['stats'] ?? [];
+            }
+        );
 
-        // Sync run should be updated
-        $this->syncRun->refresh();
-        $this->assertEquals('completed', $this->syncRun->status);
-        $this->assertEquals(1, $this->syncRun->total_items);
-        $this->assertEquals(0, $this->syncRun->failed_items);
-        $this->assertNotNull($this->syncRun->completed_at);
+        // Sync run should be updated by SyncRunService
+        $this->assertEquals('completed', $syncRun->status);
+        $this->assertEquals(1, $syncRun->total_items);
+        $this->assertEquals(0, $syncRun->failed_items);
+        $this->assertNotNull($syncRun->completed_at);
     }
 
     #[Test]

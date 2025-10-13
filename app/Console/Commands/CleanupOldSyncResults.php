@@ -30,11 +30,18 @@ class CleanupOldSyncResults extends Command
         $days = (int) $this->option('days');
         $cutoffDate = Carbon::now()->subDays($days);
 
-        $this->info("Deleting sync results older than {$days} days (before {$cutoffDate->toDateString()})...");
+        // Get the oldest result before deleting
+        $toDelete = SyncResult::where('created_at', '<', $cutoffDate)->get();
+        $oldest = $toDelete->sortBy('created_at')->first();
 
         $count = SyncResult::where('created_at', '<', $cutoffDate)->delete();
 
-        $this->info("Deleted {$count} old sync result(s).");
+        $this->info("Cleaned up {$count} sync results older than {$days} days.");
+
+        if ($count > 0 && $oldest) {
+            $oldestDays = Carbon::now()->diffInDays(Carbon::parse($oldest->created_at));
+            $this->line("(Oldest deleted result: {$oldestDays} days)");
+        }
 
         return Command::SUCCESS;
     }

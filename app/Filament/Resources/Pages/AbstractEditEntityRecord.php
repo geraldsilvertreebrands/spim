@@ -101,10 +101,31 @@ class AbstractEditEntityRecord extends EditRecord
         $attributes = Attribute::where('entity_type_id', $entityTypeId)->get();
 
         foreach ($attributes as $attribute) {
-            $data[$attribute->name] = $entity->getAttr($attribute->name);
+            // For overridable attributes, only load the actual override value (if set)
+            // This keeps the override input empty if no override exists
+            if ($attribute->editable === 'overridable') {
+                $overrideValue = $this->getOverrideValue($entity, $attribute);
+                $data[$attribute->name] = $overrideValue;
+            } else {
+                // For editable/read-only attributes, load the current value
+                $data[$attribute->name] = $entity->getAttr($attribute->name);
+            }
         }
 
         return $data;
+    }
+
+    /**
+     * Get the override value directly from the database (null if not set).
+     */
+    protected function getOverrideValue($entity, $attribute)
+    {
+        $row = \Illuminate\Support\Facades\DB::table('eav_versioned')
+            ->where('entity_id', $entity->id)
+            ->where('attribute_id', $attribute->id)
+            ->first();
+
+        return $row?->value_override;
     }
 
     /**

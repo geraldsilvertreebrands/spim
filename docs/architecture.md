@@ -91,20 +91,34 @@ All attributes now use a unified EAV structure in the `eav_versioned` table. Eac
 
 ### Value Flow
 
-When setting an attribute value (editable='yes'):
-1. Always set `value_current`
-2. If `needs_approval='no'`: Also set `value_approved`
-3. If `needs_approval='only_low_confidence'` AND `confidence ≥ 0.8`: Also set `value_approved`
-4. If `value_approved` was set AND `is_sync='no'`: Also set `value_live`
+**Writing Values (via EavWriter service):**
 
-When setting an override (editable='overridable'):
-- Only set `value_override` (current value remains unchanged)
-- Approval workflow will move override → approved
+`App\Services\EavWriter` is the canonical way to write attribute values. It enforces all business rules:
 
-When approving in review queue:
-1. Set `value_approved = value_override ?? value_current`
-2. If `is_sync='no'`: Also set `value_live = value_approved`
-3. If `is_sync='to_external'`: Sync will update `value_live` after external update succeeds
+**upsertVersioned(entityId, attributeId, value, options):**
+1. Always sets `value_current`
+2. Auto-approval logic based on `needs_approval`:
+   - `'no'` → also sets `value_approved`
+   - `'only_low_confidence'` → sets `value_approved` if confidence ≥ 0.8
+   - `'yes'` → does NOT set `value_approved` (requires manual approval)
+3. If auto-approved AND `is_sync='no'` → also sets `value_live`
+4. Accepts options: `input_hash`, `justification`, `confidence`, `meta`
+
+**setOverride(entityId, attributeId, value):**
+- Only sets `value_override` (current value unchanged)
+- Used for `editable='overridable'` attributes
+- Approval workflow will later move override → approved
+
+**approveVersioned(entityId, attributeId):**
+1. Sets `value_approved = value_override ?? value_current`
+2. If `is_sync='no'` → also sets `value_live`
+3. If `is_sync='to_external'` → sync will update `value_live` after Magento confirms
+
+**bulkApprove(items):**
+- Approves multiple attributes at once
+- Used by review queue for bulk operations
+
+All methods handle upserts properly (won't overwrite `created_at` on updates).
 
 ### Sync Behavior
 
@@ -156,6 +170,143 @@ We will sync products, categories, and maybe more. Each sync type is its own log
 ## Attribute type mapping:
 - in general, most mappings are obvious
 - images (media) stored as URLs, when syncing to Magento: upload the image to Magento. When syncing from Magento, keep the URL as-is,
+
+## Sync Architecture (Queue-Based)
+
+All sync operations are asynchronous and queue-based to support long-running operations, retries, and background processing.
+
+### Commands vs Jobs
+
+**Artisan Commands** (user-facing):
+- `sync:magento:options {entityType}` - Queue attribute option sync
+- `sync:magento {entityType} [--sku=]` - Queue full product sync or single product
+- `sync:cleanup [--days=30]` - Delete old sync results
+
+Commands **dispatch jobs** to the queue rather than executing sync logic directly. This ensures:
+- Fast command response (immediate return)
+- Background execution via queue workers
+- Automatic retry on failure
+- No timeout issues for large syncs
+
+**Queue Jobs** (background workers):
+- `App\Jobs\Sync\SyncAttributeOptions` - Sync select/multiselect options
+- `App\Jobs\Sync\SyncAllProducts` - Sync all products for an entity type
+- `App\Jobs\Sync\SyncSingleProduct` - Sync a single product by entity
+
+Jobs create `SyncRun` records, execute the sync service, and update the run with results.
+
+### Sync Services
+
+Sync logic is in service classes under `App\Services\Sync\`:
+- `AttributeOptionSync` - Bi-directional option sync (Magento is source of truth)
+- `ProductSync` - Full product sync (pull from Magento, push to Magento)
+- `AbstractSync` - Base class with logging and stats tracking
+
+Services are **stateless** and **reusable** - they can be called from jobs, commands, or tests.
+
+### SyncRun Tracking
+
+Every sync operation creates a `SyncRun` record to track execution:
+
+**sync_runs** table:
+- `entity_type_id` - Which entity type (product, category, etc)
+- `sync_type` - Type of sync: 'options', 'products', etc
+- `started_at`, `completed_at` - Timestamps
+- `status` - Enum: 'running', 'completed', 'failed', 'partial', 'cancelled'
+- `triggered_by` - Source: 'user', 'schedule', 'cli', 'api'
+- `user_id` - Which user triggered (null for schedule)
+- `total_items`, `successful_items`, `failed_items`, `skipped_items` - Statistics
+- `error_summary` - Overall error message if failed
+
+Status values:
+- **running**: Sync in progress
+- **completed**: All items succeeded
+- **partial**: Some items failed, some succeeded (errors > 0)
+- **failed**: Fatal error, sync aborted
+- **cancelled**: User cancelled the sync
+
+### SyncResult Tracking
+
+Each item (product, attribute option, etc) in a sync gets a `SyncResult` record:
+
+**sync_results** table:
+- `sync_run_id` - Parent sync run
+- `entity_id` - Optional: which entity (for product syncs)
+- `attribute_id` - Optional: which attribute (for option syncs)
+- `item_identifier` - Human-readable: SKU or attribute name
+- `operation` - Enum: 'create', 'update', 'skip', 'validate' (optional)
+- `status` - Enum: 'success', 'error', 'warning'
+- `error_message` - Error details if failed
+- `details` - JSON: before/after values, API response, metadata
+- `created_at` - When this result was logged
+
+This provides:
+- Detailed audit trail
+- Per-item error messages
+- Ability to retry individual items
+- Historical sync data for analysis
+
+### SyncRunService Wrapper
+
+`App\Services\Sync\SyncRunService` wraps sync execution with proper lifecycle management:
+
+```php
+$syncRunService->run(
+    syncType: 'products',
+    entityType: $entityType,
+    userId: $userId,
+    triggeredBy: 'user',
+    runner: function($syncRun) {
+        $sync = new ProductSync(..., syncRun: $syncRun);
+        return $sync->sync(); // Returns ['stats' => [...]]
+    }
+);
+```
+
+The wrapper:
+1. Creates `SyncRun` with status='running'
+2. Calls the runner function
+3. Updates `SyncRun` with final status and stats
+4. Handles exceptions and marks as 'failed' if needed
+5. Returns the `SyncRun` record
+
+This ensures **consistent tracking** even if sync logic throws exceptions.
+
+### Trigger Sources
+
+Syncs can be triggered from multiple sources:
+
+- **user**: Manual trigger from Filament UI by a logged-in user
+- **schedule**: Automated via Laravel scheduler (cron)
+- **cli**: Manual command-line execution (testing, maintenance)
+- **api**: Future: API endpoint triggers
+
+The `triggered_by` and `user_id` fields track provenance for audit purposes.
+
+### Error Handling Strategy
+
+Syncs use **graceful degradation**:
+- Individual item failures don't abort the entire sync
+- Status becomes 'partial' if any items fail
+- Each failure logged to `sync_results` with detailed error
+- Sync continues processing remaining items
+
+Example: Syncing 100 products where 3 fail:
+- SyncRun status: 'partial'
+- total_items: 100
+- successful_items: 97
+- failed_items: 3
+- 3 SyncResult records with status='error' and error_message
+
+### Data Type Validation
+
+ProductSync validates attribute data type compatibility between SPIM and Magento:
+- Calls `MagentoApiClient::getAttribute()` for each synced attribute
+- Checks SPIM data_type against Magento's frontend_input/backend_type
+- Throws RuntimeException on incompatible types (blocks sync)
+- Logs warnings for questionable but allowed combinations
+
+This prevents data corruption from type mismatches.
 
 ---
 
@@ -256,7 +407,30 @@ Menu:
 - confidence (0..1)
 - meta (JSON)
 
-3.2 Scraping & matching
+**sync_runs** (track sync operations)
+- id (PK)
+- entity_type_id (FK)
+- sync_type (enum: 'options', 'products', etc)
+- started_at, completed_at (timestamps)
+- status (enum: 'running', 'completed', 'failed', 'partial', 'cancelled')
+- triggered_by (enum: 'user', 'schedule', 'cli', 'api')
+- user_id (FK, nullable - null for scheduled syncs)
+- total_items, successful_items, failed_items, skipped_items (integers)
+- error_summary (text, nullable)
+
+**sync_results** (per-item sync results)
+- id (PK)
+- sync_run_id (FK)
+- entity_id (ULID, nullable - for product syncs)
+- attribute_id (FK, nullable - for option syncs)
+- item_identifier (string - SKU or attribute name for display)
+- operation (enum: 'create', 'update', 'skip', 'validate', nullable)
+- status (enum: 'success', 'error', 'warning')
+- error_message (text, nullable)
+- details (JSON, nullable - before/after values, API response, etc)
+- created_at (timestamp)
+
+## Scraping & matching
 
 scrape_sources
 	•	id PK, name, description, scrape_cron, last_scraped

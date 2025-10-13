@@ -54,13 +54,17 @@ class MagentoApiClient
      */
     public function getProducts(array $filters = []): array
     {
-        $searchCriteria = $this->buildSearchCriteria($filters);
+        try {
+            $searchCriteria = $this->buildSearchCriteria($filters);
 
-        $response = $this->client()->get('/rest/V1/products', $searchCriteria);
+            $response = $this->client()->get('/rest/V1/products', $searchCriteria);
 
-        $this->ensureSuccessful($response, 'Failed to fetch products from Magento');
+            $this->ensureSuccessful($response, 'Failed to fetch products from Magento');
 
-        return $response->json();
+            return $response->json();
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            throw new RuntimeException("Magento API error: Failed to fetch products - " . $e->getMessage(), 0, $e);
+        }
     }
 
     /**
@@ -71,15 +75,22 @@ class MagentoApiClient
      */
     public function getProduct(string $sku): ?array
     {
-        $response = $this->client()->get("/rest/V1/products/{$sku}");
+        try {
+            $response = $this->client()->get("/rest/V1/products/{$sku}");
 
-        if ($response->status() === 404) {
-            return null;
+            if ($response->status() === 404) {
+                return null;
+            }
+
+            $this->ensureSuccessful($response, "Failed to fetch product {$sku} from Magento");
+
+            return $response->json();
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            if ($e->response->status() === 404) {
+                return null;
+            }
+            throw new RuntimeException("Magento API error: Failed to fetch product {$sku} - " . $e->getMessage(), 0, $e);
         }
-
-        $this->ensureSuccessful($response, "Failed to fetch product {$sku} from Magento");
-
-        return $response->json();
     }
 
     /**

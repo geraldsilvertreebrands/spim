@@ -62,40 +62,43 @@ class AttributeServiceTest extends TestCase
     {
         // Rule 1: (editable yes/overridable) + is_sync from_external => invalid
         $type = EntityType::factory()->create();
-        $attr1 = Attribute::factory()->create([
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        // This should throw during save due to validation
+        Attribute::factory()->create([
             'entity_type_id' => $type->id,
             'editable' => 'yes',
             'is_sync' => 'from_external',
         ]);
-
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
-        $attr1->validateConfiguration();
     }
 
     public function test_pipeline_attributes_cannot_be_directly_editable(): void
     {
         $type = EntityType::factory()->create();
-        $attr = Attribute::factory()->create([
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        // This should throw during save due to validation
+        Attribute::factory()->create([
             'entity_type_id' => $type->id,
             'editable' => 'yes',
             'is_pipeline' => 'yes',
         ]);
-
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
-        $attr->validateConfiguration();
     }
 
     public function test_external_synced_attributes_cannot_require_approval(): void
     {
         $type = EntityType::factory()->create();
-        $attr = Attribute::factory()->create([
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        // This should throw during save due to validation
+        Attribute::factory()->create([
             'entity_type_id' => $type->id,
             'is_sync' => 'from_external',
             'needs_approval' => 'yes',
         ]);
-
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
-        $attr->validateConfiguration();
     }
 
     public function test_overridable_pipeline_attributes_are_valid(): void

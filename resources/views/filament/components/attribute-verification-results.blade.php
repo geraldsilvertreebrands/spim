@@ -1,75 +1,75 @@
-<div style="padding: 1.5rem;">
+<div class="p-6">
     {{-- Summary --}}
-    <div style="background-color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-            <h3 style="font-size: 1rem; font-weight: 600; color: #111827; margin: 0;">
+    <div class="bg-gray-100 p-4 rounded-lg mb-6">
+        <div class="flex justify-between items-start mb-2">
+            <h3 class="text-base font-semibold text-gray-900 m-0">
                 {{ $results['entity_type'] }}
             </h3>
             @if(isset($results['timestamp']))
-                <span style="font-size: 0.75rem; color: #6b7280;">
+                <span class="text-xs text-gray-500">
                     {{ \Carbon\Carbon::parse($results['timestamp'])->diffForHumans() }}
                 </span>
             @endif
         </div>
-        <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">
+        <p class="text-sm text-gray-500 m-0">
             {{ $results['summary'] }}
         </p>
     </div>
 
     {{-- Type Compatibility Checks --}}
     @if(!empty($results['type_checks']))
-        <div style="margin-bottom: 1.5rem;">
-            <h4 style="font-size: 0.875rem; font-weight: 600; color: #111827; margin-bottom: 0.75rem;">
+        <div class="mb-6">
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">
                 Type Compatibility
             </h4>
-            <div style="border: 1px solid #e5e7eb; border-radius: 0.375rem; overflow: hidden;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background-color: #f9fafb;">
+            <div class="border border-gray-200 rounded-md overflow-hidden">
+                <table class="w-full border-collapse">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 500; color: #6b7280; text-transform: uppercase;">Attribute</th>
-                            <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 500; color: #6b7280; text-transform: uppercase;">SPIM Type</th>
-                            <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 500; color: #6b7280; text-transform: uppercase;">Magento Type</th>
-                            <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 500; color: #6b7280; text-transform: uppercase;">Status</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attribute</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">SPIM Type</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Magento Type</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         </tr>
                     </thead>
-                    <tbody style="background-color: white; divide-y divide-gray-200;">
+                    <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($results['type_checks'] as $check)
-                            <tr style="border-top: 1px solid #e5e7eb;">
-                                <td style="padding: 0.75rem; font-size: 0.875rem; color: #111827;">
-                                    <code style="background-color: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-family: monospace;">
+                            <tr class="border-t border-gray-200">
+                                <td class="px-3 py-3 text-sm text-gray-900">
+                                    <code class="bg-gray-100 px-2 py-1 rounded font-mono text-xs">
                                         {{ $check['attribute'] }}
                                     </code>
                                 </td>
-                                <td style="padding: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                <td class="px-3 py-3 text-sm text-gray-500">
                                     {{ $check['spim_type'] ?? 'N/A' }}
                                 </td>
-                                <td style="padding: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                <td class="px-3 py-3 text-sm text-gray-500">
                                     {{ $check['magento_type'] ?? 'N/A' }}
                                 </td>
-                                <td style="padding: 0.75rem; font-size: 0.875rem;">
+                                <td class="px-3 py-3 text-sm">
                                     @if($check['status'] === 'compatible')
-                                        <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: #d1fae5; color: #065f46;">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                             ✓ Compatible
                                         </span>
                                     @elseif($check['status'] === 'warning')
-                                        <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: #fef3c7; color: #92400e;">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                             ⚠ Warning
                                         </span>
-                                        <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #92400e;">
+                                        <div class="mt-1 text-xs text-amber-800">
                                             {{ $check['message'] }}
                                         </div>
                                     @elseif($check['status'] === 'incompatible')
-                                        <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: #fee2e2; color: #991b1b;">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                             ✗ Incompatible
                                         </span>
-                                        <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #991b1b;">
+                                        <div class="mt-1 text-xs text-red-800">
                                             {{ $check['message'] }}
                                         </div>
                                     @else
-                                        <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: #fee2e2; color: #991b1b;">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                             ✗ Error
                                         </span>
-                                        <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #991b1b;">
+                                        <div class="mt-1 text-xs text-red-800">
                                             {{ $check['message'] }}
                                         </div>
                                     @endif
@@ -85,50 +85,50 @@
     {{-- Option Sync Results --}}
     @if(!empty($results['option_syncs']))
         <div>
-            <h4 style="font-size: 0.875rem; font-weight: 600; color: #111827; margin-bottom: 0.75rem;">
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">
                 Option Synchronization
             </h4>
-            <div style="border: 1px solid #e5e7eb; border-radius: 0.375rem; overflow: hidden;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background-color: #f9fafb;">
+            <div class="border border-gray-200 rounded-md overflow-hidden">
+                <table class="w-full border-collapse">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 500; color: #6b7280; text-transform: uppercase;">Attribute</th>
-                            <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 500; color: #6b7280; text-transform: uppercase;">SPIM Options</th>
-                            <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 500; color: #6b7280; text-transform: uppercase;">Magento Options</th>
-                            <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 500; color: #6b7280; text-transform: uppercase;">Result</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attribute</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">SPIM Options</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Magento Options</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
                         </tr>
                     </thead>
-                    <tbody style="background-color: white;">
+                    <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($results['option_syncs'] as $sync)
-                            <tr style="border-top: 1px solid #e5e7eb;">
-                                <td style="padding: 0.75rem; font-size: 0.875rem; color: #111827;">
-                                    <code style="background-color: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-family: monospace;">
+                            <tr class="border-t border-gray-200">
+                                <td class="px-3 py-3 text-sm text-gray-900">
+                                    <code class="bg-gray-100 px-2 py-1 rounded font-mono text-xs">
                                         {{ $sync['attribute'] }}
                                     </code>
                                 </td>
-                                <td style="padding: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                <td class="px-3 py-3 text-sm text-gray-500">
                                     {{ $sync['spim_count'] ?? 0 }}
                                 </td>
-                                <td style="padding: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                <td class="px-3 py-3 text-sm text-gray-500">
                                     {{ $sync['magento_count'] ?? 0 }}
                                 </td>
-                                <td style="padding: 0.75rem; font-size: 0.875rem;">
+                                <td class="px-3 py-3 text-sm">
                                     @if($sync['status'] === 'synced')
-                                        <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: #dbeafe; color: #1e40af;">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                             ✓ Synced
                                         </span>
-                                        <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #6b7280;">
+                                        <div class="mt-1 text-xs text-gray-500">
                                             {{ $sync['message'] }}
                                         </div>
                                     @elseif($sync['status'] === 'unchanged')
-                                        <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: #f3f4f6; color: #4b5563;">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                                             - No Change
                                         </span>
                                     @else
-                                        <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: #fee2e2; color: #991b1b;">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                             ✗ Error
                                         </span>
-                                        <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #991b1b;">
+                                        <div class="mt-1 text-xs text-red-800">
                                             {{ $sync['message'] }}
                                         </div>
                                     @endif
@@ -143,9 +143,8 @@
 
     {{-- No Results --}}
     @if(empty($results['type_checks']) && empty($results['option_syncs']))
-        <div style="text-align: center; padding: 2rem; color: #6b7280;">
+        <div class="text-center py-8 text-gray-500">
             <p>No attribute verification data available.</p>
         </div>
     @endif
 </div>
-

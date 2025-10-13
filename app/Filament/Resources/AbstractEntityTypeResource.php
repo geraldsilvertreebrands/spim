@@ -119,16 +119,7 @@ abstract class AbstractEntityTypeResource extends Resource
     protected static function getTableActions(): array
     {
         return [
-            \Filament\Actions\Action::make('view')
-                ->label('View')
-                ->icon('heroicon-o-eye')
-                ->modalHeading(fn (Entity $record): string => static::getEntityTypeName() . ": {$record->id}")
-                ->modalContent(fn (Entity $record) => view('filament.components.entity-detail-modal', [
-                    'entity' => $record,
-                    'entityType' => $record->entityType,
-                ]))
-                ->modalWidth('7xl')
-                ->slideOver(),
+            \Filament\Actions\EditAction::make(),
         ];
     }
 

@@ -148,71 +148,154 @@ class EntityFormBuilder
     {
         $name = $attribute->name;
         $isReadOnly = $attribute->editable === 'no';
+        $isOverridable = $attribute->editable === 'overridable';
 
-        $helperText = $attribute->editable === 'overridable'
-            ? 'Override the current value (leave empty to use current value)'
-            : null;
+        // For overridable attributes, show current value + override input
+        if ($isOverridable) {
+            return $this->buildOverridableField($attribute);
+        }
 
-        $field = match ($attribute->data_type) {
-            'integer' => Forms\Components\TextInput::make($name)
-                ->hiddenLabel()
-                ->numeric()
-                ->placeholder('Enter integer value'),
-
-            'text' => Forms\Components\TextInput::make($name)
-                ->hiddenLabel()
-                ->maxLength(255)
-                ->placeholder('Enter text value'),
-
-            'html' => Forms\Components\RichEditor::make($name)
-                ->hiddenLabel()
-                ->placeholder('Enter HTML content'),
-
-            'json' => Forms\Components\Textarea::make($name)
-                ->hiddenLabel()
-                ->placeholder('Enter valid JSON')
-                ->rows(5),
-
-            'select' => Forms\Components\Select::make($name)
-                ->hiddenLabel()
-                ->options($attribute->allowedValues())
-                ->placeholder('Select an option'),
-
-            'multiselect' => Forms\Components\Select::make($name)
-                ->hiddenLabel()
-                ->options($attribute->allowedValues())
-                ->multiple()
-                ->placeholder('Select one or more options'),
-
-            'belongs_to' => Forms\Components\Select::make($name)
-                ->hiddenLabel()
-                ->options($this->getRelatedEntityOptions($attribute))
-                ->searchable()
-                ->placeholder('Select related entity'),
-
-            'belongs_to_multi' => Forms\Components\Select::make($name)
-                ->hiddenLabel()
-                ->options($this->getRelatedEntityOptions($attribute))
-                ->multiple()
-                ->searchable()
-                ->placeholder('Select related entities'),
-
-            default => Forms\Components\TextInput::make($name)
-                ->hiddenLabel()
-                ->placeholder('Enter value'),
-        };
+        $field = $this->buildInputField($attribute, $name);
 
         // Disable field if read-only
         if ($isReadOnly) {
             $field = $field->disabled();
         }
 
-        // Add helper text for overridable fields
-        if ($helperText) {
-            $field = $field->helperText($helperText);
-        }
-
         return $field;
+    }
+
+    /**
+     * Build a field component for overridable attributes.
+     * Shows current value (read-only) + separate override input.
+     */
+    protected function buildOverridableField(Attribute $attribute)
+    {
+        $name = $attribute->name;
+
+        // Check if override exists to determine initial state
+        $hasOverrideCheck = function ($record) use ($name) {
+            if (!$record) {
+                return false;
+            }
+
+            $row = \Illuminate\Support\Facades\DB::table('eav_versioned')
+                ->where('entity_id', $record->id)
+                ->where('attribute_id', \Illuminate\Support\Facades\DB::table('attributes')
+                    ->where('entity_type_id', $record->entity_type_id)
+                    ->where('name', $name)
+                    ->value('id'))
+                ->first();
+            return $row?->value_override !== null;
+        };
+
+        // Build the input field (without helper text - we'll add it separately)
+        $inputField = $this->buildInputField($attribute, $name)
+            ->hiddenLabel()
+            ->placeholder('Enter override value...')
+            ->extraAttributes(['x-show' => 'showOverride', 'x-cloak' => true], true);
+
+        return Grid::make(1)
+            ->extraAttributes(function ($record) use ($hasOverrideCheck) {
+                $hasOverride = $hasOverrideCheck($record);
+                return [
+                    'x-data' => '{ showOverride: ' . ($hasOverride ? 'true' : 'false') . ' }',
+                ];
+            })
+            ->schema([
+                // Current value display with override link
+                Forms\Components\Placeholder::make('_current_' . $name)
+                    ->hiddenLabel()
+                    ->content(function ($record) use ($name, $hasOverrideCheck) {
+                        if (!$record) {
+                            $currentValue = '(not set)';
+                            $isEmpty = true;
+                            $hasOverride = false;
+                        } else {
+                            $currentValue = $record->getAttr($name, 'current', '(not set)');
+                            $displayValue = is_array($currentValue) ? json_encode($currentValue) : (string)$currentValue;
+                            if (empty($displayValue)) {
+                                $displayValue = '(not set)';
+                            }
+                            $currentValue = $displayValue;
+                            $isEmpty = empty($currentValue) || $currentValue === '(not set)';
+                            $hasOverride = $hasOverrideCheck($record);
+                        }
+
+                        return view('filament.components.attribute-overridable-value', [
+                            'value' => $currentValue,
+                            'isEmpty' => $isEmpty,
+                            'hasOverride' => $hasOverride,
+                        ]);
+                    }),
+
+                // Override input field
+                $inputField,
+
+                // Helper text (shown only when input is visible)
+                Forms\Components\Placeholder::make('_helper_' . $name)
+                    ->hiddenLabel()
+                    ->content(fn () => new \Illuminate\Support\HtmlString('<p class="text-xs text-gray-500">Leave empty to use the current value shown above</p>'))
+                    ->extraAttributes(['x-show' => 'showOverride', 'x-cloak' => true]),
+            ])
+            ->columnSpanFull();
+    }
+
+    /**
+     * Build the actual input field based on data type.
+     */
+    protected function buildInputField(Attribute $attribute, string $name)
+    {
+        $hiddenLabel = $attribute->editable !== 'overridable';
+
+        return match ($attribute->data_type) {
+            'integer' => Forms\Components\TextInput::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->numeric()
+                ->placeholder('Enter integer value'),
+
+            'text' => Forms\Components\TextInput::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->maxLength(255)
+                ->placeholder('Enter text value'),
+
+            'html' => Forms\Components\RichEditor::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->placeholder('Enter HTML content'),
+
+            'json' => Forms\Components\Textarea::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->placeholder('Enter valid JSON')
+                ->rows(5),
+
+            'select' => Forms\Components\Select::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->options($attribute->allowedValues())
+                ->placeholder('Select an option'),
+
+            'multiselect' => Forms\Components\Select::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->options($attribute->allowedValues())
+                ->multiple()
+                ->placeholder('Select one or more options'),
+
+            'belongs_to' => Forms\Components\Select::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->options($this->getRelatedEntityOptions($attribute))
+                ->searchable()
+                ->placeholder('Select related entity'),
+
+            'belongs_to_multi' => Forms\Components\Select::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->options($this->getRelatedEntityOptions($attribute))
+                ->multiple()
+                ->searchable()
+                ->placeholder('Select related entities'),
+
+            default => Forms\Components\TextInput::make($name)
+                ->hiddenLabel($hiddenLabel)
+                ->placeholder('Enter value'),
+        };
     }
 
     /**
