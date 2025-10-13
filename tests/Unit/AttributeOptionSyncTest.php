@@ -10,6 +10,7 @@ use App\Services\Sync\AttributeOptionSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Mockery;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AttributeOptionSyncTest extends TestCase
@@ -37,7 +38,7 @@ class AttributeOptionSyncTest extends TestCase
         $this->magentoClient = Mockery::mock(MagentoApiClient::class);
     }
 
-    /** @test */
+    #[Test]
     public function test_syncs_options_from_magento_to_spim(): void
     {
         $attribute = Attribute::factory()->create([
@@ -70,7 +71,7 @@ class AttributeOptionSyncTest extends TestCase
         $this->assertEquals(1, $result['stats']['updated']);
     }
 
-    /** @test */
+    #[Test]
     public function test_replaces_spim_options_when_magento_differs(): void
     {
         $attribute = Attribute::factory()->create([
@@ -102,7 +103,7 @@ class AttributeOptionSyncTest extends TestCase
         $this->assertArrayNotHasKey('XL', $attribute->allowed_values);
     }
 
-    /** @test */
+    #[Test]
     public function test_skips_attributes_that_are_already_synced(): void
     {
         $attribute = Attribute::factory()->create([
@@ -130,7 +131,7 @@ class AttributeOptionSyncTest extends TestCase
         $this->assertEquals(0, $result['stats']['updated']);
     }
 
-    /** @test */
+    #[Test]
     public function test_only_syncs_select_and_multiselect_attributes(): void
     {
         Attribute::factory()->create([
@@ -156,7 +157,7 @@ class AttributeOptionSyncTest extends TestCase
         $this->assertEquals(0, $result['stats']['created'] + $result['stats']['updated'] + $result['stats']['skipped'] + $result['stats']['errors']);
     }
 
-    /** @test */
+    #[Test]
     public function test_only_syncs_attributes_with_is_sync_enabled(): void
     {
         Attribute::factory()->create([
@@ -175,7 +176,7 @@ class AttributeOptionSyncTest extends TestCase
         $this->assertEquals(0, $result['stats']['created'] + $result['stats']['updated'] + $result['stats']['skipped'] + $result['stats']['errors']);
     }
 
-    /** @test */
+    #[Test]
     public function test_logs_sync_results_to_database(): void
     {
         $attribute = Attribute::factory()->create([
@@ -206,7 +207,7 @@ class AttributeOptionSyncTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_handles_magento_api_errors(): void
     {
         $attribute = Attribute::factory()->create([
@@ -236,7 +237,7 @@ class AttributeOptionSyncTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_updates_stats_correctly(): void
     {
         // Create multiple attributes
@@ -283,7 +284,7 @@ class AttributeOptionSyncTest extends TestCase
         $this->assertEquals(0, $result['stats']['errors']);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_run_is_updated_with_final_stats(): void
     {
         Attribute::factory()->create([
@@ -312,7 +313,7 @@ class AttributeOptionSyncTest extends TestCase
         $this->assertNotNull($this->syncRun->completed_at);
     }
 
-    /** @test */
+    #[Test]
     public function test_handles_no_synced_attributes_gracefully(): void
     {
         // Create attributes that are not marked for sync

@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MagentoSyncJobsTest extends TestCase
@@ -43,7 +44,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_attribute_options_job_creates_sync_run(): void
     {
         $attribute = Attribute::factory()->create([
@@ -72,7 +73,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_attribute_options_job_logs_results(): void
     {
         $attribute = Attribute::factory()->create([
@@ -100,7 +101,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_attribute_options_job_handles_no_synced_attributes(): void
     {
         // Create attributes that are not marked for sync
@@ -145,7 +146,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_attribute_options_job_tracks_user(): void
     {
         Attribute::factory()->create([
@@ -171,7 +172,7 @@ class MagentoSyncJobsTest extends TestCase
         $this->assertEquals('user', $syncRun->triggered_by);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_attribute_options_job_can_be_queued(): void
     {
         Queue::fake();
@@ -185,7 +186,7 @@ class MagentoSyncJobsTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_all_products_job_creates_sync_run(): void
     {
         $entity = Entity::factory()->create([
@@ -216,7 +217,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_all_products_job_syncs_all_entities(): void
     {
         Entity::factory()->create([
@@ -249,7 +250,7 @@ class MagentoSyncJobsTest extends TestCase
         $this->assertGreaterThanOrEqual(2, $syncRun->sync_results()->count());
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_all_products_job_logs_results(): void
     {
         $entity = Entity::factory()->create([
@@ -275,7 +276,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_all_products_job_tracks_user(): void
     {
         Http::fake([
@@ -292,7 +293,7 @@ class MagentoSyncJobsTest extends TestCase
         $this->assertEquals('user', $syncRun->triggered_by);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_all_products_job_can_be_queued(): void
     {
         Queue::fake();
@@ -306,7 +307,7 @@ class MagentoSyncJobsTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_single_product_job_creates_sync_run(): void
     {
         $entity = Entity::factory()->create([
@@ -332,7 +333,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_single_product_job_syncs_one_entity(): void
     {
         $entity = Entity::factory()->create([
@@ -367,7 +368,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_single_product_job_logs_results(): void
     {
         $entity = Entity::factory()->create([
@@ -391,7 +392,7 @@ class MagentoSyncJobsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_single_product_job_tracks_user(): void
     {
         $entity = Entity::factory()->create([
@@ -413,7 +414,7 @@ class MagentoSyncJobsTest extends TestCase
         $this->assertEquals('user', $syncRun->triggered_by);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_single_product_job_can_be_queued(): void
     {
         Queue::fake();
@@ -432,7 +433,7 @@ class MagentoSyncJobsTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_jobs_update_sync_run_status_on_completion(): void
     {
         $attribute = Attribute::factory()->create([
@@ -457,7 +458,7 @@ class MagentoSyncJobsTest extends TestCase
         $this->assertNotNull($syncRun->completed_at);
     }
 
-    /** @test */
+    #[Test]
     public function test_jobs_record_errors_in_sync_run(): void
     {
         $attribute = Attribute::factory()->create([

@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Services\MagentoApiClient;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MagentoApiClientTest extends TestCase
@@ -22,7 +23,7 @@ class MagentoApiClientTest extends TestCase
         $this->client = new MagentoApiClient();
     }
 
-    /** @test */
+    #[Test]
     public function test_can_get_products_list(): void
     {
         Http::fake([
@@ -43,7 +44,7 @@ class MagentoApiClientTest extends TestCase
         $this->assertEquals('TEST-001', $result['items'][0]['sku']);
     }
 
-    /** @test */
+    #[Test]
     public function test_can_get_products_with_filters(): void
     {
         Http::fake([
@@ -72,7 +73,7 @@ class MagentoApiClientTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_can_get_single_product(): void
     {
         Http::fake([
@@ -95,7 +96,7 @@ class MagentoApiClientTest extends TestCase
         $this->assertArrayHasKey('custom_attributes', $result);
     }
 
-    /** @test */
+    #[Test]
     public function test_can_create_product(): void
     {
         Http::fake([
@@ -128,7 +129,7 @@ class MagentoApiClientTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_can_update_product(): void
     {
         Http::fake([
@@ -156,7 +157,7 @@ class MagentoApiClientTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_can_get_attribute_options(): void
     {
         Http::fake([
@@ -175,7 +176,7 @@ class MagentoApiClientTest extends TestCase
         $this->assertEquals('10', $result[0]['value']);
     }
 
-    /** @test */
+    #[Test]
     public function test_can_create_attribute_option(): void
     {
         Http::fake([
@@ -196,7 +197,7 @@ class MagentoApiClientTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_can_upload_image(): void
     {
         Http::fake([
@@ -217,7 +218,7 @@ class MagentoApiClientTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_handles_api_errors_gracefully(): void
     {
         Http::fake([
@@ -232,7 +233,7 @@ class MagentoApiClientTest extends TestCase
         $this->client->getProduct('INVALID');
     }
 
-    /** @test */
+    #[Test]
     public function test_handles_server_errors(): void
     {
         Http::fake([
@@ -247,7 +248,7 @@ class MagentoApiClientTest extends TestCase
         $this->client->getProducts();
     }
 
-    /** @test */
+    #[Test]
     public function test_retries_on_failure(): void
     {
         Http::fake([
@@ -265,7 +266,7 @@ class MagentoApiClientTest extends TestCase
         Http::assertSentCount(3);
     }
 
-    /** @test */
+    #[Test]
     public function test_includes_authorization_header(): void
     {
         Http::fake([
@@ -279,7 +280,7 @@ class MagentoApiClientTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_uses_correct_base_url(): void
     {
         Http::fake([

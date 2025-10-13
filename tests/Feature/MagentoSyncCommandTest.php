@@ -9,6 +9,7 @@ use App\Models\Entity;
 use App\Models\EntityType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MagentoSyncCommandTest extends TestCase
@@ -27,7 +28,7 @@ class MagentoSyncCommandTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_magento_options_command(): void
     {
         Queue::fake();
@@ -42,7 +43,7 @@ class MagentoSyncCommandTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_magento_command_without_sku(): void
     {
         Queue::fake();
@@ -57,7 +58,7 @@ class MagentoSyncCommandTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_magento_command_with_sku(): void
     {
         Queue::fake();
@@ -80,7 +81,7 @@ class MagentoSyncCommandTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_commands_fail_with_invalid_entity_type(): void
     {
         $this->artisan('sync:magento:options', ['entityType' => 'invalid'])
@@ -90,7 +91,7 @@ class MagentoSyncCommandTest extends TestCase
             ->assertFailed();
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_command_fails_with_invalid_sku(): void
     {
         $this->artisan('sync:magento', [
@@ -100,7 +101,7 @@ class MagentoSyncCommandTest extends TestCase
             ->assertFailed();
     }
 
-    /** @test */
+    #[Test]
     public function test_commands_queue_jobs_properly(): void
     {
         Queue::fake();
@@ -127,7 +128,7 @@ class MagentoSyncCommandTest extends TestCase
         Queue::assertPushed(SyncSingleProduct::class, 1);
     }
 
-    /** @test */
+    #[Test]
     public function test_options_command_queues_job_for_correct_entity_type(): void
     {
         Queue::fake();
@@ -142,7 +143,7 @@ class MagentoSyncCommandTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_command_queues_job_for_correct_entity_type(): void
     {
         Queue::fake();
@@ -157,7 +158,7 @@ class MagentoSyncCommandTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_cleanup_command_deletes_old_sync_results(): void
     {
         // Create old sync run with results (35 days ago)
@@ -193,7 +194,7 @@ class MagentoSyncCommandTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_cleanup_command_respects_custom_days_option(): void
     {
         // Create sync result 15 days ago

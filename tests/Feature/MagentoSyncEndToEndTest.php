@@ -12,6 +12,7 @@ use App\Services\EavWriter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MagentoSyncEndToEndTest extends TestCase
@@ -37,7 +38,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $this->eavWriter = app(EavWriter::class);
     }
 
-    /** @test */
+    #[Test]
     public function test_full_sync_workflow_with_new_product(): void
     {
         // Step 1: Create synced attributes
@@ -113,7 +114,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $this->assertEquals(2, SyncRun::count()); // One for options, one for products
     }
 
-    /** @test */
+    #[Test]
     public function test_full_sync_workflow_with_existing_product(): void
     {
         // Create existing entity
@@ -172,7 +173,7 @@ class MagentoSyncEndToEndTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_bidirectional_sync(): void
     {
         $entity = Entity::factory()->create([
@@ -238,7 +239,7 @@ class MagentoSyncEndToEndTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_respects_attribute_type_rules(): void
     {
         $entity = Entity::factory()->create([
@@ -305,7 +306,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $this->assertNull($timeseriesValue);
     }
 
-    /** @test */
+    #[Test]
     public function test_handles_magento_api_down(): void
     {
         Http::fake([
@@ -322,7 +323,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $this->assertNotNull($syncRun->error_summary);
     }
 
-    /** @test */
+    #[Test]
     public function test_partial_sync_with_some_failures(): void
     {
         Entity::factory()->create([
@@ -361,7 +362,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $this->assertEquals('failed', $syncRun->status);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_run_records_created_with_correct_stats(): void
     {
         Entity::factory()->create([
@@ -400,7 +401,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $this->assertNotNull($syncRun->completed_at);
     }
 
-    /** @test */
+    #[Test]
     public function test_sync_results_contain_detailed_error_messages(): void
     {
         Entity::factory()->create([

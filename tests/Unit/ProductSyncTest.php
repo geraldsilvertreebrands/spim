@@ -12,6 +12,7 @@ use App\Services\Sync\ProductSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Mockery;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ProductSyncTest extends TestCase
@@ -39,7 +40,7 @@ class ProductSyncTest extends TestCase
         $this->eavWriter = app(EavWriter::class);
     }
 
-    /** @test */
+    #[Test]
     public function test_imports_new_products_from_magento(): void
     {
         // Create synced input attribute
@@ -83,7 +84,7 @@ class ProductSyncTest extends TestCase
         $this->assertEquals(1, $result['stats']['created']);
     }
 
-    /** @test */
+    #[Test]
     public function test_updates_existing_products_with_input_attributes(): void
     {
         // Create existing entity
@@ -127,7 +128,7 @@ class ProductSyncTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sets_all_three_value_fields_on_initial_import(): void
     {
         $priceAttr = Attribute::factory()->create([
@@ -164,7 +165,7 @@ class ProductSyncTest extends TestCase
         $this->assertEquals('29.99', $value->value_current);
     }
 
-    /** @test */
+    #[Test]
     public function test_creates_products_in_magento_when_missing(): void
     {
         $entity = Entity::factory()->create([
@@ -206,7 +207,7 @@ class ProductSyncTest extends TestCase
         $this->assertEquals(1, $result['stats']['created'] ?? 0);
     }
 
-    /** @test */
+    #[Test]
     public function test_creates_products_as_disabled(): void
     {
         $entity = Entity::factory()->create([
@@ -234,7 +235,7 @@ class ProductSyncTest extends TestCase
         $sync->sync();
     }
 
-    /** @test */
+    #[Test]
     public function test_updates_existing_products_with_versioned_attributes(): void
     {
         $entity = Entity::factory()->create([
@@ -292,7 +293,7 @@ class ProductSyncTest extends TestCase
         $this->assertEquals('Approved desc', $updated->value_live);
     }
 
-    /** @test */
+    #[Test]
     public function test_only_syncs_when_value_approved_differs_from_value_live(): void
     {
         $entity = Entity::factory()->create([
@@ -335,7 +336,7 @@ class ProductSyncTest extends TestCase
         $sync->sync();
     }
 
-    /** @test */
+    #[Test]
     public function test_uses_value_override_when_present(): void
     {
         $entity = Entity::factory()->create([
@@ -385,7 +386,7 @@ class ProductSyncTest extends TestCase
         $sync->sync();
     }
 
-    /** @test */
+    #[Test]
     public function test_skips_attributes_with_is_sync_disabled(): void
     {
         $entity = Entity::factory()->create([
@@ -425,7 +426,7 @@ class ProductSyncTest extends TestCase
         $sync->sync();
     }
 
-    /** @test */
+    #[Test]
     public function test_syncs_single_product_by_sku(): void
     {
         $entity = Entity::factory()->create([
@@ -445,7 +446,7 @@ class ProductSyncTest extends TestCase
         $sync->sync();
     }
 
-    /** @test */
+    #[Test]
     public function test_logs_sync_results_to_database(): void
     {
         $entity = Entity::factory()->create([
