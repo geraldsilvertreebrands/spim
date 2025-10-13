@@ -118,6 +118,21 @@ class MagentoApiClient
     }
 
     /**
+     * Get attribute metadata including data type
+     *
+     * @param string $attributeCode Attribute code
+     * @return array Attribute metadata
+     */
+    public function getAttribute(string $attributeCode): array
+    {
+        $response = $this->client()->get("/rest/V1/products/attributes/{$attributeCode}");
+
+        $this->ensureSuccessful($response, "Failed to fetch attribute metadata for {$attributeCode}");
+
+        return $response->json();
+    }
+
+    /**
      * Get attribute options for select/multiselect attributes
      *
      * @param string $attributeCode Attribute code

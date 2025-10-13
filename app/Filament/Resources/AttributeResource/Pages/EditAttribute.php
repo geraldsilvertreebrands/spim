@@ -7,6 +7,7 @@ use App\Jobs\Sync\SyncAttributeOptions;
 use App\Models\SyncRun;
 use App\Services\MagentoApiClient;
 use App\Services\Sync\AttributeOptionSync;
+use Illuminate\Support\Facades\Auth;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -57,36 +58,28 @@ class EditAttribute extends EditRecord
                 ->modalDescription('This will replace SPIM options with options from Magento. Magento is the source of truth.')
                 ->action(function () {
                     try {
-                        // Create sync run record for tracking
-                        $syncRun = SyncRun::create([
-                            'entity_type_id' => $this->record->entity_type_id,
-                            'sync_type' => 'options',
-                            'started_at' => now(),
-                            'status' => 'running',
-                            'triggered_by' => 'user',
-                            'user_id' => auth()->id(),
-                        ]);
+                        // Wrap with SyncRunService
+                        $syncRunService = app(\App\Services\Sync\SyncRunService::class);
+                        $entityType = $this->record->entityType;
+                        /** @var int|null $userId */
+                        $userId = Auth::id();
 
-                        // Run sync synchronously for this specific attribute
-                        $magentoClient = app(MagentoApiClient::class);
-                        $sync = app(AttributeOptionSync::class, [
-                            'magentoClient' => $magentoClient,
-                            'entityType' => $this->record->entityType,
-                            'syncRun' => $syncRun,
-                        ]);
+                        $record = $this->record;
+                        $syncRunService->run('options', $entityType, $userId, 'user', function (SyncRun $syncRun) use ($record, $entityType) {
+                            // Run sync synchronously for this specific attribute
+                            $magentoClient = app(MagentoApiClient::class);
+                            $sync = app(AttributeOptionSync::class, [
+                                'magentoClient' => $magentoClient,
+                                'entityType' => $entityType,
+                                'syncRun' => $syncRun,
+                            ]);
 
-                        // Sync only this specific attribute
-                        $sync->syncSingleAttribute($this->record);
+                            // Sync only this specific attribute
+                            $sync->syncSingleAttribute($record);
 
-                        // Update sync run with results
-                        $syncRun->update([
-                            'completed_at' => now(),
-                            'status' => 'completed',
-                            'total_items' => 1,
-                            'successful_items' => 1,
-                            'failed_items' => 0,
-                            'skipped_items' => 0,
-                        ]);
+                            // Return stats for a single attribute update
+                            return ['created' => 0, 'updated' => 1, 'errors' => 0, 'skipped' => 0];
+                        });
 
                         Notification::make()
                             ->title('Options synced successfully')

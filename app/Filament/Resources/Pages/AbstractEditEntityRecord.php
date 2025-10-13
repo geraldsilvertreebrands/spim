@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Pages;
 
 use App\Filament\Resources\AbstractEntityTypeResource;
 use App\Models\Attribute;
+use Illuminate\Support\Facades\Auth;
 use Filament\Resources\Pages\EditRecord;
 
 class AbstractEditEntityRecord extends EditRecord
@@ -35,27 +36,54 @@ class AbstractEditEntityRecord extends EditRecord
     {
         return [
             \Filament\Actions\Action::make('syncToMagento')
-                ->label('Sync to Magento')
+                ->label('Sync with Magento')
                 ->icon('heroicon-o-cloud-arrow-up')
                 ->color('primary')
                 ->requiresConfirmation()
-                ->modalHeading('Sync to Magento')
-                ->modalDescription('This will sync this product to Magento immediately.')
+                ->modalHeading('Sync with Magento')
+                ->modalDescription('This will sync this product with Magento immediately.')
                 ->action(function () {
-                    /** @var int|null $userId */
-                    $userId = auth()->id();
+                    try {
+                        /** @var int|null $userId */
+                        $userId = Auth::id();
 
-                    \App\Jobs\Sync\SyncSingleProduct::dispatch(
-                        $this->record,
-                        $userId,
-                        'user'
-                    );
+                        // Use SyncRunService to wrap execution
+                        $syncRunService = app(\App\Services\Sync\SyncRunService::class);
+                        $entity = $this->record;
+                        $entityType = $entity->entityType;
 
-                    \Filament\Notifications\Notification::make()
-                        ->title('Sync queued')
-                        ->body('Product will be synced to Magento shortly. Check the Magento Sync page for results.')
-                        ->success()
-                        ->send();
+                        $syncRunService->run('products', $entityType, $userId, 'user', function (\App\Models\SyncRun $syncRun) use ($entity, $entityType) {
+                            $sync = app(\App\Services\Sync\ProductSync::class, [
+                                'entityType' => $entityType,
+                                'sku' => $entity->entity_id,
+                                'syncRun' => $syncRun,
+                            ]);
+
+                            $stats = $sync->sync();
+                            return [
+                                'created' => $stats['created'] ?? 0,
+                                'updated' => $stats['updated'] ?? 0,
+                                'errors' => $stats['errors'] ?? 0,
+                                'skipped' => $stats['skipped'] ?? 0,
+                            ];
+                        });
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Sync completed')
+                            ->body('Product was synced to Magento successfully.')
+                            ->success()
+                            ->send();
+                    } catch (\Exception $e) {
+                        if (isset($syncRun)) {
+                            $syncRun->markFailed($e->getMessage());
+                        }
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Sync failed')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
                 }),
 
             \Filament\Actions\DeleteAction::make(),

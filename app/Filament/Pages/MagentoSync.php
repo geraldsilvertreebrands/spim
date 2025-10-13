@@ -17,6 +17,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Auth;
 
 class MagentoSync extends Page implements HasTable
 {
@@ -166,8 +167,8 @@ class MagentoSync extends Page implements HasTable
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('syncOptions')
-                ->label('Sync Options')
+            Action::make('syncAttributes')
+                ->label('Sync Attributes')
                 ->icon('heroicon-o-arrows-pointing-in')
                 ->color('warning')
                 ->form([
@@ -178,20 +179,55 @@ class MagentoSync extends Page implements HasTable
                 ])
                 ->action(function (array $data) {
                     $entityType = EntityType::find($data['entity_type_id']);
-                    /** @var int|null $userId */
-                    $userId = auth()->id();
 
-                    SyncAttributeOptions::dispatch(
-                        $entityType,
-                        $userId,
-                        'user'
-                    );
+                    try {
+                        // Run validation synchronously to show immediate results
+                        $validationSync = app(\App\Services\Sync\AttributeValidationSync::class, [
+                            'entityType' => $entityType,
+                            'syncRun' => null, // No persistent sync run for this quick check
+                        ]);
 
-                    Notification::make()
-                        ->title('Option sync queued')
-                        ->body("Syncing options for {$entityType->name}")
-                        ->success()
-                        ->send();
+                        $result = $validationSync->sync();
+                        $summary = $result['validation_results']['summary'] ?? 'Validation completed';
+
+                        // Build detailed message
+                        $details = [];
+
+                        // Add type check details
+                        if (!empty($result['validation_results']['type_checks'])) {
+                            foreach ($result['validation_results']['type_checks'] as $check) {
+                                if ($check['status'] === 'incompatible' || $check['status'] === 'error') {
+                                    $details[] = "❌ {$check['attribute']}: {$check['message']}";
+                                } elseif ($check['status'] === 'warning') {
+                                    $details[] = "⚠️ {$check['attribute']}: {$check['message']}";
+                                }
+                            }
+                        }
+
+                        // Add option sync details
+                        if (!empty($result['validation_results']['option_syncs'])) {
+                            foreach ($result['validation_results']['option_syncs'] as $sync) {
+                                if ($sync['status'] === 'synced') {
+                                    $details[] = "✓ {$sync['attribute']}: {$sync['message']}";
+                                }
+                            }
+                        }
+
+                        $detailsText = !empty($details) ? "\n\n" . implode("\n", $details) : '';
+
+                        Notification::make()
+                            ->title('Attribute sync completed')
+                            ->body($summary . $detailsText)
+                            ->success()
+                            ->duration(10000)
+                            ->send();
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->title('Attribute sync failed')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
                 }),
 
             Action::make('syncProducts')
@@ -207,7 +243,7 @@ class MagentoSync extends Page implements HasTable
                 ->action(function (array $data) {
                     $entityType = EntityType::find($data['entity_type_id']);
                     /** @var int|null $userId */
-                    $userId = auth()->id();
+                    $userId = Auth::id();
 
                     SyncAllProducts::dispatch(
                         $entityType,
@@ -242,7 +278,7 @@ class MagentoSync extends Page implements HasTable
                     $entityType = EntityType::find($data['entity_type_id']);
                     $skus = array_filter(array_map('trim', explode("\n", $data['skus'])));
                     /** @var int|null $userId */
-                    $userId = auth()->id();
+                    $userId = Auth::id();
 
                     foreach ($skus as $sku) {
                         $entity = \App\Models\Entity::where('entity_type_id', $entityType->id)

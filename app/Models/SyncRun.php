@@ -67,7 +67,7 @@ class SyncRun extends Model
             return null;
         }
 
-        return $this->completed_at->diffInSeconds($this->started_at);
+        return $this->started_at->diffInSeconds($this->completed_at);
     }
 
     /**
