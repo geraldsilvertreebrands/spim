@@ -30,29 +30,55 @@ class AttributeFactory extends Factory
             $linkedTypeId = EntityType::factory()->create()->id;
         }
 
-        // Generate valid attribute configuration that passes validation rules
-        $isSync = $this->faker->randomElement(['no', 'from_external', 'to_external']);
-        $needsApproval = $this->faker->randomElement(['yes', 'only_low_confidence', 'no']);
-        $editable = $this->faker->randomElement(['yes', 'no', 'overridable']);
-
-        // Enforce validation rules to prevent conflicts
-        if ($isSync === 'from_external') {
-            // Attributes from external cannot be editable/overridable or need approval
-            $editable = 'no';
-            $needsApproval = 'no';
-        }
+        // Defaults per new model
+        $editable = 'yes';
+        $isPipeline = 'no';
+        $isSync = 'no';
+        $needsApproval = 'no';
 
         return [
             'entity_type_id' => $entityTypeId,
             'name' => Str::slug($this->faker->unique()->words(2, true), '_'),
             'data_type' => $dataType,
             'editable' => $editable,
-            'is_pipeline' => 'no',
+            'is_pipeline' => $isPipeline,
             'is_sync' => $isSync,
             'needs_approval' => $needsApproval,
             'allowed_values' => $allowedValues,
             'linked_entity_type_id' => $linkedTypeId,
             'ui_class' => null,
         ];
+    }
+
+    public function readonly(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'editable' => 'no',
+        ]);
+    }
+
+    public function fromExternal(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'editable' => 'no',
+            'is_sync' => 'from_external',
+            'needs_approval' => 'no',
+        ]);
+    }
+
+    public function toExternal(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'editable' => 'yes',
+            'is_sync' => 'to_external',
+            'needs_approval' => 'yes',
+        ]);
+    }
+
+    public function overridable(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'editable' => 'overridable',
+        ]);
     }
 }

@@ -135,4 +135,60 @@ class EntityBrowsingTest extends TestCase
         $this->assertCount(1, $activeEntities);
         $this->assertEquals($entity1->id, $activeEntities->first()->id);
     }
+
+    public function test_setting_overridable_attribute_sets_override_value(): void
+    {
+        $entityType = EntityType::factory()->create();
+        $attribute = Attribute::factory()->create([
+            'entity_type_id' => $entityType->id,
+            'name' => 'test_attr',
+            'data_type' => 'text',
+            'editable' => 'overridable',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
+        ]);
+
+        $entity = Entity::factory()->create(['entity_type_id' => $entityType->id]);
+
+        // Set initial value (current/approved/live)
+        \DB::table('eav_versioned')->insert([
+            'entity_id' => $entity->id,
+            'attribute_id' => $attribute->id,
+            'value_current' => 'original',
+            'value_approved' => 'original',
+            'value_live' => 'original',
+            'value_override' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Set override via magic setter
+        $entity->test_attr = 'override';
+
+        $record = \DB::table('eav_versioned')
+            ->where('entity_id', $entity->id)
+            ->where('attribute_id', $attribute->id)
+            ->first();
+
+        $this->assertEquals('original', $record->value_current);
+        $this->assertEquals('override', $record->value_override);
+    }
+
+    public function test_setting_readonly_attribute_throws_exception(): void
+    {
+        $entityType = EntityType::factory()->create();
+        $attribute = Attribute::factory()->create([
+            'entity_type_id' => $entityType->id,
+            'name' => 'readonly_attr',
+            'data_type' => 'text',
+            'editable' => 'no',
+        ]);
+
+        $entity = Entity::factory()->create(['entity_type_id' => $entityType->id]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('read-only');
+
+        $entity->readonly_attr = 'value';
+    }
 }
