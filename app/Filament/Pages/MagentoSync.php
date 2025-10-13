@@ -101,7 +101,7 @@ class MagentoSync extends Page implements HasTable
                     ->action(function ($record) {
                         try {
                             $record->cancel();
-                            
+
                             Notification::make()
                                 ->title('Sync cancelled')
                                 ->body('The sync has been successfully cancelled.')
@@ -140,7 +140,24 @@ class MagentoSync extends Page implements HasTable
                     ->modalContent(function ($record) {
                         return view('filament.components.sync-details', ['syncRun' => $record, 'cache_bust' => time()]);
                     })
-                    ->modalSubmitAction(false)
+                    ->modalSubmitActionLabel(fn ($record) => $record->isRunning() ? 'Cancel Sync' : null)
+                    ->modalSubmitAction(fn ($record) => $record->isRunning() ? function () use ($record) {
+                        try {
+                            $record->cancel();
+
+                            Notification::make()
+                                ->title('Sync cancelled')
+                                ->body('The sync has been successfully cancelled.')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Cancel failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    } : null)
                     ->modalCancelActionLabel('Close'),
             ])
             ->defaultSort('started_at', 'desc');

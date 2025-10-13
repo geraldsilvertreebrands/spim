@@ -100,6 +100,9 @@ services:
       APP_ENV: local
       APP_DEBUG: "true"
       PHP_MEMORY_LIMIT: 512M
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "m2.ftn.test:host-gateway"
     depends_on:
       - db
       - redis
