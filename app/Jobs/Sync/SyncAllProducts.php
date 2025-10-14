@@ -61,7 +61,7 @@ class SyncAllProducts implements ShouldQueue
                 'entity_type' => $this->entityType->name,
                 'error' => $e->getMessage(),
             ]);
-            throw $e;
+            // Don't re-throw - let the job complete so sync run status is persisted
         }
     }
 

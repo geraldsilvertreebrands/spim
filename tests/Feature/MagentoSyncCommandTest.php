@@ -207,7 +207,7 @@ class MagentoSyncCommandTest extends TestCase
         ]);
 
         $this->artisan('sync:cleanup', ['--days' => 10])
-            ->expectsOutputToContain('15 days')
+            ->expectsOutputToContain('10 days')
             ->assertExitCode(0);
 
         // Result should be deleted since it's older than 10 days

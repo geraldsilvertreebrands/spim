@@ -148,7 +148,7 @@ class ProductSync extends AbstractSync
     {
         // Define compatible type mappings
         $compatibilityMap = [
-            'integer' => ['int', 'boolean', 'static', 'decimal'],
+            'integer' => ['int', 'boolean', 'static', 'decimal', 'price'],
             'text' => ['text', 'textarea', 'date', 'datetime', 'static', 'varchar', 'decimal', 'price'],
             'html' => ['textarea', 'text', 'static', 'varchar'],
             'json' => ['textarea', 'text', 'static', 'varchar'],
@@ -201,16 +201,18 @@ class ProductSync extends AbstractSync
                 $this->importProduct($magentoProduct);
             } catch (\Exception $e) {
                 $this->stats['errors']++;
-                $this->logError("Failed to import product {$magentoProduct['sku']}", [
-                    'sku' => $magentoProduct['sku'],
+                $sku = $magentoProduct['sku'] ?? 'unknown';
+                $this->logError("Failed to import product {$sku}", [
+                    'sku' => $sku,
                     'error' => $e->getMessage(),
+                    'product_data' => $magentoProduct,
                 ]);
 
                 // Log error to database (entity may not exist yet)
                 if ($this->syncRun) {
                     SyncResult::create([
                         'sync_run_id' => $this->syncRun->id,
-                        'item_identifier' => $magentoProduct['sku'],
+                        'item_identifier' => $sku,
                         'operation' => 'create',
                         'status' => 'error',
                         'error_message' => $e->getMessage(),
@@ -289,7 +291,7 @@ class ProductSync extends AbstractSync
 
     /**
      * Import a versioned attribute with all three value fields set identically
-     * This is used for initial import only
+     * This is used for importing from Magento (from_external sync)
      */
     private function importVersionedAttribute(string $entityId, int $attributeId, ?string $value): void
     {
@@ -302,9 +304,19 @@ class ProductSync extends AbstractSync
         ])->first();
 
         if ($existing) {
-            return; // Don't overwrite existing versioned data
+            // Update existing record - set all three value fields
+            DB::table('eav_versioned')
+                ->where('id', $existing->id)
+                ->update([
+                    'value_current' => $value,
+                    'value_approved' => $value,
+                    'value_live' => $value,
+                    'updated_at' => $now,
+                ]);
+            return;
         }
 
+        // Insert new record
         DB::table('eav_versioned')->insert([
             'entity_id' => $entityId,
             'attribute_id' => $attributeId,
@@ -313,7 +325,7 @@ class ProductSync extends AbstractSync
             'value_live' => $value,
             'value_override' => null,
             'input_hash' => null,
-            'justification' => 'Initial import from Magento',
+            'justification' => 'Imported from Magento',
             'confidence' => null,
             'meta' => json_encode([]),
             'created_at' => $now,

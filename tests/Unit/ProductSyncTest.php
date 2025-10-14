@@ -278,7 +278,10 @@ class ProductSyncTest extends TestCase
             ->andReturn(['id' => 1, 'sku' => 'NEW-001']);
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
-        $sync->sync();
+        $result = $sync->sync();
+
+        // Assert that at least one product was created in Magento
+        $this->assertGreaterThanOrEqual(1, $result['created']);
     }
 
     #[Test]
@@ -391,7 +394,10 @@ class ProductSyncTest extends TestCase
         $this->magentoClient->shouldNotReceive('updateProduct');
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
-        $sync->sync();
+        $result = $sync->sync();
+
+        // Push phase should be skipped since approved == live
+        $this->assertGreaterThanOrEqual(1, $result['skipped']);
     }
 
     #[Test]
@@ -447,7 +453,17 @@ class ProductSyncTest extends TestCase
             ->andReturn(['sku' => 'EXISTING-001']);
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
-        $sync->sync();
+        $result = $sync->sync();
+
+        // Should have performed an update
+        $this->assertGreaterThanOrEqual(1, $result['updated']);
+
+        // value_live should now match the override
+        $updated = DB::table('eav_versioned')
+            ->where('entity_id', $entity->id)
+            ->where('attribute_id', $descAttr->id)
+            ->first();
+        $this->assertEquals('Manual override', $updated->value_live);
     }
 
     #[Test]
@@ -484,7 +500,10 @@ class ProductSyncTest extends TestCase
         $this->magentoClient->shouldNotReceive('updateProduct');
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
-        $sync->sync();
+        $result = $sync->sync();
+
+        // No attributes to sync -> push phase skipped
+        $this->assertGreaterThanOrEqual(1, $result['skipped']);
     }
 
     #[Test]
@@ -495,16 +514,24 @@ class ProductSyncTest extends TestCase
             'entity_id' => 'SINGLE-001',
         ]);
 
+        // getProduct is called twice: once during pull, once during push
         $this->magentoClient->shouldReceive('getProduct')
             ->with('SINGLE-001')
-            ->once()
+            ->twice()
             ->andReturn(['sku' => 'SINGLE-001']);
 
         // Should not call getProducts for all products
         $this->magentoClient->shouldNotReceive('getProducts');
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, 'SINGLE-001', $this->syncRun);
-        $sync->sync();
+        $result = $sync->sync();
+
+        // Assert that stats array is returned
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('created', $result);
+        $this->assertArrayHasKey('updated', $result);
+        $this->assertArrayHasKey('errors', $result);
+        $this->assertArrayHasKey('skipped', $result);
     }
 
     #[Test]

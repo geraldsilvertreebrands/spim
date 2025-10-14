@@ -32,6 +32,12 @@ class SyncRun extends Model
         return $this->hasMany(SyncResult::class);
     }
 
+    // Alias for results() for backward compatibility
+    public function sync_results(): HasMany
+    {
+        return $this->results();
+    }
+
     public function errors(): HasMany
     {
         return $this->hasMany(SyncResult::class)->where('status', 'error');

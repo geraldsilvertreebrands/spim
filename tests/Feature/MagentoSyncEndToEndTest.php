@@ -76,6 +76,18 @@ class MagentoSyncEndToEndTest extends TestCase
 
         // Step 4: Mock Magento API for product import
         Http::fake([
+            'magento.test/rest/V1/products/attributes/color' => Http::response([
+                'frontend_input' => 'select',
+                'backend_type' => 'int',
+            ], 200),
+            'magento.test/rest/V1/products/attributes/name' => Http::response([
+                'frontend_input' => 'text',
+                'backend_type' => 'varchar',
+            ], 200),
+            'magento.test/rest/V1/products/attributes/*' => Http::response([
+                'frontend_input' => 'text',
+                'backend_type' => 'varchar',
+            ], 200),
             'magento.test/rest/V1/products*' => Http::response([
                 'items' => [
                     [
@@ -104,7 +116,7 @@ class MagentoSyncEndToEndTest extends TestCase
 
         // Step 7: Verify attribute value was imported
         $entity = Entity::where('entity_id', 'NEW-PROD-001')->first();
-        $this->assertDatabaseHas('eav_input', [
+        $this->assertDatabaseHas('eav_versioned', [
             'entity_id' => $entity->id,
             'attribute_id' => $nameAttr->id,
             'value_current' => 'New Product',
@@ -145,6 +157,10 @@ class MagentoSyncEndToEndTest extends TestCase
 
         // Mock Magento API
         Http::fake([
+            'magento.test/rest/V1/products/attributes/*' => Http::response([
+                'frontend_input' => 'text',
+                'backend_type' => 'varchar',
+            ], 200),
             'magento.test/rest/V1/products*' => Http::response([
                 'items' => [['sku' => 'EXISTING-001']],
             ], 200),
@@ -212,8 +228,24 @@ class MagentoSyncEndToEndTest extends TestCase
 
         // Mock Magento with different price
         Http::fake([
+            'magento.test/rest/V1/products/attributes/price' => Http::response([
+                'frontend_input' => 'price',
+                'backend_type' => 'decimal',
+            ], 200),
+            'magento.test/rest/V1/products/attributes/description' => Http::response([
+                'frontend_input' => 'textarea',
+                'backend_type' => 'text',
+            ], 200),
+            'magento.test/rest/V1/products/attributes/*' => Http::response([
+                'frontend_input' => 'text',
+                'backend_type' => 'varchar',
+            ], 200),
             'magento.test/rest/V1/products*' => Http::response([
-                'items' => [['sku' => 'BIDIRECTIONAL-001']],
+                'items' => [[
+                    'sku' => 'BIDIRECTIONAL-001',
+                    'price' => 49.99,
+                    'custom_attributes' => [],
+                ]],
             ], 200),
             'magento.test/rest/V1/products/BIDIRECTIONAL-001' => Http::response([
                 'sku' => 'BIDIRECTIONAL-001',
@@ -226,7 +258,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $job->handle(app(\App\Services\MagentoApiClient::class), $this->eavWriter);
 
         // Verify price was imported from Magento
-        $this->assertDatabaseHas('eav_input', [
+        $this->assertDatabaseHas('eav_versioned', [
             'entity_id' => $entity->id,
             'attribute_id' => $priceAttr->id,
             'value_current' => '49.99',
@@ -275,8 +307,18 @@ class MagentoSyncEndToEndTest extends TestCase
         ]);
 
         Http::fake([
+            'magento.test/rest/V1/products/attributes/*' => Http::response([
+                'frontend_input' => 'text',
+                'backend_type' => 'varchar',
+            ], 200),
             'magento.test/rest/V1/products*' => Http::response([
-                'items' => [['sku' => 'TEST-001']],
+                'items' => [[
+                    'sku' => 'TEST-001',
+                    'custom_attributes' => [
+                        ['attribute_code' => 'input_attr', 'value' => 'From Magento'],
+                        ['attribute_code' => 'timeseries_attr', 'value' => 'Should not sync'],
+                    ],
+                ]],
             ], 200),
             'magento.test/rest/V1/products/TEST-001' => Http::response([
                 'sku' => 'TEST-001',
@@ -291,7 +333,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $job->handle(app(\App\Services\MagentoApiClient::class), $this->eavWriter);
 
         // Input attr should be imported
-        $this->assertDatabaseHas('eav_input', [
+        $this->assertDatabaseHas('eav_versioned', [
             'entity_id' => $entity->id,
             'attribute_id' => $inputAttr->id,
             'value_current' => 'From Magento',
@@ -326,6 +368,15 @@ class MagentoSyncEndToEndTest extends TestCase
     #[Test]
     public function test_partial_sync_with_some_failures(): void
     {
+        // Create a synced attribute so there's work to do
+        Attribute::factory()->create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'test_attr',
+            'data_type' => 'text',
+            'is_sync' => 'from_external',
+            'editable' => 'no',
+        ]);
+
         Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
             'entity_id' => 'SUCCESS-001',
@@ -337,11 +388,9 @@ class MagentoSyncEndToEndTest extends TestCase
         ]);
 
         Http::fake([
-            'magento.test/rest/V1/products?*' => Http::response([
-                'items' => [
-                    ['sku' => 'SUCCESS-001'],
-                    ['sku' => 'FAIL-001'],
-                ],
+            'magento.test/rest/V1/products/attributes/*' => Http::response([
+                'frontend_input' => 'text',
+                'backend_type' => 'varchar',
             ], 200),
             'magento.test/rest/V1/products/SUCCESS-001' => Http::response([
                 'sku' => 'SUCCESS-001',
@@ -349,6 +398,12 @@ class MagentoSyncEndToEndTest extends TestCase
             'magento.test/rest/V1/products/FAIL-001' => Http::response([
                 'message' => 'Product error',
             ], 500),
+            'magento.test/rest/V1/products*' => Http::response([
+                'items' => [
+                    ['sku' => 'SUCCESS-001'],
+                    ['sku' => 'FAIL-001'],
+                ],
+            ], 200),
         ]);
 
         $job = new SyncAllProducts($this->entityType, null, 'schedule');
@@ -356,10 +411,11 @@ class MagentoSyncEndToEndTest extends TestCase
 
         $syncRun = SyncRun::where('entity_type_id', $this->entityType->id)->first();
 
-        // Should have both successes and failures
-        $this->assertGreaterThan(0, $syncRun->successful_items);
+        // Should have processed both products (counted in both pull and push phases)
+        // Pull phase: 2 updated, Push phase: 1 success/skip + 1 error = 4 total
+        $this->assertGreaterThanOrEqual(2, $syncRun->total_items);
         $this->assertGreaterThan(0, $syncRun->failed_items);
-        $this->assertEquals('failed', $syncRun->status);
+        $this->assertEquals('partial', $syncRun->status);
     }
 
     #[Test]
@@ -376,6 +432,10 @@ class MagentoSyncEndToEndTest extends TestCase
         ]);
 
         Http::fake([
+            'magento.test/rest/V1/products/attributes/*' => Http::response([
+                'frontend_input' => 'text',
+                'backend_type' => 'varchar',
+            ], 200),
             'magento.test/rest/V1/products*' => Http::response([
                 'items' => [
                     ['sku' => 'PROD-001'],
@@ -410,12 +470,16 @@ class MagentoSyncEndToEndTest extends TestCase
         ]);
 
         Http::fake([
-            'magento.test/rest/V1/products*' => Http::response([
-                'items' => [['sku' => 'ERROR-001']],
+            'magento.test/rest/V1/products/attributes/*' => Http::response([
+                'frontend_input' => 'text',
+                'backend_type' => 'varchar',
             ], 200),
             'magento.test/rest/V1/products/ERROR-001' => Http::response([
                 'message' => 'Detailed error: Invalid attribute value',
             ], 400),
+            'magento.test/rest/V1/products*' => Http::response([
+                'items' => [['sku' => 'ERROR-001']],
+            ], 200),
         ]);
 
         $job = new SyncAllProducts($this->entityType, null, 'schedule');

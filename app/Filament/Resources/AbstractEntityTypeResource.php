@@ -109,7 +109,10 @@ abstract class AbstractEntityTypeResource extends Resource
             ])
             ->actions(static::getTableActions())
             ->bulkActions(static::getBulkActions())
-            ->defaultSort('id', 'desc');
+            ->defaultSort('id', 'desc')
+            ->persistFiltersInSession()
+            ->persistSearchInSession()
+            ->persistSortInSession();
     }
 
     /**

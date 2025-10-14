@@ -22,7 +22,7 @@ class EntityTableBuilder
     public function buildColumns(EntityType $entityType, ?array $selectedAttributes = null): array
     {
         $columns = [
-            TextColumn::make('id')
+            TextColumn::make('entity_id')
                 ->label('ID')
                 ->searchable()
                 ->sortable(),
@@ -37,14 +37,19 @@ class EntityTableBuilder
             return $columns;
         }
 
+        // Get all attributes and index by name
         $attributes = Attribute::where('entity_type_id', $entityType->id)
             ->whereIn('name', $selectedAttributes)
-            ->get();
+            ->get()
+            ->keyBy('name');
 
-        foreach ($attributes as $attribute) {
-            $column = $this->buildColumn($attribute);
-            if ($column) {
-                $columns[] = $column;
+        // Build columns in the order specified by user preferences
+        foreach ($selectedAttributes as $attributeName) {
+            if (isset($attributes[$attributeName])) {
+                $column = $this->buildColumn($attributes[$attributeName]);
+                if ($column) {
+                    $columns[] = $column;
+                }
             }
         }
 
@@ -57,7 +62,7 @@ class EntityTableBuilder
     public function buildColumn(Attribute $attribute): ?TextColumn
     {
         return TextColumn::make($attribute->name)
-            ->label(ucfirst(str_replace('_', ' ', $attribute->name)))
+            ->label($attribute->display_name ?? ucfirst(str_replace('_', ' ', $attribute->name)))
             ->getStateUsing(function (Entity $record) use ($attribute) {
                 // Get the formatted value directly, not the raw array
                 // This prevents TextColumn from treating arrays as lists to iterate over
@@ -71,7 +76,8 @@ class EntityTableBuilder
             })
             ->searchable(false)
             ->sortable(false)
-            ->limit(50);
+            ->limit(50)
+            ->wrap();
     }
 
     /**
@@ -84,7 +90,7 @@ class EntityTableBuilder
 
         if ($userId) {
             $prefs = UserPreference::get($userId, $preferenceKey);
-            if ($prefs) {
+            if ($prefs !== null) {
                 return $prefs;
             }
         }
