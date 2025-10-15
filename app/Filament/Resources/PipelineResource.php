@@ -116,6 +116,7 @@ class PipelineResource extends Resource
     {
         return [
             'index' => Pages\ListPipelines::route('/'),
+            'create' => Pages\CreatePipeline::route('/create'),
             'edit' => Pages\EditPipeline::route('/{record}/edit'),
         ];
     }

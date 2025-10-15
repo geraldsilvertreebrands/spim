@@ -26,11 +26,20 @@ Entities are related to each other with relationships of various types, e.g., "b
 
 ## Pipelines
 
-Pipelines are automation chains that derive a single attribute’s value from other attributes on the same entity. Each pipeline owns a 1:1 relationship with an attribute (`attributes.pipeline_id`) and is composed of one source module followed by one or more processor modules. Modules subclass a common base that provides registration hooks, Filament form configuration, settings persistence, `getInputAttributes()` discovery, and a `process(PipelineContext $context): PipelineResult` contract. The mutable state passed between modules is held in a `PipelineContext` object (entity inputs, pipeline metadata) while module outputs are expressed as immutable `PipelineResult` instances containing `value`, `confidence`, `justification`, optional `meta`, and a status flag.
+Pipelines are automation chains that derive a single attribute's value from other attributes on the same entity. Each pipeline owns a 1:1 relationship with an attribute (`attributes.pipeline_id`) and is composed of one source module followed by one or more processor modules. Modules subclass `AbstractPipelineModule` which provides registration hooks, Filament form configuration, settings persistence, `getInputAttributes()` discovery, and a `process(PipelineContext $context): PipelineResult` contract. The mutable state passed between modules is held in a `PipelineContext` object (entity inputs, pipeline metadata) while module outputs are expressed as immutable `PipelineResult` instances containing `value`, `confidence`, `justification`, optional `meta`, and a status flag.
 
-Module settings are stored in `pipeline_modules` with ordering information, PHP class identifiers, JSON configuration, and timestamps. The parent `pipelines` row tracks ownership (`attribute_id`, `entity_type_id`), `pipeline_version`, `pipeline_updated_at`, execution aggregates, and queue metadata. Any module configuration change bumps the version/timestamp so downstream jobs can detect stale attribute values. Pipeline execution is triggered when source inputs change, on nightly batch runs, or manually from the pipeline UI. Runs execute through the queue in bounded batches (default 200 entities, limited parallelism) and abort on the first entity failure. Processor implementations include an AI prompt module (OpenAI Responses API with a curated JSON schema template library) and a calculation module that shells out to a Node helper to evaluate user JS over batched payloads.
+Module settings are stored in `pipeline_modules` with ordering information, PHP class identifiers, JSON configuration, and timestamps. The parent `pipelines` row tracks ownership (`attribute_id`, `entity_type_id`), `pipeline_version`, `pipeline_updated_at`, execution aggregates, and queue metadata. Any module configuration change bumps the version/timestamp so downstream jobs can detect stale attribute values. Pipeline execution is triggered when source inputs change (`PipelineTriggerService`), on nightly batch runs (`RunNightlyPipelines` scheduled at 2 AM), or manually from the pipeline UI. Runs execute through the queue in bounded batches (default 200 entities, limited parallelism) and abort on the first entity failure.
 
-Eval cases are stored per pipeline/entity and record the desired output plus the most recent actual result, justification, confidence, and the input hash used. Nightly and on-demand runs always recompute evals, even if inputs are unchanged, to expose drift when upstream models evolve. Run metadata is captured in `pipeline_runs` (status, trigger, totals, token counts, timings) and linked back to attribute updates through `eav_versioned` fields (`input_hash`, `pipeline_version`, `justification`, `confidence`).
+**Available Modules:**
+- **AttributesSourceModule** (source): Loads attribute values from specified attributes as pipeline inputs
+- **AiPromptProcessorModule** (processor): OpenAI integration with JSON schema templates (text, integer, boolean, array, or custom schemas)
+- **CalculationProcessorModule** (processor): JavaScript execution via sandboxed Node.js helper with batched processing
+
+**Dependency Management:** `PipelineDependencyService` uses Kahn's algorithm to detect circular dependencies and compute execution order. Pipelines that depend on other pipeline outputs must run after their dependencies.
+
+**Evaluation Testing:** Eval cases are stored per pipeline/entity in `pipeline_evals` and record the desired output plus the most recent actual result, justification, confidence, and the input hash used. Nightly and on-demand runs always recompute evals, even if inputs are unchanged, to expose drift when upstream models evolve. Run metadata is captured in `pipeline_runs` (status, trigger, totals, token counts, timings) and linked back to attribute updates through `eav_versioned` fields (`input_hash`, `pipeline_version`, `justification`, `confidence`).
+
+**UI:** Full Filament interface for creating and managing pipelines. Create page selects entity type and target attribute. Edit page features tabbed interface with module builder (drag-to-reorder, dynamic forms), statistics (run history, token usage), and evaluation management (test cases with pass/fail tracking). See `PIPELINE_UI_GUIDE.md` for user documentation.
 
 ## Syncs
 
@@ -339,8 +348,8 @@ This prevents data corruption from type mismatches.
 5.1 Sync from Magento for input attributes
 5.2 Sync to Magento for versioned attributes. Sync code needs to handle mapping between our and their data_types, eg we might store something as text, and Magento as a select, in which case we need to add attribute option values.
 
-## Phase 6: Pipelines
-Create, edit, run and review pipeline runs
+## Phase 6: Pipelines ✅
+Create, edit, run and review pipeline runs. Full implementation complete with UI, services, jobs, and testing.
 
 ## Roadmap References
 - Phase 2 — Attributes UI (`docs/phase2.md`)
@@ -360,8 +369,8 @@ Menu:
 - Attributes
     - Product types
     - Attributes (with a selector to choose product type)
-    - Pipelines
 - Settings
+    - Pipelines
     - Syncs
 
 
@@ -460,17 +469,54 @@ scrape_product_matches
 	•	id FK, product_id FK, match_confidence float, match_status smallint
 	•	match_status: 1 AI match, 2 human match, -1 human forced not a match, 0 not a match
 
-3.3 Evals (minimal)
-	•	Keep attribute_evals only for prompt debugging if you want; no golden sets/gating.
+## Pipelines
 
-3.4 Pipeline bookkeeping
+**pipelines**
+- id (PK, ULID)
+- attribute_id (FK, unique - 1:1 with attributes)
+- entity_type_id (FK)
+- name (nullable string, optional friendly label)
+- pipeline_version (unsigned integer, auto-incremented on module changes)
+- pipeline_updated_at (timestamp)
+- last_run_at, last_run_status, last_run_duration_ms (nullable)
+- last_run_processed, last_run_failed, last_run_tokens_in, last_run_tokens_out (nullable integers)
+- created_at, updated_at
 
-pipelines
-	•	id PK
+**pipeline_modules**
+- id (PK, ULID)
+- pipeline_id (FK, cascade delete)
+- order (unsigned smallint, unique per pipeline)
+- module_class (string FQCN, e.g., `App\Pipelines\Modules\AttributesSourceModule`)
+- settings (JSON, module-specific configuration)
+- created_at, updated_at
 
-pipeline_steps (if you want granular editing)
-	•	id, step_order, type (ai|javascript), transform (prompt/code), output_schema (json schema)
-	•	Versioning is coarse: attributes.pipeline_version increments when you “publish” pipeline changes.
+**pipeline_runs**
+- id (PK, ULID)
+- pipeline_id (FK)
+- pipeline_version (unsigned integer, snapshot of version at run time)
+- triggered_by (enum: `schedule`, `entity_save`, `manual`)
+- trigger_reference (nullable string, entity ID or user ID)
+- status (enum: `running`, `completed`, `failed`, `aborted`)
+- batch_size, entities_processed, entities_failed, entities_skipped
+- tokens_in, tokens_out (nullable integers, AI module usage)
+- started_at, completed_at
+- error_message (nullable text)
+- created_at
 
-pipeline_runs (for visibility/cost)
-	•	id PK, attribute_id, started_at, ended_at, status, num_items, model_name, tokens_input, tokens_output, cost_estimate
+**pipeline_evals**
+- id (PK, ULID)
+- pipeline_id (FK, cascade delete)
+- entity_id (FK entities, unique per pipeline)
+- input_hash (string 64, SHA-256 of input data)
+- desired_output (JSON, expected result)
+- notes (nullable text, documentation)
+- actual_output (JSON, nullable, most recent result)
+- justification (nullable text, from last run)
+- confidence (nullable decimal 5,4)
+- last_ran_at (nullable timestamp)
+- created_at, updated_at
+
+**eav_versioned** (extended for pipelines)
+- ... existing fields ...
+- pipeline_version (unsigned integer, nullable, tracks which version generated this value)
+- input_hash (string 64, nullable, SHA-256 of source inputs)

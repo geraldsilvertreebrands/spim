@@ -12,7 +12,7 @@ class ListPipelines extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            // Create action can be added later when we have full module UI
+            \Filament\Actions\CreateAction::make(),
         ];
     }
 }

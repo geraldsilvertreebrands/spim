@@ -30,15 +30,31 @@ class CalculationProcessorModule extends AbstractPipelineModule
             Textarea::make('code')
                 ->label('JavaScript Code')
                 ->required()
-                ->rows(15)
-                ->helperText('JavaScript code to process the inputs. Use $json to access inputs as an object. Return an object with { value, justification, confidence }.')
+                ->rows(25)
+                ->extraAttributes(['class' => 'font-mono text-sm'])
+                ->helperText('Write JavaScript to transform input attributes. Available: $json (all inputs as object). Return an object with value, justification, and confidence.')
                 ->placeholder(<<<'JS'
-// Example: Calculate total from quantity and price
+// Example 1: Calculate total from quantity and price
 const total = ($json.quantity || 0) * ($json.price || 0);
-
 return {
     value: total,
     justification: `Calculated from ${$json.quantity} × ${$json.price}`,
+    confidence: 1.0
+};
+
+// Example 2: Conditional logic
+const status = $json.stock > 100 ? 'In Stock' : 'Low Stock';
+return {
+    value: status,
+    justification: `Stock level is ${$json.stock}`,
+    confidence: $json.stock > 0 ? 1.0 : 0.5
+};
+
+// Example 3: String manipulation
+const title = ($json.brand + ' ' + $json.name).trim().toUpperCase();
+return {
+    value: title,
+    justification: 'Combined brand and name, uppercase',
     confidence: 1.0
 };
 JS

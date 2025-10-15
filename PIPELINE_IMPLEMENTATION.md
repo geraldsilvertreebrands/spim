@@ -51,32 +51,66 @@ The Phase 6 pipeline system has been implemented with all core backend functiona
 - Scheduled at 2 AM daily in `routes/console.php`
 - Respects dependency ordering
 
-### UI (Basic) ✅
+### UI (Complete) ✅
 - `PipelineResource`: Filament resource with table and actions
-- List view with stats, status, and quick actions
-- Edit view with pipeline info and run stats
-- "Run Now" and "Run Evals" actions
+- **List view**: Stats, status, quick actions, Create button
+- **Create page**: Entity type + attribute selector, redirects to edit
+- **Edit page**: Full tabbed interface with:
+  - **Configuration tab**: Pipeline info + Module Builder with dynamic forms
+  - **Statistics tab**: Run stats and token usage
+  - **Evaluations tab**: Repeater for managing test cases with pass/fail indicators
+- Module Builder: Filament Builder component with drag-to-reorder
+- Module forms: Dynamically rendered from each module's `form()` method
+- Eval management: Inline editing with JSON validation
+- "Run Now" and "Run Evals" actions in header
 
 ### Configuration ✅
 - Registered all modules in `AppServiceProvider`
 - Added OpenAI API key config in `services.php`
 - Node.js already present in Dockerfile
 
-## What Needs Enhancement
+## UI Implementation Complete ✅
 
-### UI Enhancements 🔄
-- **Module Configuration UI**: Currently shows placeholder. Need to build:
-  - Repeater/builder for adding/removing modules
-  - Dynamic form rendering based on module type
-  - Validation and reordering
+### Design Decisions (October 15, 2025)
+- **Build Approach**: All at once (Create + Module Builder + Eval Management together)
+- **Create vs Edit**: Separate pages
+  - Create page: Simple form (Entity Type + Target Attribute + Name)
+  - Edit page: Full module builder and eval management
+  - Rationale: Cleaner UX, matches Filament patterns, avoids complex state management
+- **Module Builder**: Filament Builder component (card-based, better for different module types)
+- **Code Editor**: Enhanced textarea with syntax hints
+  - Monaco editor package incompatible with Filament 4.x
+  - Enhanced with: 25 rows, better examples, monospace font, helper text
+  - Future: Can swap to Monaco when Filament 4 support available
+- **Eval Entity Selector**: Manual ID entry (evals primarily added from entity edit forms)
+
+### Implemented Features ✅
+- **CreatePipeline page** (`app/Filament/Resources/PipelineResource/Pages/CreatePipeline.php`)
+  - Entity Type selector with relationship
+  - Target Attribute selector (filtered by entity type, excludes attributes with existing pipelines)
+  - Optional pipeline name
+  - Auto-redirects to edit page after creation
   
-- **Eval Management UI**: Currently shows placeholder. Need to build:
-  - Table of evals with inline editing
-  - Add new eval button
-  - Visual diff when inputs change
-  - Pass/fail badges
+- **Module Configuration UI** (Configuration tab in EditPipeline)
+  - Filament Builder for adding/removing/reordering modules
+  - Dynamic form rendering based on module type (using each module's `form()` method)
+  - Validation: first must be source, rest processors, minimum 2 modules
+  - Drag-to-reorder capability
+  - Auto version bumping when modules change
+  
+- **Eval Management UI** (Evaluations tab in EditPipeline)
+  - Repeater for managing test cases
+  - Manual entity ID entry
+  - JSON editor for desired output with validation
+  - Visual pass/fail indicators in item labels
+  - Display of actual output, input hash, and last run time
+  - Notes field for documentation
+  - Automatic sync with database (update/create/delete)
 
-- **Pipeline Creation**: No create page yet, needs full module builder
+- **Enhanced Calculation Module**
+  - 25-row textarea with monospace font
+  - 3 comprehensive JavaScript examples
+  - Better helper text explaining available variables
 
 ### Testing ✅
 - **Unit Tests**:
@@ -167,20 +201,23 @@ php artisan pipelines:run-nightly --pipeline=<pipeline-id>
 
 ## Known Limitations
 
-1. **No UI for creating pipelines**: Must use Tinker or seeders
-2. **No module configuration UI**: Settings must be JSON-encoded
-3. **No eval management UI**: Must use database directly
-4. **Limited error handling in UI**: Check logs for details
-5. **No batch size configuration in UI**: Hardcoded to 200
+1. ~~**No UI for creating pipelines**~~: ✅ **RESOLVED** - Full create/edit UI implemented
+2. ~~**No module configuration UI**~~: ✅ **RESOLVED** - Builder component with dynamic forms
+3. ~~**No eval management UI**~~: ✅ **RESOLVED** - Repeater with inline editing
+4. **Limited error handling in UI**: Check logs for details (notifications show basic errors)
+5. **No batch size configuration in UI**: Hardcoded to 200 (can be changed in job)
 6. **No pause/resume for long runs**: Jobs run to completion or failure
+7. **Code editor is textarea**: No Monaco until Filament 4 support (enhanced textarea works well)
 
 ## Next Steps
 
-1. **Enhance UI**: Build module builder and eval management
-2. **Add Tests**: Comprehensive test coverage
-3. **Monitoring**: Better visibility into execution and errors
-4. **Performance**: Optimize batching and caching
-5. **More Modules**: Add more processor types as needed
+1. ~~**Enhance UI**~~: ✅ **COMPLETE** - Full UI implementation done (October 15, 2025)
+2. ~~**Add Tests**~~: ✅ **COMPLETE** - 44 tests, 114 assertions, all passing
+3. **Real-world Testing**: Create actual pipelines with production data
+4. **Monitoring**: Better visibility into execution and errors (consider pipeline run history page)
+5. **Performance**: Monitor and optimize batching if needed
+6. **More Modules**: Add more processor types as needed (e.g., lookup tables, API calls)
+7. **Documentation**: User guide for creating pipelines via UI
 
 ## API/Service Usage
 
