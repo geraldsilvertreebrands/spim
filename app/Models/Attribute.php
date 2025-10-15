@@ -31,6 +31,11 @@ class Attribute extends Model
         return $this->belongsTo(AttributeSection::class, 'attribute_section_id');
     }
 
+    public function pipeline()
+    {
+        return $this->belongsTo(Pipeline::class, 'pipeline_id');
+    }
+
     public function allowedValues(): array
     {
         $values = $this->allowed_values ?? [];

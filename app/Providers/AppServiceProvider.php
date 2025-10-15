@@ -3,6 +3,10 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Pipelines\Modules\AiPromptProcessorModule;
+use App\Pipelines\Modules\AttributesSourceModule;
+use App\Pipelines\Modules\CalculationProcessorModule;
+use App\Pipelines\PipelineModuleRegistry;
 use App\Policies\UserPolicy;
 use App\Support\AttributeUiRegistry;
 use Illuminate\Support\Facades\Gate;
@@ -31,6 +35,14 @@ class AppServiceProvider extends ServiceProvider
             $registry->register('multiselect', \App\Ui\Attributes\MultiselectAttributeUi::class);
             $registry->register('belongs_to', \App\Ui\Attributes\BelongsToAttributeUi::class);
             $registry->register('belongs_to_multi', \App\Ui\Attributes\BelongsToMultiAttributeUi::class);
+            return $registry;
+        });
+
+        $this->app->singleton(PipelineModuleRegistry::class, function () {
+            $registry = new PipelineModuleRegistry();
+            $registry->register(AttributesSourceModule::class);
+            $registry->register(AiPromptProcessorModule::class);
+            $registry->register(CalculationProcessorModule::class);
             return $registry;
         });
     }

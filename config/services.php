@@ -40,4 +40,8 @@ return [
         'access_token' => env('MAGENTO_ACCESS_TOKEN'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+    ],
+
 ];
