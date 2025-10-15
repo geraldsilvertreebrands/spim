@@ -26,11 +26,11 @@ Entities are related to each other with relationships of various types, e.g., "b
 
 ## Pipelines
 
-These are AI or automation pipelines that take a set of attributes, from the current entity or related entities, and produce an updated value of an attribute for an entity. Pipelines run when source attribute values change. 
+Pipelines are automation chains that derive a single attribute’s value from other attributes on the same entity. Each pipeline owns a 1:1 relationship with an attribute (`attributes.pipeline_id`) and is composed of one source module followed by one or more processor modules. Modules subclass a common base that provides registration hooks, Filament form configuration, settings persistence, `getInputAttributes()` discovery, and a `process(PipelineContext $context): PipelineResult` contract. The mutable state passed between modules is held in a `PipelineContext` object (entity inputs, pipeline metadata) while module outputs are expressed as immutable `PipelineResult` instances containing `value`, `confidence`, `justification`, optional `meta`, and a status flag.
 
-Associated with pipelines are "evals", which are example outputs, used for refining AI prompts and ensuring that outputs don't change over time, similar in concept to unit or acceptance tests.
+Module settings are stored in `pipeline_modules` with ordering information, PHP class identifiers, JSON configuration, and timestamps. The parent `pipelines` row tracks ownership (`attribute_id`, `entity_type_id`), `pipeline_version`, `pipeline_updated_at`, execution aggregates, and queue metadata. Any module configuration change bumps the version/timestamp so downstream jobs can detect stale attribute values. Pipeline execution is triggered when source inputs change, on nightly batch runs, or manually from the pipeline UI. Runs execute through the queue in bounded batches (default 200 entities, limited parallelism) and abort on the first entity failure. Processor implementations include an AI prompt module (OpenAI Responses API with a curated JSON schema template library) and a calculation module that shells out to a Node helper to evaluate user JS over batched payloads.
 
-Pipelines also track stats like token usage, etc.
+Eval cases are stored per pipeline/entity and record the desired output plus the most recent actual result, justification, confidence, and the input hash used. Nightly and on-demand runs always recompute evals, even if inputs are unchanged, to expose drift when upstream models evolve. Run metadata is captured in `pipeline_runs` (status, trigger, totals, token counts, timings) and linked back to attribute updates through `eav_versioned` fields (`input_hash`, `pipeline_version`, `justification`, `confidence`).
 
 ## Syncs
 
@@ -336,11 +336,18 @@ This prevents data corruption from type mismatches.
 4.2 Click to review and approve changes, and bulk approval tickboxes.
 
 ## Phase 5: Sync to/from Magento
-4.1 Sync from Magento for input attributes
-4.2 Sync to Magento for versioned attributes. Sync code needs to handle mapping between our and their data_types, eg we might store something as text, and Magento as a select, in which case we need to add attribute option values.
+5.1 Sync from Magento for input attributes
+5.2 Sync to Magento for versioned attributes. Sync code needs to handle mapping between our and their data_types, eg we might store something as text, and Magento as a select, in which case we need to add attribute option values.
 
-(later phases: pipelines, relationships, etc)
+## Phase 6: Pipelines
+Create, edit, run and review pipeline runs
 
+## Roadmap References
+- Phase 2 — Attributes UI (`docs/phase2.md`)
+- Phase 3 — Entity browsing (`docs/phase3.md` and `docs/phase3-summary.md`)
+- Phase 4 — Approval workflow (`docs/phase4.md` and `docs/phase4-summary.md`)
+- Phase 5 — Magento sync (`docs/phase5.md`)
+- Phase 6 — Pipelines (`docs/phase6.md`)
 
 ⸻
 
