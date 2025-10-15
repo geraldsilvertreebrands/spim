@@ -7,23 +7,28 @@ use App\Pipelines\PipelineModuleRegistry;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Forms\Components\Builder;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Schema;
 
 class EditPipeline extends EditRecord
 {
     protected static string $resource = PipelineResource::class;
 
-    public function schema(Schema $schema): Schema
+    public function form(Schema $schema): Schema
     {
         $registry = app(PipelineModuleRegistry::class);
 
         return $schema->components([
-            Forms\Components\Tabs::make('Pipeline')
+            Tabs::make('Pipeline')
+                ->columnSpanFull()
                 ->tabs([
-                    Forms\Components\Tabs\Tab::make('Configuration')
+                    Tabs\Tab::make('Configuration')
                         ->icon('heroicon-o-cog-6-tooth')
                         ->schema([
-                            Forms\Components\Section::make('Pipeline Information')
+                            Section::make('Pipeline Information')
                                 ->schema([
                                     Forms\Components\TextInput::make('name')
                                         ->label('Pipeline Name')
@@ -49,10 +54,10 @@ class EditPipeline extends EditRecord
                                 ])
                                 ->columns(2),
 
-                            Forms\Components\Section::make('Processing Modules')
+                            Section::make('Processing Modules')
                                 ->description('Define the sequence of operations that generate the attribute value. First module must load source data, subsequent modules transform it.')
                                 ->schema([
-                                    Forms\Components\Builder::make('modules_config')
+                                    Builder::make('modules_config')
                                         ->label('')
                                         ->blocks($this->getModuleBlocks($registry))
                                         ->collapsible()
@@ -60,7 +65,7 @@ class EditPipeline extends EditRecord
                                         ->addActionLabel('Add Module')
                                         ->reorderable()
                                         ->live()
-                                        ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                        ->afterStateUpdated(function ($state, callable $set) {
                                             // This would trigger validation, but we'll handle it on save
                                         })
                                         ->default([])
@@ -69,10 +74,10 @@ class EditPipeline extends EditRecord
                                 ->collapsible(),
                         ]),
 
-                    Forms\Components\Tabs\Tab::make('Statistics')
+                    Tabs\Tab::make('Statistics')
                         ->icon('heroicon-o-chart-bar')
                         ->schema([
-                            Forms\Components\Section::make('Last Run Stats')
+                            Section::make('Last Run Stats')
                                 ->schema([
                                     Forms\Components\Placeholder::make('last_run')
                                         ->label('Last Run')
@@ -101,7 +106,7 @@ class EditPipeline extends EditRecord
                                 ])
                                 ->columns(2),
 
-                            Forms\Components\Section::make('Token Usage (Last 30 Days)')
+                            Section::make('Token Usage (Last 30 Days)')
                                 ->schema([
                                     Forms\Components\Placeholder::make('token_stats')
                                         ->label('')
@@ -116,12 +121,12 @@ class EditPipeline extends EditRecord
                                 ->collapsible(),
                         ]),
 
-                    Forms\Components\Tabs\Tab::make('Evaluations')
+                    Tabs\Tab::make('Evaluations')
                         ->icon('heroicon-o-beaker')
                         ->badge(fn ($record) => $record->failingEvals()->count() > 0 ? $record->failingEvals()->count() : null)
                         ->badgeColor('danger')
                         ->schema([
-                            Forms\Components\Section::make('Evaluation Test Cases')
+                            Section::make('Evaluation Test Cases')
                                 ->description('Test cases to verify pipeline output quality. Evaluations are re-run after each pipeline execution.')
                                 ->schema([
                                     Forms\Components\Repeater::make('evals_config')
@@ -144,33 +149,7 @@ class EditPipeline extends EditRecord
                                                 ->rows(2)
                                                 ->helperText('Optional notes about this test case.'),
 
-                                            Forms\Components\Grid::make(3)
-                                                ->schema([
-                                                    Forms\Components\Placeholder::make('input_hash_display')
-                                                        ->label('Input Hash')
-                                                        ->content(fn ($state, $get) => $state['input_hash'] ?? 'Will be calculated on first run'),
-
-                                                    Forms\Components\Placeholder::make('actual_output_display')
-                                                        ->label('Last Actual Output')
-                                                        ->content(function ($state, $get) {
-                                                            $actual = $state['actual_output'] ?? null;
-                                                            if (!$actual) {
-                                                                return 'Not yet run';
-                                                            }
-                                                            return json_encode($actual, JSON_PRETTY_PRINT);
-                                                        }),
-
-                                                    Forms\Components\Placeholder::make('status_display')
-                                                        ->label('Status')
-                                                        ->content(function ($state, $get) {
-                                                            $isPassing = $state['is_passing'] ?? null;
-                                                            if ($isPassing === null) {
-                                                                return '—';
-                                                            }
-                                                            return $isPassing ? '✅ Passing' : '❌ Failing';
-                                                        }),
-                                                ]),
-
+                                            Forms\Components\Hidden::make('id'),
                                             Forms\Components\Hidden::make('input_hash'),
                                             Forms\Components\Hidden::make('actual_output'),
                                             Forms\Components\Hidden::make('justification'),
@@ -243,11 +222,10 @@ class EditPipeline extends EditRecord
         foreach ($registry->all() as $definition) {
             $moduleClass = $registry->getClass($definition->id);
 
-            // Create a temporary form to get the schema
-            $form = new \Filament\Forms\Form(new class {});
-            $moduleForm = $moduleClass::form($form);
+            // Get module-specific form components
+            $moduleComponents = $this->getModuleFormComponents($definition->id, $moduleClass);
 
-            $blocks[] = Forms\Components\Builder\Block::make($definition->id)
+            $blocks[] = Builder\Block::make($definition->id)
                 ->label($definition->label)
                 ->icon($definition->isSource() ? 'heroicon-o-folder-open' : 'heroicon-o-cpu-chip')
                 ->schema([
@@ -258,11 +236,110 @@ class EditPipeline extends EditRecord
                         ->label('Description')
                         ->content($definition->description),
 
-                    ...$moduleForm->getComponents(),
+                    ...$moduleComponents,
                 ]);
         }
 
         return $blocks;
+    }
+
+    /**
+     * Get form components for a specific module
+     * TODO: Refactor modules to return components directly instead of using non-existent Form class
+     */
+    protected function getModuleFormComponents(string $moduleId, string $moduleClass): array
+    {
+        // Hardcode the form fields for each known module type
+        // This is a temporary workaround until we refactor the module form system
+        return match ($moduleId) {
+            'attributes_source' => [
+                Forms\Components\Select::make('attribute_ids')
+                    ->label('Attributes')
+                    ->multiple()
+                    ->required()
+                    ->searchable()
+                    ->options(function () {
+                        return \App\Models\Attribute::query()
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->helperText('Select the attributes to use as inputs for this pipeline'),
+            ],
+            'ai_prompt' => [
+                Forms\Components\Textarea::make('prompt')
+                    ->label('Prompt')
+                    ->required()
+                    ->rows(5)
+                    ->helperText('The prompt to send to OpenAI. Input attributes will be appended automatically.'),
+                Forms\Components\Select::make('schema_template')
+                    ->label('Output Schema Template')
+                    ->options([
+                        'text' => 'Text (string with justification and confidence)',
+                        'integer' => 'Integer (number with justification and confidence)',
+                        'boolean' => 'Boolean (true/false with justification and confidence)',
+                        'array' => 'Array of strings (with justification and confidence)',
+                        'custom' => 'Custom (edit JSON below)',
+                    ])
+                    ->default('text')
+                    ->live()
+                    ->required(),
+                Forms\Components\Textarea::make('output_schema')
+                    ->label('Output Schema (JSON)')
+                    ->required()
+                    ->rows(10)
+                    ->default('{"type":"object","properties":{"value":{"type":"string"},"justification":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1}},"required":["value","justification","confidence"]}')
+                    ->helperText('OpenAI-compatible JSON schema for structured output'),
+                Forms\Components\Select::make('model')
+                    ->label('Model')
+                    ->options([
+                        'gpt-4o' => 'GPT-4o (latest, recommended)',
+                        'gpt-4o-mini' => 'GPT-4o Mini (faster, cheaper)',
+                        'gpt-4-turbo' => 'GPT-4 Turbo',
+                    ])
+                    ->default('gpt-4o-mini')
+                    ->required(),
+            ],
+            'calculation' => [
+                Forms\Components\Textarea::make('code')
+                    ->label('JavaScript Code')
+                    ->required()
+                    ->rows(25)
+                    ->extraAttributes(['class' => 'font-mono text-sm'])
+                    ->helperText('Write JavaScript to transform input attributes. Available: $json (all inputs as object). Return an object with value, justification, and confidence.')
+                    ->placeholder(<<<'JS'
+// Example 1: Calculate total from quantity and price
+const total = ($json.quantity || 0) * ($json.price || 0);
+return {
+    value: total,
+    justification: `Calculated from ${$json.quantity} × ${$json.price}`,
+    confidence: 1.0
+};
+
+// Example 2: Conditional logic
+const status = $json.stock > 100 ? 'In Stock' : 'Low Stock';
+return {
+    value: status,
+    justification: `Stock level is ${$json.stock}`,
+    confidence: $json.stock > 0 ? 1.0 : 0.5
+};
+
+// Example 3: String manipulation
+const title = ($json.brand + ' ' + $json.name).trim().toUpperCase();
+return {
+    value: title,
+    justification: 'Combined brand and name, uppercase',
+    confidence: 1.0
+};
+JS
+),
+            ],
+            default => [
+                Forms\Components\Placeholder::make('no_config')
+                    ->label('Configuration')
+                    ->content('This module has no configuration options.'),
+            ],
+        };
     }
 
     /**
@@ -356,19 +433,33 @@ class EditPipeline extends EditRecord
         $this->record->modules()->delete();
 
         // Create new modules
-        foreach ($modulesConfig as $index => $moduleBlock) {
-            $moduleClass = $moduleBlock['data']['module_class'] ?? null;
+        $order = 1;
+        foreach ($modulesConfig as $moduleBlock) {
+            // Skip if not an array or doesn't have required structure
+            if (!is_array($moduleBlock) || !isset($moduleBlock['type'])) {
+                continue;
+            }
 
+            // Get the module class from the type (which is the module ID)
+            $moduleClass = $registry->getClass($moduleBlock['type']);
             if (!$moduleClass) {
                 continue;
             }
 
-            // Extract settings (remove our internal fields)
-            $settings = $moduleBlock['data'];
+            // Extract settings from data field
+            $settings = $moduleBlock['data'] ?? [];
+
+            // Remove internal fields
             unset($settings['module_class']);
+            unset($settings['description']);
+
+            // Remove any placeholder fields
+            $settings = array_filter($settings, function($key) {
+                return !str_ends_with($key, '_display') && !str_ends_with($key, '_note');
+            }, ARRAY_FILTER_USE_KEY);
 
             $this->record->modules()->create([
-                'order' => $index + 1,
+                'order' => $order++,
                 'module_class' => $moduleClass,
                 'settings' => $settings,
             ]);
@@ -452,21 +543,27 @@ class EditPipeline extends EditRecord
         }
 
         // First module must be a source
-        $firstModule = $modulesConfig[0]['data']['module_class'] ?? null;
-        if ($firstModule) {
-            $firstDef = $registry->getDefinition($firstModule);
-            if (!$firstDef->isSource()) {
-                $errors[] = 'First module must be a source module (loads input data).';
+        $firstModuleType = $modulesConfig[0]['type'] ?? null;
+        if ($firstModuleType) {
+            $firstModuleClass = $registry->getClass($firstModuleType);
+            if ($firstModuleClass) {
+                $firstDef = $registry->getDefinition($firstModuleClass);
+                if ($firstDef && !$firstDef->isSource()) {
+                    $errors[] = 'First module must be a source module (loads input data).';
+                }
             }
         }
 
         // Subsequent modules must be processors
         foreach (array_slice($modulesConfig, 1) as $index => $moduleBlock) {
-            $moduleClass = $moduleBlock['data']['module_class'] ?? null;
-            if ($moduleClass) {
-                $def = $registry->getDefinition($moduleClass);
-                if (!$def->isProcessor()) {
-                    $errors[] = "Module at position " . ($index + 2) . " must be a processor module.";
+            $moduleType = $moduleBlock['type'] ?? null;
+            if ($moduleType) {
+                $moduleClass = $registry->getClass($moduleType);
+                if ($moduleClass) {
+                    $def = $registry->getDefinition($moduleClass);
+                    if ($def && !$def->isProcessor()) {
+                        $errors[] = "Module at position " . ($index + 2) . " must be a processor module.";
+                    }
                 }
             }
         }

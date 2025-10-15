@@ -12,51 +12,43 @@ class CreatePipeline extends CreateRecord
 {
     protected static string $resource = PipelineResource::class;
 
-    public function schema(Schema $schema): Schema
+    public function form(Schema $schema): Schema
     {
         return $schema->components([
-            Forms\Components\Section::make('Pipeline Configuration')
-                ->description('Create a new pipeline to automatically generate attribute values.')
-                ->schema([
-                    Forms\Components\Select::make('entity_type_id')
-                        ->label('Entity Type')
-                        ->relationship('entityType', 'name')
-                        ->required()
-                        ->live()
-                        ->helperText('Select the entity type this pipeline will process.'),
+            Forms\Components\Select::make('entity_type_id')
+                ->label('Entity Type')
+                ->relationship('entityType', 'name')
+                ->required()
+                ->live()
+                ->helperText('Select the entity type this pipeline will process.'),
 
-                    Forms\Components\Select::make('attribute_id')
-                        ->label('Target Attribute')
-                        ->options(function (Forms\Get $get) {
-                            $entityTypeId = $get('entity_type_id');
+            Forms\Components\Select::make('attribute_id')
+                ->label('Target Attribute')
+                ->options(function (callable $get) {
+                    $entityTypeId = $get('entity_type_id');
 
-                            if (!$entityTypeId) {
-                                return [];
-                            }
+                    if (!$entityTypeId) {
+                        return [];
+                    }
 
-                            return Attribute::where('entity_type_id', $entityTypeId)
-                                ->whereDoesntHave('pipeline') // Only show attributes without pipelines
-                                ->orderBy('name')
-                                ->pluck('name', 'id')
-                                ->toArray();
-                        })
-                        ->required()
-                        ->searchable()
-                        ->helperText('The attribute this pipeline will generate values for. Each attribute can only have one pipeline.'),
+                    return Attribute::where('entity_type_id', $entityTypeId)
+                        ->whereDoesntHave('pipeline') // Only show attributes without pipelines
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->toArray();
+                })
+                ->required()
+                ->searchable()
+                ->helperText('The attribute this pipeline will generate values for. Each attribute can only have one pipeline.'),
 
-                    Forms\Components\TextInput::make('name')
-                        ->label('Pipeline Name (Optional)')
-                        ->maxLength(255)
-                        ->helperText('A friendly name for this pipeline. Defaults to the attribute name.'),
-                ]),
+            Forms\Components\TextInput::make('name')
+                ->label('Pipeline Name (Optional)')
+                ->maxLength(255)
+                ->helperText('A friendly name for this pipeline. Defaults to the attribute name.'),
 
-            Forms\Components\Section::make('Next Steps')
-                ->schema([
-                    Forms\Components\Placeholder::make('next_steps')
-                        ->content('After creating the pipeline, you\'ll configure the processing modules that generate the attribute value.'),
-                ])
-                ->collapsible()
-                ->collapsed(),
+            Forms\Components\Placeholder::make('next_steps')
+                ->label('Next Steps')
+                ->content('After creating the pipeline, you\'ll configure the processing modules that generate the attribute value.'),
         ]);
     }
 

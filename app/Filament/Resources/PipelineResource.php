@@ -3,8 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\PipelineResource\Pages;
+use App\Models\Attribute;
 use App\Models\Pipeline;
+use Filament\Actions\Action;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Forms;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -77,9 +83,9 @@ class PipelineResource extends Resource
                     ->relationship('entityType', 'name'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                EditAction::make(),
 
-                Tables\Actions\Action::make('run')
+                Action::make('run')
                     ->label('Run Now')
                     ->icon('heroicon-o-play')
                     ->action(function ($record) {
@@ -95,7 +101,7 @@ class PipelineResource extends Resource
                     })
                     ->requiresConfirmation(),
 
-                Tables\Actions\Action::make('run_evals')
+                Action::make('run_evals')
                     ->label('Run Evals')
                     ->icon('heroicon-o-beaker')
                     ->action(function ($record) {
@@ -108,7 +114,7 @@ class PipelineResource extends Resource
                     }),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                DeleteBulkAction::make(),
             ]);
     }
 
