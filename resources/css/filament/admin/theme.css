@@ -2,3 +2,53 @@
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
+
+/* Global size adjustments - make everything a bit smaller */
+@layer base {
+    /* Reduce base font size from 16px to 14px (87.5%) */
+    html {
+        font-size: 87.5%;
+    }
+
+    /* Adjust spacing scale for tighter UI */
+    :root {
+        --spacing-scale: 0.875;
+    }
+}
+
+@layer components {
+    /* Reduce padding in forms and panels */
+    .fi-fo-component-ctn {
+        @apply space-y-4;
+    }
+
+    /* Tighter table rows */
+    .fi-ta-row {
+        @apply text-sm;
+    }
+
+    /* Reduce panel padding */
+    .fi-section-content {
+        @apply p-4;
+    }
+
+    /* Smaller buttons */
+    .fi-btn {
+        @apply text-sm px-3 py-1.5;
+    }
+
+    /* Reduce form field spacing */
+    .fi-fo-field-wrp {
+        @apply space-y-1.5;
+    }
+
+    /* Smaller input fields */
+    .fi-input {
+        @apply text-sm py-1.5 px-2.5;
+    }
+
+    /* Reduce card/panel spacing */
+    .fi-section {
+        @apply space-y-4;
+    }
+}
