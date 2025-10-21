@@ -8,6 +8,8 @@ Be careful about namespaces with Filament, and when in doubt check existing code
 
 When doing changes or refactoring, fixing, updating and running tests is always part of the tasks to be done. Don't skip this!
 
+When fixing bugs, try to start by writing a failing test to reproduce the bug, then fix it and then run the test.
+
 When editing tests or fixing linting issues, NEVER remove functionality or hide issues in order to make it look like it passes. Always fix the underlying problem correctly. When you HAVE to remove a test due to functionality changing so test is no longer relevant, then you HAVE to raise this as an important issue for me to approve.
 
 The site as available for local debug at http://spim.test:8080/admin/pipelines . If needed, user "admin@example.com" and password "password".

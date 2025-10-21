@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Jobs\Sync\SyncAllProducts;
 use App\Jobs\Sync\SyncAttributeOptions;
+use App\Jobs\Sync\SyncSingleProduct;
 use App\Models\EntityType;
 use App\Models\SyncRun;
 use Filament\Actions\Action;
@@ -173,6 +174,10 @@ class MagentoSync extends Page implements HasTable
                 ->label('Verify Attributes')
                 ->icon('heroicon-o-check-circle')
                 ->color('info')
+                ->before(function () {
+                    // Clear any previous results when opening the modal
+                    $this->verificationResults = null;
+                })
                 ->modalHeading(fn ($livewire) => empty($livewire->verificationResults) ? 'Verify Attributes' : 'Attribute Verification Results')
                 ->modalWidth('5xl')
                 ->fillForm(fn () => ['entity_type_id' => null])
@@ -230,14 +235,10 @@ class MagentoSync extends Page implements HasTable
                     // Don't close the modal - it will refresh to show results
                     $this->halt();
                 })
-                ->closeModalByClickingAway(false)
-                ->after(function () {
-                    // Clear results when modal is closed
-                    $this->verificationResults = null;
-                }),
+                ->closeModalByClickingAway(false),
 
             Action::make('syncProducts')
-                ->label('Sync Products')
+                ->label('Sync All')
                 ->icon('heroicon-o-arrow-path')
                 ->color('primary')
                 ->form([
@@ -258,14 +259,14 @@ class MagentoSync extends Page implements HasTable
                     );
 
                     Notification::make()
-                        ->title('Product sync queued')
-                        ->body("Syncing all products for {$entityType->name}")
+                        ->title('Full sync queued')
+                        ->body("Syncing all entities for {$entityType->name}")
                         ->success()
                         ->send();
                 }),
 
-            Action::make('syncBySku')
-                ->label('Sync by SKU')
+            Action::make('syncIndividually')
+                ->label('Sync Individually')
                 ->icon('heroicon-o-magnifying-glass')
                 ->color('gray')
                 ->form([
@@ -274,35 +275,30 @@ class MagentoSync extends Page implements HasTable
                         ->options(EntityType::pluck('name', 'id'))
                         ->required(),
 
-                    Textarea::make('skus')
-                        ->label('SKUs (one per line)')
+                    Textarea::make('entity_ids')
+                        ->label('Entity IDs (one per line)')
                         ->required()
                         ->rows(5)
-                        ->helperText('Enter one SKU per line'),
+                        ->helperText('Enter one entity ID per line'),
                 ])
                 ->action(function (array $data) {
                     $entityType = EntityType::find($data['entity_type_id']);
-                    $skus = array_filter(array_map('trim', explode("\n", $data['skus'])));
+                    $entityIds = array_filter(array_map('trim', explode("\n", $data['entity_ids'])));
                     /** @var int|null $userId */
                     $userId = Auth::id();
 
-                    foreach ($skus as $sku) {
-                        $entity = \App\Models\Entity::where('entity_type_id', $entityType->id)
-                            ->where('entity_id', $sku)
-                            ->first();
-
-                        if ($entity) {
-                            \App\Jobs\Sync\SyncSingleProduct::dispatch(
-                                $entity,
-                                $userId,
-                                'user'
-                            );
-                        }
+                    foreach ($entityIds as $entityId) {
+                        SyncSingleProduct::dispatch(
+                            $entityType,
+                            $entityId,
+                            $userId,
+                            'user'
+                        );
                     }
 
                     Notification::make()
                         ->title('Product syncs queued')
-                        ->body("Syncing " . count($skus) . " product(s)")
+                        ->body("Syncing " . count($entityIds) . " product(s). Products will be imported from Magento if they don't exist in SPIM yet.")
                         ->success()
                         ->send();
                 }),
