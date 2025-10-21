@@ -25,7 +25,7 @@ class MagentoSyncCommandTest extends TestCase
         parent::setUp();
 
         $this->entityType = EntityType::where('name', 'product')->firstOrFail();
-        $this->sku = 'SKU-' . Str::upper(Str::random(8));
+        $this->sku = 'TEST-SKU-001';
     }
 
     #[Test]
@@ -76,7 +76,8 @@ class MagentoSyncCommandTest extends TestCase
             ->assertExitCode(0);
 
         Queue::assertPushed(SyncSingleProduct::class, function ($job) use ($entity) {
-            return $job->entity->id === $entity->id &&
+            return $job->entityOrType->id === $entity->id &&
+                   $job->entityId === null &&
                    $job->triggeredBy === 'schedule';
         });
     }
@@ -92,13 +93,24 @@ class MagentoSyncCommandTest extends TestCase
     }
 
     #[Test]
-    public function test_sync_command_fails_with_invalid_sku(): void
+    public function test_sync_command_handles_nonexistent_sku(): void
     {
+        Queue::fake();
+
+        // Non-existent SKUs should now succeed (will be imported from Magento)
         $this->artisan('sync:magento', [
             'entityType' => 'product',
             '--sku' => 'NON-EXISTENT-SKU',
         ])
-            ->assertFailed();
+            ->expectsOutput('Product sync for SKU NON-EXISTENT-SKU queued.')
+            ->assertExitCode(0);
+
+        // Should queue job with EntityType (not Entity)
+        Queue::assertPushed(SyncSingleProduct::class, function ($job) {
+            return $job->entityOrType instanceof \App\Models\EntityType &&
+                   $job->entityId === 'NON-EXISTENT-SKU' &&
+                   $job->triggeredBy === 'schedule';
+        });
     }
 
     #[Test]

@@ -538,10 +538,10 @@ class ProductSyncTest extends TestCase
             'entity_id' => $this->skuSingle,
         ]);
 
-        // getProduct is called once during pull (push is skipped for imported products)
+        // getProduct is called twice: once during pull, once during push
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuSingle)
-            ->once()
+            ->twice()
             ->andReturn(['sku' => $this->skuSingle]);
 
         // Should not call getProducts for all products

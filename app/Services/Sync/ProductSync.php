@@ -20,7 +20,6 @@ class ProductSync extends AbstractSync
     private EavWriter $eavWriter;
     private array $syncedAttributes;
     private ?SyncRun $syncRun;
-    private array $importedSkus = []; // Track products imported in this sync run
 
     public function __construct(
         MagentoApiClient $magentoClient,
@@ -231,9 +230,6 @@ class ProductSync extends AbstractSync
     {
         $sku = $magentoProduct['sku'];
 
-        // Track that we're importing this product in this sync run
-        $this->importedSkus[] = $sku;
-
         DB::transaction(function () use ($magentoProduct, $sku) {
             // Find or create entity
             $entity = Entity::where('entity_type_id', $this->entityType->id)
@@ -354,13 +350,6 @@ class ProductSync extends AbstractSync
         $entities = $query->get();
 
         foreach ($entities as $entity) {
-            // Skip products that were just imported in this sync run
-            // (they won't have any changes to push back)
-            if (in_array($entity->entity_id, $this->importedSkus)) {
-                $this->logDebug("Skipping push for {$entity->entity_id} - just imported in this sync");
-                continue;
-            }
-
             try {
                 $this->exportProduct($entity);
             } catch (\Exception $e) {
@@ -520,11 +509,11 @@ class ProductSync extends AbstractSync
 
     /**
      * Convert value from SPIM storage format to Magento format
-     * 
+     *
      * SPIM stores:
      * - select: plain string
      * - multiselect: JSON array (e.g., ["16802","16722"])
-     * 
+     *
      * Magento expects:
      * - select: string or integer (option ID)
      * - multiselect: comma-separated string (e.g., "16802,16722")
@@ -542,7 +531,7 @@ class ProductSync extends AbstractSync
         return match($attribute->data_type) {
             'integer' => (int) $decodedValue,
             'select' => $decodedValue, // Already a string/integer
-            'multiselect' => is_array($decodedValue) 
+            'multiselect' => is_array($decodedValue)
                 ? implode(',', $decodedValue) // Convert array to comma-separated string
                 : (string) $decodedValue,
             'json' => $decodedValue, // Already decoded by castOut
@@ -552,11 +541,11 @@ class ProductSync extends AbstractSync
 
     /**
      * Convert value from Magento format to SPIM storage format
-     * 
+     *
      * Magento returns:
      * - select: string or integer (option ID)
      * - multiselect: comma-separated string (e.g., "16802,16722")
-     * 
+     *
      * SPIM stores:
      * - select: plain string
      * - multiselect: JSON array (e.g., ["16802","16722"])
@@ -570,10 +559,10 @@ class ProductSync extends AbstractSync
         // For multiselect, parse comma-separated string into array
         if ($dataType === 'multiselect') {
             // If already an array, use it; otherwise parse comma-separated string
-            $arrayValue = is_array($value) 
-                ? $value 
+            $arrayValue = is_array($value)
+                ? $value
                 : array_map('trim', explode(',', (string) $value));
-            
+
             // Use AttributeCaster to ensure proper formatting
             return \App\Support\AttributeCaster::castIn('multiselect', $arrayValue);
         }

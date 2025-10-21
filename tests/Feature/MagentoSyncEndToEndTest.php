@@ -101,14 +101,14 @@ class MagentoSyncEndToEndTest extends TestCase
             'magento.test/rest/V1/products*' => Http::response([
                 'items' => [
                     [
-                        'sku' => 'NEW-PROD-001',
+                        'sku' => $this->skuNew,
                         'name' => 'New Product',
                         'custom_attributes' => [],
                     ],
                 ],
             ], 200),
-            'magento.test/rest/V1/products/NEW-PROD-001' => Http::response([
-                'sku' => 'NEW-PROD-001',
+            "magento.test/rest/V1/products/{$this->skuNew}" => Http::response([
+                'sku' => $this->skuNew,
                 'name' => 'New Product',
                 'custom_attributes' => [],
             ], 200),
@@ -172,10 +172,10 @@ class MagentoSyncEndToEndTest extends TestCase
                 'backend_type' => 'varchar',
             ], 200),
             'magento.test/rest/V1/products*' => Http::response([
-                'items' => [['sku' => 'EXISTING-001']],
+                'items' => [['sku' => $this->skuExisting]],
             ], 200),
-            'magento.test/rest/V1/products/EXISTING-001' => Http::response([
-                'sku' => 'EXISTING-001',
+            "magento.test/rest/V1/products/{$this->skuExisting}" => Http::response([
+                'sku' => $this->skuExisting,
                 'custom_attributes' => [],
             ], 200, ['X-Request-Count' => '1']),
         ]);
@@ -195,7 +195,7 @@ class MagentoSyncEndToEndTest extends TestCase
         // Verify HTTP request was made to update product
         Http::assertSent(function ($request) {
             return $request->method() === 'PUT' &&
-                   str_contains($request->url(), '/products/EXISTING-001');
+                   str_contains($request->url(), "/products/{$this->skuExisting}");
         });
     }
 
@@ -211,7 +211,7 @@ class MagentoSyncEndToEndTest extends TestCase
         $priceAttr = Attribute::factory()->create([
             'entity_type_id' => $this->entityType->id,
             'name' => 'price',
-            'data_type' => 'integer',
+            'data_type' => 'text',  // Changed from integer to text to support decimal values
             'is_sync' => 'from_external',
             'editable' => 'no',
         ]);
@@ -252,13 +252,13 @@ class MagentoSyncEndToEndTest extends TestCase
             ], 200),
             'magento.test/rest/V1/products*' => Http::response([
                 'items' => [[
-                    'sku' => 'BIDIRECTIONAL-001',
+                    'sku' => $this->skuBidirectional,
                     'price' => 49.99,
                     'custom_attributes' => [],
                 ]],
             ], 200),
-            'magento.test/rest/V1/products/BIDIRECTIONAL-001' => Http::response([
-                'sku' => 'BIDIRECTIONAL-001',
+            "magento.test/rest/V1/products/{$this->skuBidirectional}" => Http::response([
+                'sku' => $this->skuBidirectional,
                 'price' => 49.99,
                 'custom_attributes' => [],
             ], 200),
@@ -277,7 +277,7 @@ class MagentoSyncEndToEndTest extends TestCase
         // Verify description update was sent to Magento
         Http::assertSent(function ($request) {
             return $request->method() === 'PUT' &&
-                   str_contains($request->url(), '/products/BIDIRECTIONAL-001');
+                   str_contains($request->url(), "/products/{$this->skuBidirectional}");
         });
     }
 
@@ -323,15 +323,15 @@ class MagentoSyncEndToEndTest extends TestCase
             ], 200),
             'magento.test/rest/V1/products*' => Http::response([
                 'items' => [[
-                    'sku' => 'TEST-001',
+                    'sku' => $this->skuTest,
                     'custom_attributes' => [
                         ['attribute_code' => 'input_attr', 'value' => 'From Magento'],
                         ['attribute_code' => 'timeseries_attr', 'value' => 'Should not sync'],
                     ],
                 ]],
             ], 200),
-            'magento.test/rest/V1/products/TEST-001' => Http::response([
-                'sku' => 'TEST-001',
+            "magento.test/rest/V1/products/{$this->skuTest}" => Http::response([
+                'sku' => $this->skuTest,
                 'custom_attributes' => [
                     ['attribute_code' => 'input_attr', 'value' => 'From Magento'],
                     ['attribute_code' => 'timeseries_attr', 'value' => 'Should not sync'],

@@ -42,22 +42,28 @@ class SyncMagento extends Command
 
         // If SKU is provided, sync single product
         if ($sku) {
-            // Check if entity exists
+            // Check if entity exists in SPIM
             $entity = Entity::where('entity_type_id', $entityType->id)
                 ->where('entity_id', $sku)
                 ->first();
 
-            if (!$entity) {
-                $this->error("Entity with SKU '{$sku}' not found");
-                return Command::FAILURE;
+            if ($entity) {
+                // Entity exists - pass it directly
+                SyncSingleProduct::dispatch(
+                    $entity, // Pass Entity object
+                    null, // entityId (null when passing Entity)
+                    null, // userId
+                    'schedule' // triggeredBy
+                );
+            } else {
+                // Entity doesn't exist - will be imported from Magento
+                SyncSingleProduct::dispatch(
+                    $entityType, // Pass EntityType
+                    $sku, // entityId to import
+                    null, // userId
+                    'schedule' // triggeredBy
+                );
             }
-
-            // Dispatch single product sync job
-            SyncSingleProduct::dispatch(
-                $entity, // Pass Entity object, not EntityType
-                null, // userId
-                'schedule' // triggeredBy
-            );
 
             $this->info("Product sync for SKU {$sku} queued.");
         } else {
