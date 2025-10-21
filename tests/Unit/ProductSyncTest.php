@@ -11,6 +11,7 @@ use App\Services\MagentoApiClient;
 use App\Services\Sync\ProductSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -23,21 +24,34 @@ class ProductSyncTest extends TestCase
     private MagentoApiClient $magentoClient;
     private EavWriter $eavWriter;
     private SyncRun $syncRun;
+    private string $skuNew;
+    private string $skuExisting;
+    private string $skuSpimOnly;
+    private string $skuSingle;
+    private string $skuTest;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->entityType = EntityType::firstOrCreate(
-            ['name' => 'product'],
-            ['display_name' => 'Product', 'description' => 'Test product type']
-        );
+        $this->entityType = EntityType::create([
+            'name' => 'et_' . Str::lower(Str::random(8)),
+            'display_name' => 'Test Type',
+            'description' => 'Isolated test entity type',
+        ]);
         $this->syncRun = SyncRun::factory()->forSchedule()->create([
             'entity_type_id' => $this->entityType->id,
             'sync_type' => 'products',
         ]);
         $this->magentoClient = Mockery::mock(MagentoApiClient::class);
         $this->eavWriter = app(EavWriter::class);
+
+        // Generate unique identifiers to avoid cross-test collisions
+        $this->skuNew = 'NEW-' . Str::upper(Str::random(8));
+        $this->skuExisting = 'EXISTING-' . Str::upper(Str::random(8));
+        $this->skuSpimOnly = 'SPIM-ONLY-' . Str::upper(Str::random(8));
+        $this->skuSingle = 'SINGLE-' . Str::upper(Str::random(8));
+        $this->skuTest = 'TEST-' . Str::upper(Str::random(8));
     }
 
     #[Test]
@@ -63,7 +77,7 @@ class ProductSyncTest extends TestCase
             ->andReturn([
                 'items' => [
                     [
-                        'sku' => 'NEW-001',
+                        'sku' => $this->skuNew,
                         'name' => 'New Product',
                         'custom_attributes' => [],
                     ],
@@ -72,7 +86,7 @@ class ProductSyncTest extends TestCase
 
         // Mock for push phase - check if product exists in Magento
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('NEW-001')
+            ->with($this->skuNew)
             ->once()
             ->andReturn(['sku' => 'NEW-001']); // Product exists in Magento
 
@@ -82,11 +96,11 @@ class ProductSyncTest extends TestCase
         // Entity should be created
         $this->assertDatabaseHas('entities', [
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'NEW-001',
+            'entity_id' => $this->skuNew,
         ]);
 
         // Attribute value should be set in eav_versioned
-        $entity = Entity::where('entity_id', 'NEW-001')->first();
+        $entity = Entity::where('entity_id', $this->skuNew)->first();
         $this->assertDatabaseHas('eav_versioned', [
             'entity_id' => $entity->id,
             'attribute_id' => $nameAttr->id,
@@ -102,7 +116,7 @@ class ProductSyncTest extends TestCase
         // Create existing entity
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'EXISTING-001',
+            'entity_id' => $this->skuExisting,
         ]);
 
         $descAttr = Attribute::factory()->create([
@@ -127,7 +141,7 @@ class ProductSyncTest extends TestCase
             ->andReturn([
                 'items' => [
                     [
-                        'sku' => 'EXISTING-001',
+                        'sku' => $this->skuExisting,
                         'custom_attributes' => [
                             ['attribute_code' => 'description', 'value' => 'New description'],
                         ],
@@ -137,7 +151,7 @@ class ProductSyncTest extends TestCase
 
         // Mock for push phase - check if product exists in Magento
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('EXISTING-001')
+            ->with($this->skuExisting)
             ->once()
             ->andReturn(['sku' => 'EXISTING-001']);
 
@@ -174,7 +188,7 @@ class ProductSyncTest extends TestCase
             ->andReturn([
                 'items' => [
                     [
-                        'sku' => 'NEW-001',
+                        'sku' => $this->skuNew,
                         'price' => 29.99,
                         'custom_attributes' => [],
                     ],
@@ -183,14 +197,14 @@ class ProductSyncTest extends TestCase
 
         // Mock for push phase - check if product exists in Magento
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('NEW-001')
+            ->with($this->skuNew)
             ->once()
             ->andReturn(['sku' => 'NEW-001']); // Product exists in Magento
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $sync->sync();
 
-        $entity = Entity::where('entity_id', 'NEW-001')->first();
+        $entity = Entity::where('entity_id', $this->skuNew)->first();
 
         // All three value fields should be set identically on initial import
         $value = DB::table('eav_versioned')
@@ -208,7 +222,7 @@ class ProductSyncTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'SPIM-ONLY-001',
+            'entity_id' => $this->skuSpimOnly,
         ]);
 
         $nameAttr = Attribute::factory()->create([
@@ -235,7 +249,7 @@ class ProductSyncTest extends TestCase
             ->andReturn(['items' => []]); // No products in Magento
 
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('SPIM-ONLY-001')
+            ->with($this->skuSpimOnly)
             ->once()
             ->andReturn(null); // Product not found (returns null)
 
@@ -258,7 +272,7 @@ class ProductSyncTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'NEW-001',
+            'entity_id' => $this->skuNew,
         ]);
 
         $this->magentoClient->shouldReceive('getProducts')
@@ -266,7 +280,7 @@ class ProductSyncTest extends TestCase
             ->andReturn(['items' => []]);
 
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('NEW-001')
+            ->with($this->skuNew)
             ->once()
             ->andReturn(null); // Product not found
 
@@ -289,7 +303,7 @@ class ProductSyncTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'EXISTING-001',
+            'entity_id' => $this->skuExisting,
         ]);
 
         $descAttr = Attribute::factory()->create([
@@ -322,7 +336,7 @@ class ProductSyncTest extends TestCase
             ->andReturn(['items' => [['sku' => 'EXISTING-001']]]);
 
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('EXISTING-001')
+            ->with($this->skuExisting)
             ->once()
             ->andReturn(['sku' => 'EXISTING-001']);
 
@@ -353,7 +367,7 @@ class ProductSyncTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'EXISTING-001',
+            'entity_id' => $this->skuExisting,
         ]);
 
         $descAttr = Attribute::factory()->create([
@@ -386,7 +400,7 @@ class ProductSyncTest extends TestCase
             ->andReturn(['items' => [['sku' => 'EXISTING-001']]]);
 
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('EXISTING-001')
+            ->with($this->skuExisting)
             ->once()
             ->andReturn(['sku' => 'EXISTING-001']);
 
@@ -405,7 +419,7 @@ class ProductSyncTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'EXISTING-001',
+            'entity_id' => $this->skuExisting,
         ]);
 
         $descAttr = Attribute::factory()->create([
@@ -439,7 +453,7 @@ class ProductSyncTest extends TestCase
             ->andReturn(['items' => [['sku' => 'EXISTING-001']]]);
 
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('EXISTING-001')
+            ->with($this->skuExisting)
             ->once()
             ->andReturn(['sku' => 'EXISTING-001']);
 
@@ -511,12 +525,12 @@ class ProductSyncTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'SINGLE-001',
+            'entity_id' => $this->skuSingle,
         ]);
 
         // getProduct is called twice: once during pull, once during push
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('SINGLE-001')
+            ->with($this->skuSingle)
             ->twice()
             ->andReturn(['sku' => 'SINGLE-001']);
 
@@ -539,15 +553,15 @@ class ProductSyncTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-001',
+            'entity_id' => $this->skuTest,
         ]);
 
         $this->magentoClient->shouldReceive('getProducts')
             ->once()
-            ->andReturn(['items' => [['sku' => 'TEST-001']]]);
+            ->andReturn(['items' => [['sku' => $this->skuTest]]]);
 
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('TEST-001')
+            ->with($this->skuTest)
             ->once()
             ->andReturn(['sku' => 'TEST-001']);
 
@@ -558,7 +572,7 @@ class ProductSyncTest extends TestCase
         $this->assertDatabaseHas('sync_results', [
             'sync_run_id' => $this->syncRun->id,
             'entity_id' => $entity->id,
-            'item_identifier' => 'TEST-001',
+            'item_identifier' => $this->skuTest,
         ]);
     }
 

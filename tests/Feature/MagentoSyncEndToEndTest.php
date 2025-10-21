@@ -11,6 +11,7 @@ use App\Models\SyncRun;
 use App\Services\EavWriter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -21,6 +22,10 @@ class MagentoSyncEndToEndTest extends TestCase
 
     private EntityType $entityType;
     private EavWriter $eavWriter;
+    private string $skuNew;
+    private string $skuExisting;
+    private string $skuBidirectional;
+    private string $skuTest;
 
     protected function setUp(): void
     {
@@ -31,11 +36,16 @@ class MagentoSyncEndToEndTest extends TestCase
             'services.magento.access_token' => 'test-token',
         ]);
 
-        $this->entityType = EntityType::firstOrCreate(
-            ['name' => 'product'],
-            ['display_name' => 'Product', 'description' => 'Test product type']
-        );
+        $this->entityType = EntityType::create([
+            'name' => 'et_' . Str::lower(Str::random(8)),
+            'display_name' => 'Test Type',
+            'description' => 'Isolated test entity type',
+        ]);
         $this->eavWriter = app(EavWriter::class);
+        $this->skuNew = 'NEW-' . Str::upper(Str::random(8));
+        $this->skuExisting = 'EXISTING-' . Str::upper(Str::random(8));
+        $this->skuBidirectional = 'BIDIRECTIONAL-' . Str::upper(Str::random(8));
+        $this->skuTest = 'TEST-' . Str::upper(Str::random(8));
     }
 
     #[Test]
@@ -111,11 +121,11 @@ class MagentoSyncEndToEndTest extends TestCase
         // Step 6: Verify entity was created
         $this->assertDatabaseHas('entities', [
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'NEW-PROD-001',
+            'entity_id' => $this->skuNew,
         ]);
 
         // Step 7: Verify attribute value was imported
-        $entity = Entity::where('entity_id', 'NEW-PROD-001')->first();
+        $entity = Entity::where('entity_id', $this->skuNew)->first();
         $this->assertDatabaseHas('eav_versioned', [
             'entity_id' => $entity->id,
             'attribute_id' => $nameAttr->id,
@@ -132,7 +142,7 @@ class MagentoSyncEndToEndTest extends TestCase
         // Create existing entity
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'EXISTING-001',
+            'entity_id' => $this->skuExisting,
         ]);
 
         // Create attributes
@@ -194,7 +204,7 @@ class MagentoSyncEndToEndTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'BIDIRECTIONAL-001',
+            'entity_id' => $this->skuBidirectional,
         ]);
 
         // Input attribute (pull from Magento)
@@ -276,7 +286,7 @@ class MagentoSyncEndToEndTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-001',
+            'entity_id' => $this->skuTest,
         ]);
 
         // Versioned: push to Magento

@@ -73,7 +73,7 @@ class ApprovalWorkflowTest extends TestCase
         $this->entity = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-001',
+            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
         ]);
 
         // Create test user
@@ -187,7 +187,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-002',
+            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
         ]);
 
         $writer->upsertVersioned($this->entity->id, $this->alwaysReviewAttr->id, 'Value 1', [
@@ -412,7 +412,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-003',
+            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
         ]);
 
         // Entity 2: has override
@@ -448,7 +448,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-004',
+            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
         ]);
         $writer->upsertVersioned($entity2->id, $this->alwaysReviewAttr->id, 'Current 2', []);
         $writer->setOverride($entity2->id, $this->alwaysReviewAttr->id, 'Override 2');
@@ -529,7 +529,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-005',
+            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
         ]);
 
         // Low confidence (0.79) - should need review
@@ -560,7 +560,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-006',
+            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
         ]);
         $writer->upsertVersioned($entity2->id, $this->alwaysReviewAttr->id, 'Value 2', []);
 
@@ -568,7 +568,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity3 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-007',
+            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
         ]);
         $writer->upsertVersioned($entity3->id, $this->alwaysReviewAttr->id, 'Current 3', []);
         $writer->setOverride($entity3->id, $this->alwaysReviewAttr->id, 'Override 3');

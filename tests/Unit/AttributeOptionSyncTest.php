@@ -25,10 +25,7 @@ class AttributeOptionSyncTest extends TestCase
     {
         parent::setUp();
 
-        $this->entityType = EntityType::firstOrCreate(
-            ['name' => 'product'],
-            ['display_name' => 'Product', 'description' => 'Test product type']
-        );
+        $this->entityType = EntityType::where('name', 'product')->firstOrFail();
         $this->syncRun = SyncRun::factory()->create([
             'entity_type_id' => $this->entityType->id,
             'sync_type' => 'options',

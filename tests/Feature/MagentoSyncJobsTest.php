@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Illuminate\Support\Str;
 
 class MagentoSyncJobsTest extends TestCase
 {
@@ -22,6 +23,8 @@ class MagentoSyncJobsTest extends TestCase
 
     private EntityType $entityType;
     private User $user;
+    private string $skuA;
+    private string $skuB;
 
     protected function setUp(): void
     {
@@ -32,11 +35,14 @@ class MagentoSyncJobsTest extends TestCase
             'services.magento.access_token' => 'test-token',
         ]);
 
-        $this->entityType = EntityType::firstOrCreate(
-            ['name' => 'product'],
-            ['display_name' => 'Product', 'description' => 'Test product type']
-        );
+        $this->entityType = EntityType::create([
+            'name' => 'et_' . Str::lower(Str::random(8)),
+            'display_name' => 'Test Type',
+            'description' => 'Isolated test entity type',
+        ]);
         $this->user = User::factory()->create();
+        $this->skuA = 'SKU-' . Str::upper(Str::random(8));
+        $this->skuB = 'SKU-' . Str::upper(Str::random(8));
 
         // Mock Magento API responses
         Http::fake([
@@ -195,17 +201,17 @@ class MagentoSyncJobsTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-001',
+            'entity_id' => $this->skuA,
         ]);
 
         Http::fake([
             'magento.test/rest/V1/products*' => Http::response([
                 'items' => [
-                    ['sku' => 'TEST-001'],
+                    ['sku' => $this->skuA],
                 ],
             ], 200),
-            'magento.test/rest/V1/products/TEST-001' => Http::response([
-                'sku' => 'TEST-001',
+            'magento.test/rest/V1/products/*' => Http::response([
+                'sku' => $this->skuA,
                 'name' => 'Test Product',
             ], 200),
         ]);
@@ -226,19 +232,19 @@ class MagentoSyncJobsTest extends TestCase
     {
         Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'PROD-001',
+            'entity_id' => $this->skuA,
         ]);
 
         Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'PROD-002',
+            'entity_id' => $this->skuB,
         ]);
 
         Http::fake([
             'magento.test/rest/V1/products*' => Http::response([
                 'items' => [
-                    ['sku' => 'PROD-001'],
-                    ['sku' => 'PROD-002'],
+                    ['sku' => $this->skuA],
+                    ['sku' => $this->skuB],
                 ],
             ], 200),
             'magento.test/rest/V1/products/*' => Http::response([
@@ -259,15 +265,15 @@ class MagentoSyncJobsTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-001',
+            'entity_id' => $this->skuA,
         ]);
 
         Http::fake([
             'magento.test/rest/V1/products*' => Http::response([
-                'items' => [['sku' => 'TEST-001']],
+                'items' => [['sku' => $this->skuA]],
             ], 200),
-            'magento.test/rest/V1/products/TEST-001' => Http::response([
-                'sku' => 'TEST-001',
+            'magento.test/rest/V1/products/*' => Http::response([
+                'sku' => $this->skuA,
             ], 200),
         ]);
 
@@ -276,7 +282,7 @@ class MagentoSyncJobsTest extends TestCase
 
         $this->assertDatabaseHas('sync_results', [
             'entity_id' => $entity->id,
-            'item_identifier' => 'TEST-001',
+            'item_identifier' => $this->skuA,
         ]);
     }
 
@@ -316,7 +322,7 @@ class MagentoSyncJobsTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'SINGLE-001',
+            'entity_id' => $this->skuA,
         ]);
 
         Http::fake([
@@ -324,8 +330,8 @@ class MagentoSyncJobsTest extends TestCase
                 'frontend_input' => 'text',
                 'backend_type' => 'varchar',
             ], 200),
-            'magento.test/rest/V1/products/SINGLE-001' => Http::response([
-                'sku' => 'SINGLE-001',
+            'magento.test/rest/V1/products/*' => Http::response([
+                'sku' => $this->skuA,
                 'name' => 'Single Product',
             ], 200),
         ]);
@@ -346,13 +352,13 @@ class MagentoSyncJobsTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'SINGLE-001',
+            'entity_id' => $this->skuA,
         ]);
 
         // Create another entity that should NOT be synced
         $otherEntity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'OTHER-001',
+            'entity_id' => $this->skuB,
         ]);
 
         Http::fake([
@@ -360,8 +366,8 @@ class MagentoSyncJobsTest extends TestCase
                 'frontend_input' => 'text',
                 'backend_type' => 'varchar',
             ], 200),
-            'magento.test/rest/V1/products/SINGLE-001' => Http::response([
-                'sku' => 'SINGLE-001',
+            'magento.test/rest/V1/products/*' => Http::response([
+                'sku' => $this->skuA,
             ], 200),
         ]);
 
@@ -371,12 +377,12 @@ class MagentoSyncJobsTest extends TestCase
         // Should have result for SINGLE-001 only
         $this->assertDatabaseHas('sync_results', [
             'entity_id' => $entity->id,
-            'item_identifier' => 'SINGLE-001',
+            'item_identifier' => $this->skuA,
         ]);
 
         $this->assertDatabaseMissing('sync_results', [
             'entity_id' => $otherEntity->id,
-            'item_identifier' => 'OTHER-001',
+            'item_identifier' => $this->skuB,
         ]);
     }
 
@@ -385,7 +391,7 @@ class MagentoSyncJobsTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-001',
+            'entity_id' => $this->skuA,
         ]);
 
         Http::fake([
@@ -393,8 +399,8 @@ class MagentoSyncJobsTest extends TestCase
                 'frontend_input' => 'text',
                 'backend_type' => 'varchar',
             ], 200),
-            'magento.test/rest/V1/products/TEST-001' => Http::response([
-                'sku' => 'TEST-001',
+            'magento.test/rest/V1/products/*' => Http::response([
+                'sku' => $this->skuA,
             ], 200),
         ]);
 
@@ -403,7 +409,7 @@ class MagentoSyncJobsTest extends TestCase
 
         $this->assertDatabaseHas('sync_results', [
             'entity_id' => $entity->id,
-            'item_identifier' => 'TEST-001',
+            'item_identifier' => $this->skuA,
             'status' => 'success',
         ]);
     }
@@ -413,7 +419,7 @@ class MagentoSyncJobsTest extends TestCase
     {
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-001',
+            'entity_id' => $this->skuA,
         ]);
 
         Http::fake([
@@ -421,8 +427,8 @@ class MagentoSyncJobsTest extends TestCase
                 'frontend_input' => 'text',
                 'backend_type' => 'varchar',
             ], 200),
-            'magento.test/rest/V1/products/TEST-001' => Http::response([
-                'sku' => 'TEST-001',
+            'magento.test/rest/V1/products/*' => Http::response([
+                'sku' => $this->skuA,
             ], 200),
         ]);
 

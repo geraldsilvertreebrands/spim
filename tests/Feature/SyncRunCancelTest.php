@@ -17,10 +17,7 @@ class SyncRunCancelTest extends TestCase
         // Test that sync runs can be cancelled
 
         // Create test data
-        $entityType = EntityType::firstOrCreate(['name' => 'product'], [
-            'name' => 'product',
-            'description' => 'Product entity type',
-        ]);
+        $entityType = EntityType::where('name', 'product')->firstOrFail();
 
         $user = User::factory()->create();
 

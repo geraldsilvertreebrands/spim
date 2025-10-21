@@ -11,21 +11,21 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Illuminate\Support\Str;
 
 class MagentoSyncCommandTest extends TestCase
 {
     use RefreshDatabase;
 
     private EntityType $entityType;
+    private string $sku;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->entityType = EntityType::firstOrCreate(
-            ['name' => 'product'],
-            ['display_name' => 'Product', 'description' => 'Test product type']
-        );
+        $this->entityType = EntityType::where('name', 'product')->firstOrFail();
+        $this->sku = 'SKU-' . Str::upper(Str::random(8));
     }
 
     #[Test]
@@ -65,12 +65,12 @@ class MagentoSyncCommandTest extends TestCase
 
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-SKU-001',
+            'entity_id' => $this->sku,
         ]);
 
         $this->artisan('sync:magento', [
             'entityType' => 'product',
-            '--sku' => 'TEST-SKU-001',
+            '--sku' => $this->sku,
         ])
             ->expectsOutput('Product sync for SKU TEST-SKU-001 queued.')
             ->assertExitCode(0);
