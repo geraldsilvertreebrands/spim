@@ -80,35 +80,6 @@ services:
           cpus: '0.25'
           memory: 256M
 
-  db-test:
-    image: mysql:8.0
-    container_name: spim_db_test
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: spim_test
-      MYSQL_USER: spim
-      MYSQL_PASSWORD: spim
-      MYSQL_ROOT_PASSWORD: spim
-    ports:
-      - "3308:3306"
-    tmpfs:
-      - /var/lib/mysql:size=2G
-    command:
-      - --innodb-buffer-pool-size=256M
-      - --max-connections=50
-      - --innodb-flush-log-at-trx-commit=0
-      - --innodb-flush-method=O_DIRECT_NO_FSYNC
-      - --sync-binlog=0
-      - --skip-log-bin
-      - --innodb-doublewrite=0
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
 
   redis:
     image: redis:7-alpine
