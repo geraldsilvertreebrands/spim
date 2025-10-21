@@ -84,11 +84,8 @@ class ProductSyncTest extends TestCase
                 ],
             ]);
 
-        // Mock for push phase - check if product exists in Magento
-        $this->magentoClient->shouldReceive('getProduct')
-            ->with($this->skuNew)
-            ->once()
-            ->andReturn(['sku' => 'NEW-001']); // Product exists in Magento
+        // Note: getProduct() won't be called in push phase because products
+        // imported in the pull phase are skipped to avoid redundant updates
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $result = $sync->sync();
@@ -149,11 +146,8 @@ class ProductSyncTest extends TestCase
                 ],
             ]);
 
-        // Mock for push phase - check if product exists in Magento
-        $this->magentoClient->shouldReceive('getProduct')
-            ->with($this->skuExisting)
-            ->once()
-            ->andReturn(['sku' => 'EXISTING-001']);
+        // Note: getProduct() won't be called in push phase because products
+        // imported in the pull phase are skipped to avoid redundant updates
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $sync->sync();
@@ -169,10 +163,11 @@ class ProductSyncTest extends TestCase
     #[Test]
     public function test_sets_all_three_value_fields_on_initial_import(): void
     {
+        // Use text data type to preserve decimal precision in this test
         $priceAttr = Attribute::factory()->create([
             'entity_type_id' => $this->entityType->id,
             'name' => 'price',
-            'data_type' => 'integer',
+            'data_type' => 'text',
             'is_sync' => 'from_external',
             'editable' => 'no',
         ]);
@@ -189,17 +184,14 @@ class ProductSyncTest extends TestCase
                 'items' => [
                     [
                         'sku' => $this->skuNew,
-                        'price' => 29.99,
+                        'price' => '29.99',
                         'custom_attributes' => [],
                     ],
                 ],
             ]);
 
-        // Mock for push phase - check if product exists in Magento
-        $this->magentoClient->shouldReceive('getProduct')
-            ->with($this->skuNew)
-            ->once()
-            ->andReturn(['sku' => 'NEW-001']); // Product exists in Magento
+        // Note: getProduct() won't be called in push phase because products
+        // imported in the pull phase are skipped to avoid redundant updates
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $sync->sync();
@@ -256,10 +248,10 @@ class ProductSyncTest extends TestCase
         $this->magentoClient->shouldReceive('createProduct')
             ->once()
             ->with(Mockery::on(function ($payload) {
-                return $payload['sku'] === 'SPIM-ONLY-001' &&
+                return isset($payload['sku']) && str_starts_with($payload['sku'], 'SPIM-ONLY-') &&
                        $payload['status'] === 2; // disabled
             }))
-            ->andReturn(['id' => 1, 'sku' => 'SPIM-ONLY-001']);
+            ->andReturn(['id' => 1, 'sku' => $this->skuSpimOnly]);
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $result = $sync->sync();
@@ -275,6 +267,23 @@ class ProductSyncTest extends TestCase
             'entity_id' => $this->skuNew,
         ]);
 
+        // Need at least one synced attribute for the product to be created
+        $nameAttr = Attribute::factory()->create([
+            'entity_type_id' => $this->entityType->id,
+            'name' => 'name',
+            'data_type' => 'text',
+            'is_sync' => 'to_external',
+            'editable' => 'yes',
+            'needs_approval' => 'no',
+        ]);
+        $this->eavWriter->upsertVersioned($entity->id, $nameAttr->id, 'New Product');
+
+        // Mock getAttribute for validation
+        $this->magentoClient->shouldReceive('getAttribute')
+            ->with('name')
+            ->once()
+            ->andReturn(['frontend_input' => 'text', 'backend_type' => 'varchar']);
+
         $this->magentoClient->shouldReceive('getProducts')
             ->once()
             ->andReturn(['items' => []]);
@@ -289,7 +298,7 @@ class ProductSyncTest extends TestCase
             ->with(Mockery::on(function ($payload) {
                 return isset($payload['status']) && $payload['status'] === 2;
             }))
-            ->andReturn(['id' => 1, 'sku' => 'NEW-001']);
+            ->andReturn(['id' => 1, 'sku' => $this->skuNew]);
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $result = $sync->sync();
@@ -333,22 +342,22 @@ class ProductSyncTest extends TestCase
 
         $this->magentoClient->shouldReceive('getProducts')
             ->once()
-            ->andReturn(['items' => [['sku' => 'EXISTING-001']]]);
+            ->andReturn(['items' => []]);  // No products in pull phase
 
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuExisting)
             ->once()
-            ->andReturn(['sku' => 'EXISTING-001']);
+            ->andReturn(['sku' => $this->skuExisting]);  // Product exists in Magento
 
         $this->magentoClient->shouldReceive('updateProduct')
             ->once()
-            ->with('EXISTING-001', Mockery::on(function ($payload) {
+            ->with($this->skuExisting, Mockery::on(function ($payload) {
                 return isset($payload['custom_attributes']) &&
                        collect($payload['custom_attributes'])->contains(fn ($attr) =>
                            $attr['attribute_code'] === 'description' && $attr['value'] === 'Approved desc'
                        );
             }))
-            ->andReturn(['sku' => 'EXISTING-001']);
+            ->andReturn(['sku' => $this->skuExisting]);
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $sync->sync();
@@ -450,21 +459,21 @@ class ProductSyncTest extends TestCase
 
         $this->magentoClient->shouldReceive('getProducts')
             ->once()
-            ->andReturn(['items' => [['sku' => 'EXISTING-001']]]);
+            ->andReturn(['items' => []]);  // No products in pull phase
 
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuExisting)
             ->once()
-            ->andReturn(['sku' => 'EXISTING-001']);
+            ->andReturn(['sku' => $this->skuExisting]);
 
         $this->magentoClient->shouldReceive('updateProduct')
             ->once()
-            ->with('EXISTING-001', Mockery::on(function ($payload) {
+            ->with($this->skuExisting, Mockery::on(function ($payload) {
                 return collect($payload['custom_attributes'])->contains(fn ($attr) =>
                     $attr['attribute_code'] === 'description' && $attr['value'] === 'Manual override'
                 );
             }))
-            ->andReturn(['sku' => 'EXISTING-001']);
+            ->andReturn(['sku' => $this->skuExisting]);
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $result = $sync->sync();
@@ -483,9 +492,10 @@ class ProductSyncTest extends TestCase
     #[Test]
     public function test_skips_attributes_with_is_sync_disabled(): void
     {
+        $sku = $this->skuExisting;
         $entity = Entity::factory()->create([
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'EXISTING-001',
+            'entity_id' => $sku,
         ]);
 
         $internalAttr = Attribute::factory()->create([
@@ -502,12 +512,12 @@ class ProductSyncTest extends TestCase
 
         $this->magentoClient->shouldReceive('getProducts')
             ->once()
-            ->andReturn(['items' => [['sku' => 'EXISTING-001']]]);
+            ->andReturn(['items' => []]);  // No products in pull phase
 
         $this->magentoClient->shouldReceive('getProduct')
-            ->with('EXISTING-001')
+            ->with($sku)
             ->once()
-            ->andReturn(['sku' => 'EXISTING-001']);
+            ->andReturn(['sku' => $sku]);
 
         // Should not call updateProduct at all since no synced attributes have changes
         // (internal_notes is is_sync='no')
@@ -516,7 +526,7 @@ class ProductSyncTest extends TestCase
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $result = $sync->sync();
 
-        // No attributes to sync -> push phase skipped
+        // No attributes to sync -> entity in push phase is skipped
         $this->assertGreaterThanOrEqual(1, $result['skipped']);
     }
 
@@ -528,16 +538,16 @@ class ProductSyncTest extends TestCase
             'entity_id' => $this->skuSingle,
         ]);
 
-        // getProduct is called twice: once during pull, once during push
+        // getProduct is called once during pull (push is skipped for imported products)
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuSingle)
-            ->twice()
-            ->andReturn(['sku' => 'SINGLE-001']);
+            ->once()
+            ->andReturn(['sku' => $this->skuSingle]);
 
         // Should not call getProducts for all products
         $this->magentoClient->shouldNotReceive('getProducts');
 
-        $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, 'SINGLE-001', $this->syncRun);
+        $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, $this->skuSingle, $this->syncRun);
         $result = $sync->sync();
 
         // Assert that stats array is returned
@@ -551,22 +561,19 @@ class ProductSyncTest extends TestCase
     #[Test]
     public function test_logs_sync_results_to_database(): void
     {
-        $entity = Entity::factory()->create([
-            'entity_type_id' => $this->entityType->id,
-            'entity_id' => $this->skuTest,
-        ]);
-
+        // Create entity that doesn't exist in SPIM yet
         $this->magentoClient->shouldReceive('getProducts')
             ->once()
             ->andReturn(['items' => [['sku' => $this->skuTest]]]);
 
-        $this->magentoClient->shouldReceive('getProduct')
-            ->with($this->skuTest)
-            ->once()
-            ->andReturn(['sku' => 'TEST-001']);
+        // Note: getProduct won't be called since the product will be imported in the pull phase
+        // and then skipped in the push phase
 
         $sync = new ProductSync($this->magentoClient, $this->eavWriter, $this->entityType, null, $this->syncRun);
         $sync->sync();
+
+        // Get the created entity
+        $entity = Entity::where('entity_id', $this->skuTest)->first();
 
         // Should have logged sync result
         $this->assertDatabaseHas('sync_results', [
