@@ -381,7 +381,7 @@ There are containers for:
 - spim_app - the main PHP
 - spim_web - nginc
 - spim_db - mysql server, with databases spim, and spim_test (for unit testing)
-- spim_queue - runner for queue processes
+- spim_queue - runner for queue processes. NOTE: needs to be restarted when code changes are made
 - spim_redis
 
 ⸻

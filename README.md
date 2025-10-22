@@ -3,6 +3,10 @@ SilvertreePIM
 
 A lean, AI‑assisted Product Information Manager (PIM) built on Laravel + Filament.
 
+Useful URLs:
+- The app: http://spim.test:8080/admin
+- Horizon queue monitor (for background tasks): http://spim.test:8080/horizon/dashboard
+
 Documentation
 - High‑level architecture: see `docs/architecture.md`.
 - Iterative implementation plans:
@@ -17,7 +21,8 @@ Requirements
 - Node 20+ (for frontend tooling)
 - MySQL 8.x (required for window functions and JSON aggs used by views)
 
-Quick start (local dev)
+Quick start (local dev)Type of App\Filament\Resources\PipelineResource\RelationManagers\PipelineEvalsRelationManager::$icon must be BackedEnum|string|null (as in class Filament\Resources\RelationManagers\RelationManager)
+
 1) Install dependencies
    ```bash
    composer install

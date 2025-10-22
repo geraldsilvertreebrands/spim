@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Models\Entity;
 use App\Models\EntityType;
+use App\Services\EntityFilterBuilder;
 use App\Services\EntityFormBuilder;
 use App\Services\EntityTableBuilder;
 use BackedEnum;
@@ -99,14 +100,15 @@ abstract class AbstractEntityTypeResource extends Resource
      */
     public static function table(Table $table): Table
     {
-        $builder = app(EntityTableBuilder::class);
-        $columns = $builder->buildColumns(static::getEntityType());
+        $tableBuilder = app(EntityTableBuilder::class);
+        $filterBuilder = app(EntityFilterBuilder::class);
+
+        $columns = $tableBuilder->buildColumns(static::getEntityType());
+        $filters = $filterBuilder->buildFilters(static::getEntityType());
 
         return $table
             ->columns($columns)
-            ->filters([
-                // Can be overridden in subclass
-            ])
+            ->filters($filters)
             ->actions(static::getTableActions())
             ->bulkActions(static::getBulkActions())
             ->defaultSort('id', 'desc')

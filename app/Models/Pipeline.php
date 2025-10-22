@@ -27,6 +27,7 @@ class Pipeline extends Model
         'last_run_failed' => 'integer',
         'last_run_tokens_in' => 'integer',
         'last_run_tokens_out' => 'integer',
+        'entity_filter' => 'array',
     ];
 
     public function attribute(): BelongsTo

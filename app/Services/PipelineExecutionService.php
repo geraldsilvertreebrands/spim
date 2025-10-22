@@ -25,15 +25,17 @@ class PipelineExecutionService
      * @param Pipeline $pipeline
      * @param Collection|array $entityIds
      * @param PipelineRun|null $run Optional run to track execution
+     * @param bool $force Force reprocess even if inputs haven't changed
      * @return array Stats array with processed, failed, skipped counts
      */
-    public function executeBatch(Pipeline $pipeline, Collection|array $entityIds, ?PipelineRun $run = null): array
+    public function executeBatch(Pipeline $pipeline, Collection|array $entityIds, ?PipelineRun $run = null, bool $force = false): array
     {
         $entityIds = collect($entityIds);
         $stats = [
             'processed' => 0,
             'failed' => 0,
             'skipped' => 0,
+            'skipped_up_to_date' => 0, // Skipped because inputs/version unchanged
             'tokens_in' => 0,
             'tokens_out' => 0,
         ];
@@ -43,6 +45,18 @@ class PipelineExecutionService
         }
 
         try {
+            // Apply entity filter if configured (will be idempotent if Job already filtered)
+            if ($pipeline->entity_filter) {
+                $filteredIds = $this->filterByCondition($entityIds, $pipeline->entity_filter);
+                $filterSkipped = $entityIds->count() - $filteredIds->count();
+                $stats['skipped'] += $filterSkipped;
+                $entityIds = $filteredIds;
+
+                if ($entityIds->isEmpty()) {
+                    return $stats;
+                }
+            }
+
             // Load modules
             $modules = $pipeline->modules()->orderBy('order')->get();
 
@@ -67,14 +81,30 @@ class PipelineExecutionService
             // Load inputs for all entities in batch
             $inputsMap = $sourceInstance->loadInputsForEntities($entityIds->toArray());
 
-            // Filter entities by those that need processing
-            $entitiesToProcess = $this->filterEntitiesNeedingProcessing(
-                $pipeline,
-                $entityIds,
-                $inputsMap
-            );
+            // Filter entities by those that need processing (unless forcing)
+            if ($force) {
+                $entitiesToProcess = $inputsMap;
+                Log::info('Force reprocess enabled', [
+                    'pipeline_id' => $pipeline->id,
+                    'entities_to_process' => count($inputsMap),
+                ]);
+            } else {
+                $entitiesToProcess = $this->filterEntitiesNeedingProcessing(
+                    $pipeline,
+                    $entityIds,
+                    $inputsMap
+                );
+                $upToDateCount = $entityIds->count() - count($entitiesToProcess);
+                $stats['skipped_up_to_date'] = $upToDateCount;
+                $stats['skipped'] += $upToDateCount;
 
-            $stats['skipped'] = $entityIds->count() - count($entitiesToProcess);
+                Log::info('Filtering entities needing processing', [
+                    'pipeline_id' => $pipeline->id,
+                    'input_entities' => $entityIds->count(),
+                    'needs_processing' => count($entitiesToProcess),
+                    'skipped_up_to_date' => $upToDateCount,
+                ]);
+            }
 
             // Process each entity
             foreach ($entitiesToProcess as $entityId => $inputs) {
@@ -364,6 +394,70 @@ class PipelineExecutionService
         }
 
         return $stats;
+    }
+
+    /**
+     * Filter entities by condition
+     *
+     * @param Collection $entityIds
+     * @param array $filter Filter configuration
+     * @return Collection Filtered entity IDs
+     */
+    protected function filterByCondition(Collection $entityIds, array $filter): Collection
+    {
+        if (empty($filter) || !isset($filter['attribute_id'])) {
+            return $entityIds;
+        }
+
+        $attributeId = $filter['attribute_id'];
+        $operator = $filter['operator'] ?? '=';
+        $value = $filter['value'] ?? null;
+
+        $query = DB::table('eav_versioned')
+            ->whereIn('entity_id', $entityIds)
+            ->where('attribute_id', $attributeId);
+
+        // Apply operator
+        switch ($operator) {
+            case '=':
+                $query->where('value_current', $value);
+                break;
+            case '!=':
+                $query->where('value_current', '!=', $value);
+                break;
+            case '>':
+                $query->where('value_current', '>', $value);
+                break;
+            case '>=':
+                $query->where('value_current', '>=', $value);
+                break;
+            case '<':
+                $query->where('value_current', '<', $value);
+                break;
+            case '<=':
+                $query->where('value_current', '<=', $value);
+                break;
+            case 'in':
+                $query->whereIn('value_current', is_array($value) ? $value : [$value]);
+                break;
+            case 'not_in':
+                $query->whereNotIn('value_current', is_array($value) ? $value : [$value]);
+                break;
+            case 'null':
+                $query->whereNull('value_current');
+                break;
+            case 'not_null':
+                $query->whereNotNull('value_current');
+                break;
+            case 'contains':
+                $query->where('value_current', 'LIKE', '%' . $value . '%');
+                break;
+            default:
+                // Unknown operator, return unfiltered
+                return $entityIds;
+        }
+
+        return $query->pluck('entity_id');
     }
 }
 

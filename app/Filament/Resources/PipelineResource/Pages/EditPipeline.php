@@ -113,6 +113,147 @@ class EditPipeline extends EditRecord
                                 ])
                                 ->columns(2),
 
+                            Section::make('Entity Filtering')
+                                ->description('Optional: Only run this pipeline on entities matching specific conditions.')
+                                ->schema([
+                                    Forms\Components\Select::make('entity_filter.attribute_id')
+                                        ->label('Filter by Attribute')
+                                        ->options(function ($record) {
+                                            if (!$record || !$record->entity_type_id) {
+                                                return [];
+                                            }
+                                            return \App\Models\Attribute::where('entity_type_id', $record->entity_type_id)
+                                                ->orderBy('display_name')
+                                                ->get()
+                                                ->mapWithKeys(fn($attr) => [
+                                                    $attr->id => $attr->display_name ?? $attr->name
+                                                ])
+                                                ->toArray();
+                                        })
+                                        ->searchable()
+                                        ->placeholder('Select an attribute to filter by')
+                                        ->helperText('Only run pipeline on entities matching this condition')
+                                        ->live()
+                                        ->afterStateUpdated(function ($state, callable $set) {
+                                            if (!$state) {
+                                                $set('entity_filter.operator', null);
+                                                $set('entity_filter.value', null);
+                                            }
+                                        }),
+
+                                    Forms\Components\Select::make('entity_filter.operator')
+                                        ->label('Operator')
+                                        ->options(function (callable $get) {
+                                            $attributeId = $get('entity_filter.attribute_id');
+                                            if (!$attributeId) {
+                                                return [];
+                                            }
+
+                                            $attribute = \App\Models\Attribute::find($attributeId);
+                                            if (!$attribute) {
+                                                return [];
+                                            }
+
+                                            // For select/multiselect, limit operators
+                                            if (in_array($attribute->data_type, ['select', 'multiselect'])) {
+                                                return [
+                                                    '=' => 'Equals',
+                                                    '!=' => 'Not Equals',
+                                                    'in' => 'In List',
+                                                    'not_in' => 'Not In List',
+                                                    'null' => 'Is Null',
+                                                    'not_null' => 'Is Not Null',
+                                                ];
+                                            }
+
+                                            // Full operator set for other types
+                                            return [
+                                                '=' => 'Equals',
+                                                '!=' => 'Not Equals',
+                                                '>' => 'Greater Than',
+                                                '>=' => 'Greater Than or Equal',
+                                                '<' => 'Less Than',
+                                                '<=' => 'Less Than or Equal',
+                                                'in' => 'In List',
+                                                'not_in' => 'Not In List',
+                                                'null' => 'Is Null',
+                                                'not_null' => 'Is Not Null',
+                                                'contains' => 'Contains',
+                                            ];
+                                        })
+                                        ->default('=')
+                                        ->required(fn (callable $get) => (bool) $get('entity_filter.attribute_id'))
+                                        ->visible(fn (callable $get) => (bool) $get('entity_filter.attribute_id'))
+                                        ->live(),
+
+                                    // Select dropdown for select/multiselect attributes
+                                    Forms\Components\Select::make('entity_filter.value')
+                                        ->label('Value')
+                                        ->options(function (callable $get) {
+                                            $attributeId = $get('entity_filter.attribute_id');
+                                            if (!$attributeId) {
+                                                return [];
+                                            }
+
+                                            $attribute = \App\Models\Attribute::find($attributeId);
+                                            if (!$attribute || !in_array($attribute->data_type, ['select', 'multiselect'])) {
+                                                return [];
+                                            }
+
+                                            // Return allowed_values (key => label format)
+                                            return $attribute->allowed_values ?? [];
+                                        })
+                                        ->multiple(function (callable $get) {
+                                            $operator = $get('entity_filter.operator');
+                                            return in_array($operator, ['in', 'not_in']);
+                                        })
+                                        ->searchable()
+                                        ->required(function (callable $get) {
+                                            $attributeId = $get('entity_filter.attribute_id');
+                                            $operator = $get('entity_filter.operator');
+                                            if (!$attributeId || in_array($operator, ['null', 'not_null'])) {
+                                                return false;
+                                            }
+                                            $attribute = \App\Models\Attribute::find($attributeId);
+                                            return $attribute && in_array($attribute->data_type, ['select', 'multiselect']);
+                                        })
+                                        ->visible(function (callable $get) {
+                                            $attributeId = $get('entity_filter.attribute_id');
+                                            $operator = $get('entity_filter.operator');
+                                            if (!$attributeId || in_array($operator, ['null', 'not_null'])) {
+                                                return false;
+                                            }
+                                            $attribute = \App\Models\Attribute::find($attributeId);
+                                            return $attribute && in_array($attribute->data_type, ['select', 'multiselect']);
+                                        }),
+
+                                    // Text input for other attribute types
+                                    Forms\Components\TextInput::make('entity_filter.value')
+                                        ->label('Value')
+                                        ->helperText('For "In List" or "Not In List", separate values with commas')
+                                        ->required(function (callable $get) {
+                                            $attributeId = $get('entity_filter.attribute_id');
+                                            $operator = $get('entity_filter.operator');
+                                            if (!$attributeId || in_array($operator, ['null', 'not_null'])) {
+                                                return false;
+                                            }
+                                            $attribute = \App\Models\Attribute::find($attributeId);
+                                            return $attribute && !in_array($attribute->data_type, ['select', 'multiselect']);
+                                        })
+                                        ->visible(function (callable $get) {
+                                            $attributeId = $get('entity_filter.attribute_id');
+                                            $operator = $get('entity_filter.operator');
+                                            if (!$attributeId || in_array($operator, ['null', 'not_null'])) {
+                                                return false;
+                                            }
+                                            $attribute = \App\Models\Attribute::find($attributeId);
+                                            return $attribute && !in_array($attribute->data_type, ['select', 'multiselect']);
+                                        }),
+                                ])
+                                ->columns(3)
+                                ->collapsible()
+                                ->collapsed(),
+
                             Section::make('Processing Modules')
                                 ->description('Define the sequence of operations that generate the attribute value. First module must load source data, subsequent modules transform it.')
                                 ->schema([
@@ -151,19 +292,26 @@ class EditPipeline extends EditRecord
                         ])
                         ->default('all')
                         ->required(),
+
+                    Forms\Components\Checkbox::make('force')
+                        ->label('Force Reprocess')
+                        ->helperText('Reprocess all entities even if inputs haven\'t changed. Useful for testing or when modules have been updated.')
+                        ->default(false),
                 ])
                 ->action(function (array $data) {
                     $maxEntities = $data['run_type'] === 'sample' ? 100 : null;
+                    $force = $data['force'] ?? false;
 
                     \App\Jobs\Pipeline\RunPipelineBatch::dispatch(
                         pipeline: $this->record,
                         triggeredBy: 'manual',
-                        maxEntities: $maxEntities
+                        maxEntities: $maxEntities,
+                        force: $force
                     );
 
                     $message = $data['run_type'] === 'sample'
-                        ? 'The pipeline will run on the first 100 entities.'
-                        : 'All entities will be processed.';
+                        ? 'The pipeline will run on the first 100 entities' . ($force ? ' (forced reprocess).' : '.')
+                        : 'All entities will be processed' . ($force ? ' (forced reprocess).' : '.');
 
                     \Filament\Notifications\Notification::make()
                         ->title('Pipeline Queued')
@@ -398,6 +546,19 @@ JS
 
         $data['modules_config'] = $modulesConfig;
 
+        // Handle entity_filter value display
+        if (isset($data['entity_filter']['value']) && is_array($data['entity_filter']['value'])) {
+            $filter = $data['entity_filter'];
+            $attribute = \App\Models\Attribute::find($filter['attribute_id'] ?? null);
+
+            // For select/multiselect with in/not_in operators, keep as array (multi-select will handle it)
+            // For other cases (text input), convert to comma-separated string
+            if (!$attribute || !in_array($attribute->data_type, ['select', 'multiselect'])) {
+                $data['entity_filter']['value'] = implode(', ', $data['entity_filter']['value']);
+            }
+            // Otherwise keep as array for the select component
+        }
+
         return $data;
     }
 
@@ -410,6 +571,38 @@ JS
 
         // Don't save this to pipeline table
         unset($data['modules_config']);
+
+        // Handle entity_filter value conversion for in/not_in operators
+        if (isset($data['entity_filter'])) {
+            $filter = $data['entity_filter'];
+
+            // If no attribute selected, clear the entire filter
+            if (empty($filter['attribute_id'])) {
+                $data['entity_filter'] = null;
+            } else {
+                $attribute = \App\Models\Attribute::find($filter['attribute_id']);
+
+                // For in/not_in operators
+                if (in_array($filter['operator'] ?? '', ['in', 'not_in']) && isset($filter['value'])) {
+                    // If attribute is select/multiselect, value is already an array from the select component
+                    if ($attribute && in_array($attribute->data_type, ['select', 'multiselect'])) {
+                        // Value is already an array, ensure it's an array
+                        $data['entity_filter']['value'] = is_array($filter['value']) ? $filter['value'] : [$filter['value']];
+                    } else {
+                        // For text inputs, split by comma
+                        if (is_string($filter['value'])) {
+                            $values = array_map('trim', explode(',', $filter['value']));
+                            $data['entity_filter']['value'] = $values;
+                        }
+                    }
+                }
+
+                // Remove value for null/not_null operators
+                if (in_array($filter['operator'] ?? '', ['null', 'not_null'])) {
+                    unset($data['entity_filter']['value']);
+                }
+            }
+        }
 
         return $data;
     }
