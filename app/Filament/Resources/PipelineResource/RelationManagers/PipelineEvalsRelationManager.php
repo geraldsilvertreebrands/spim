@@ -7,7 +7,9 @@ use App\Models\PipelineEval;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use BackedEnum;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -17,7 +19,9 @@ class PipelineEvalsRelationManager extends RelationManager
 {
     protected static string $relationship = 'evals';
 
-    protected static ?string $title = 'Evaluation Test Cases';
+    protected static ?string $title = 'Evaluations';
+
+    protected static string|BackedEnum|null $icon = 'heroicon-o-beaker';
 
     protected static ?string $recordTitleAttribute = 'entity_id';
 
@@ -263,16 +267,16 @@ class PipelineEvalsRelationManager extends RelationManager
                     ->fillForm(function (PipelineEval $record): array {
                         // Load entity external ID for editing
                         $entity = $record->entity;
-                        
+
                         // Extract just the value from desired_output
                         $desiredValue = $record->desired_output;
                         if (is_array($desiredValue) && isset($desiredValue['value'])) {
                             $desiredValue = $desiredValue['value'];
                         }
-                        
+
                         // Convert to string for display
-                        $desiredOutputStr = is_array($desiredValue) || is_object($desiredValue) 
-                            ? json_encode($desiredValue, JSON_PRETTY_PRINT) 
+                        $desiredOutputStr = is_array($desiredValue) || is_object($desiredValue)
+                            ? json_encode($desiredValue, JSON_PRETTY_PRINT)
                             : (string) $desiredValue;
 
                         // Extract actual value for display
@@ -280,9 +284,9 @@ class PipelineEvalsRelationManager extends RelationManager
                         if (is_array($actualValue) && isset($actualValue['value'])) {
                             $actualValue = $actualValue['value'];
                         }
-                        $actualValueStr = $actualValue !== null 
-                            ? (is_array($actualValue) || is_object($actualValue) 
-                                ? json_encode($actualValue, JSON_PRETTY_PRINT) 
+                        $actualValueStr = $actualValue !== null
+                            ? (is_array($actualValue) || is_object($actualValue)
+                                ? json_encode($actualValue, JSON_PRETTY_PRINT)
                                 : (string) $actualValue)
                             : null;
 
@@ -292,8 +296,8 @@ class PipelineEvalsRelationManager extends RelationManager
                             'notes' => $record->notes,
                             'actual_value_display' => $actualValueStr,
                             'justification_display' => $record->justification,
-                            'confidence_display' => $record->confidence !== null 
-                                ? number_format($record->confidence * 100, 1) . '%' 
+                            'confidence_display' => $record->confidence !== null
+                                ? number_format($record->confidence * 100, 1) . '%'
                                 : null,
                         ];
                     })
@@ -315,7 +319,7 @@ class PipelineEvalsRelationManager extends RelationManager
                             ->rows(2)
                             ->helperText('Optional notes about this test case.'),
 
-                        Forms\Components\Section::make('AI Output')
+                        Section::make('AI Output')
                             ->description('Results from the last pipeline run')
                             ->schema([
                                 Forms\Components\Textarea::make('actual_value_display')

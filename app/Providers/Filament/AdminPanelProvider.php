@@ -3,13 +3,10 @@
 namespace App\Providers\Filament;
 
 use App\Http\Middleware\CheckUserIsActive;
-use App\Models\EntityType;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Navigation\NavigationBuilder;
-use Filament\Navigation\NavigationGroup;
 use Filament\Navigation\NavigationItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
@@ -48,6 +45,15 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+            ])
+            ->navigationItems([
+                NavigationItem::make('Queue Monitor')
+                    ->icon('heroicon-o-queue-list')
+                    ->url('/horizon')
+                    ->openUrlInNewTab()
+                    ->group('Settings')
+                    ->sort(99)
+                    ->visible(fn (): bool => auth()->check() && auth()->user()->hasRole('admin')),
             ])
             ->middleware([
                 EncryptCookies::class,

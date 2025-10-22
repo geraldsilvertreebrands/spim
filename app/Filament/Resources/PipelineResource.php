@@ -88,18 +88,37 @@ class PipelineResource extends Resource
                 Action::make('run')
                     ->label('Run Now')
                     ->icon('heroicon-o-play')
-                    ->action(function ($record) {
+                    ->form([
+                        Forms\Components\Radio::make('run_type')
+                            ->label('How many entities to process?')
+                            ->options([
+                                'all' => 'Run All Entities',
+                                'sample' => 'Run on 100 Entities (for testing)',
+                            ])
+                            ->default('all')
+                            ->required(),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $maxEntities = $data['run_type'] === 'sample' ? 100 : null;
+
                         \App\Jobs\Pipeline\RunPipelineBatch::dispatch(
                             pipeline: $record,
-                            triggeredBy: 'manual'
+                            triggeredBy: 'manual',
+                            maxEntities: $maxEntities
                         );
+
+                        $message = $data['run_type'] === 'sample'
+                            ? 'The pipeline will run on the first 100 entities.'
+                            : 'All entities will be processed.';
 
                         \Filament\Notifications\Notification::make()
                             ->title('Pipeline Queued')
+                            ->body($message)
                             ->success()
                             ->send();
                     })
-                    ->requiresConfirmation(),
+                    ->modalHeading('Run Pipeline')
+                    ->modalSubmitActionLabel('Run Pipeline'),
 
                 Action::make('run_evals')
                     ->label('Run Evals')

@@ -25,6 +25,65 @@ class EditPipeline extends EditRecord
             Tabs::make('Pipeline')
                 ->columnSpanFull()
                 ->tabs([
+                    Tabs\Tab::make('Statistics')
+                        ->icon('heroicon-o-chart-bar')
+                        ->schema([
+                            Section::make('Last Run Stats')
+                                ->schema([
+                                    Forms\Components\Placeholder::make('last_run')
+                                        ->label('Last Run')
+                                        ->content(fn ($record) => $record->last_run_at?->diffForHumans() ?? 'Never'),
+
+                                    Forms\Components\Placeholder::make('status')
+                                        ->label('Status')
+                                        ->content(fn ($record) => $record->last_run_status ?? '—'),
+
+                                    Forms\Components\Placeholder::make('processed')
+                                        ->label('Entities Processed')
+                                        ->content(fn ($record) => $record->last_run_processed ?? '—'),
+
+                                    Forms\Components\Placeholder::make('failed')
+                                        ->label('Failed')
+                                        ->content(fn ($record) => $record->last_run_failed ?? '—'),
+
+                                    Forms\Components\Placeholder::make('tokens')
+                                        ->label('Tokens (In/Out)')
+                                        ->content(function ($record) {
+                                            if (!$record->last_run_tokens_in && !$record->last_run_tokens_out) {
+                                                return '—';
+                                            }
+                                            return number_format($record->last_run_tokens_in ?? 0) . ' / ' . number_format($record->last_run_tokens_out ?? 0);
+                                        }),
+
+                                    Forms\Components\Placeholder::make('error_message')
+                                        ->label('Error Message')
+                                        ->content(function ($record) {
+                                            if ($record->last_run_status !== 'failed') {
+                                                return null;
+                                            }
+                                            $lastRun = $record->runs()->latest('started_at')->first();
+                                            return $lastRun?->error_message ?? 'No error message available';
+                                        })
+                                        ->visible(fn ($record) => $record->last_run_status === 'failed')
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(2),
+
+                            Section::make('Token Usage (Last 30 Days)')
+                                ->schema([
+                                    Forms\Components\Placeholder::make('token_stats')
+                                        ->label('')
+                                        ->content(function ($record) {
+                                            $stats = $record->getTokenUsage(30);
+                                            return implode(' | ', [
+                                                'Total: ' . number_format($stats['total_tokens']),
+                                                'Avg per entity: ' . $stats['avg_tokens_per_entity'],
+                                            ]);
+                                        }),
+                                ])
+                                ->collapsible(),
+                        ]),
+
                     Tabs\Tab::make('Configuration')
                         ->icon('heroicon-o-cog-6-tooth')
                         ->schema([
@@ -73,64 +132,6 @@ class EditPipeline extends EditRecord
                                 ])
                                 ->collapsible(),
                         ]),
-
-                    Tabs\Tab::make('Statistics')
-                        ->icon('heroicon-o-chart-bar')
-                        ->schema([
-                            Section::make('Last Run Stats')
-                                ->schema([
-                                    Forms\Components\Placeholder::make('last_run')
-                                        ->label('Last Run')
-                                        ->content(fn ($record) => $record->last_run_at?->diffForHumans() ?? 'Never'),
-
-                                    Forms\Components\Placeholder::make('status')
-                                        ->label('Status')
-                                        ->content(fn ($record) => $record->last_run_status ?? '—'),
-
-                                    Forms\Components\Placeholder::make('processed')
-                                        ->label('Entities Processed')
-                                        ->content(fn ($record) => $record->last_run_processed ?? '—'),
-
-                                    Forms\Components\Placeholder::make('failed')
-                                        ->label('Failed')
-                                        ->content(fn ($record) => $record->last_run_failed ?? '—'),
-
-                                    Forms\Components\Placeholder::make('tokens')
-                                        ->label('Tokens (In/Out)')
-                                        ->content(function ($record) {
-                                            if (!$record->last_run_tokens_in && !$record->last_run_tokens_out) {
-                                                return '—';
-                                            }
-                                            return number_format($record->last_run_tokens_in ?? 0) . ' / ' . number_format($record->last_run_tokens_out ?? 0);
-                                        }),
-                                ])
-                                ->columns(2),
-
-                            Section::make('Token Usage (Last 30 Days)')
-                                ->schema([
-                                    Forms\Components\Placeholder::make('token_stats')
-                                        ->label('')
-                                        ->content(function ($record) {
-                                            $stats = $record->getTokenUsage(30);
-                                            return implode(' | ', [
-                                                'Total: ' . number_format($stats['total_tokens']),
-                                                'Avg per entity: ' . $stats['avg_tokens_per_entity'],
-                                            ]);
-                                        }),
-                                ])
-                                ->collapsible(),
-                        ]),
-
-                    Tabs\Tab::make('Evaluations')
-                        ->icon('heroicon-o-beaker')
-                        ->badge(fn ($record) => $record->failingEvals()->count() > 0 ? $record->failingEvals()->count() : null)
-                        ->badgeColor('danger')
-                        ->schema([
-                            Forms\Components\Placeholder::make('evaluations_placeholder')
-                                ->label('')
-                                ->content('Evaluation test cases are managed in the table below.')
-                                ->hiddenLabel(),
-                        ]),
                 ]),
         ]);
     }
@@ -141,19 +142,37 @@ class EditPipeline extends EditRecord
             Actions\Action::make('run_pipeline')
                 ->label('Run Pipeline')
                 ->icon('heroicon-o-play')
-                ->action(function () {
+                ->form([
+                    Forms\Components\Radio::make('run_type')
+                        ->label('How many entities to process?')
+                        ->options([
+                            'all' => 'Run All Entities',
+                            'sample' => 'Run on 100 Entities (for testing)',
+                        ])
+                        ->default('all')
+                        ->required(),
+                ])
+                ->action(function (array $data) {
+                    $maxEntities = $data['run_type'] === 'sample' ? 100 : null;
+
                     \App\Jobs\Pipeline\RunPipelineBatch::dispatch(
                         pipeline: $this->record,
-                        triggeredBy: 'manual'
+                        triggeredBy: 'manual',
+                        maxEntities: $maxEntities
                     );
+
+                    $message = $data['run_type'] === 'sample'
+                        ? 'The pipeline will run on the first 100 entities.'
+                        : 'All entities will be processed.';
 
                     \Filament\Notifications\Notification::make()
                         ->title('Pipeline Queued')
-                        ->body('The pipeline has been queued for execution.')
+                        ->body($message)
                         ->success()
                         ->send();
                 })
-                ->requiresConfirmation(),
+                ->modalHeading('Run Pipeline')
+                ->modalSubmitActionLabel('Run Pipeline'),
 
             Actions\Action::make('run_evals')
                 ->label('Run Evals')

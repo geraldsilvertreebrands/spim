@@ -24,6 +24,7 @@ class RunPipelineBatch implements ShouldQueue
         public string $triggeredBy = 'manual', // 'schedule', 'entity_save', 'manual'
         public ?string $triggerReference = null, // entity_id or user_id
         public int $batchSize = 200,
+        public ?int $maxEntities = null, // Limit number of entities to process
     ) {
     }
 
@@ -42,8 +43,14 @@ class RunPipelineBatch implements ShouldQueue
 
         try {
             // Get all entities for this entity type
-            $entityIds = Entity::where('entity_type_id', $this->pipeline->entity_type_id)
-                ->pluck('id');
+            $query = Entity::where('entity_type_id', $this->pipeline->entity_type_id)
+                ->orderBy('id');
+
+            if ($this->maxEntities !== null) {
+                $query->limit($this->maxEntities);
+            }
+
+            $entityIds = $query->pluck('id');
 
             if ($entityIds->isEmpty()) {
                 $run->update([
