@@ -134,24 +134,49 @@ class Entity extends Model
     public function scopeWhereAttr($query, string $name, $operator, $value, string $mode = 'override')
     {
         $col = $mode === 'current' ? 'resolved_current_only' : 'resolved_with_override';
-        return $query
-            ->join('entity_attribute_resolved as ear', 'ear.entity_id', '=', $this->getTable().'.id')
-            ->join('attributes as a', 'a.id', '=', 'ear.attribute_id')
-            ->where('a.name', $name)
-            ->where("ear.$col", $operator, $value)
-            ->select($this->getTable().'.*');
+        
+        return $query->whereExists(function ($query) use ($name, $operator, $value, $col) {
+            $query->selectRaw('1')
+                ->from('entity_attribute_resolved as ear')
+                ->join('attributes as a', 'a.id', '=', 'ear.attribute_id')
+                ->whereColumn('ear.entity_id', '=', 'entities.id')
+                ->where('a.name', '=', $name)
+                ->where("ear.{$col}", $operator, $value);
+        });
+    }
+
+    /** Scope: filter by EAV attribute via resolved view (OR condition) */
+    public function scopeOrWhereAttr($query, string $name, $operator, $value, string $mode = 'override')
+    {
+        $col = $mode === 'current' ? 'resolved_current_only' : 'resolved_with_override';
+        
+        return $query->orWhereExists(function ($query) use ($name, $operator, $value, $col) {
+            $query->selectRaw('1')
+                ->from('entity_attribute_resolved as ear')
+                ->join('attributes as a', 'a.id', '=', 'ear.attribute_id')
+                ->whereColumn('ear.entity_id', '=', 'entities.id')
+                ->where('a.name', '=', $name)
+                ->where("ear.{$col}", $operator, $value);
+        });
     }
 
     /** Scope: sort by EAV attribute */
     public function scopeOrderByAttr($query, string $name, string $direction = 'asc', string $mode = 'override')
     {
         $col = $mode === 'current' ? 'resolved_current_only' : 'resolved_with_override';
-        return $query
-            ->join('entity_attribute_resolved as ear', 'ear.entity_id', '=', $this->getTable().'.id')
+        // Use unique aliases based on attribute name to avoid conflicts with multiple joins
+        $alias = 'ear_' . preg_replace('/[^a-zA-Z0-9]/', '_', $name);
+        
+        // Use a subquery to get the attribute value for sorting
+        $subquery = DB::table('entity_attribute_resolved as ear')
+            ->select("ear.{$col}")
             ->join('attributes as a', 'a.id', '=', 'ear.attribute_id')
-            ->where('a.name', $name)
-            ->orderBy("ear.$col", $direction)
-            ->select($this->getTable().'.*');
+            ->whereColumn('ear.entity_id', '=', 'entities.id')
+            ->where('a.name', '=', $name)
+            ->limit(1);
+        
+        return $query->orderBy(DB::raw("({$subquery->toSql()})"), $direction)
+            ->addBinding($subquery->getBindings(), 'order');
     }
 
     /** Helper: get related entity IDs for belongs_to(_multi) attribute */

@@ -74,10 +74,114 @@ class EntityTableBuilder
                     return $record->getAttr($attribute->name) ?? '';
                 }
             })
-            ->searchable(false)
-            ->sortable(false)
+            ->searchable(query: function ($query, string $search) use ($attribute) {
+                return $this->applySearch($query, $attribute, $search);
+            })
+            ->sortable(query: function ($query, string $direction) use ($attribute) {
+                return $this->applySort($query, $attribute, $direction);
+            })
             ->limit(50)
-            ->wrap();
+            ->wrap()
+            ->tooltip(function (Entity $record) use ($attribute): ?string {
+                // Show full value in tooltip when hovering over truncated fields
+                try {
+                    $ui = $this->registry->resolve($attribute);
+                    $fullValue = $ui->summarise($record, $attribute);
+
+                    // Only show tooltip if value is long enough to be truncated
+                    if (strlen($fullValue) > 50) {
+                        return $fullValue;
+                    }
+
+                    return null;
+                } catch (\Exception $e) {
+                    $value = $record->getAttr($attribute->name);
+
+                    if (is_array($value) || is_object($value)) {
+                        return json_encode($value, JSON_PRETTY_PRINT);
+                    }
+
+                    $strValue = (string) ($value ?? '');
+                    return strlen($strValue) > 50 ? $strValue : null;
+                }
+            });
+    }
+
+    /**
+     * Apply search query based on attribute data type.
+     */
+    public function applySearch($query, Attribute $attribute, string $search)
+    {
+        switch ($attribute->data_type) {
+            case 'integer':
+                // For integers, try exact match or numeric comparison
+                if (is_numeric($search)) {
+                    return $query->whereAttr($attribute->name, '=', $search);
+                }
+                // If not numeric, no results
+                return $query->whereRaw('1 = 0');
+
+            case 'select':
+                // Search by both key and label
+                $allowedValues = $attribute->allowedValues();
+                $matchingKeys = [];
+
+                foreach ($allowedValues as $key => $label) {
+                    if (stripos($key, $search) !== false || stripos($label, $search) !== false) {
+                        $matchingKeys[] = $key;
+                    }
+                }
+
+                if (empty($matchingKeys)) {
+                    return $query->whereRaw('1 = 0');
+                }
+
+                // Use whereIn with whereAttr
+                return $query->where(function ($q) use ($attribute, $matchingKeys) {
+                    foreach ($matchingKeys as $key) {
+                        $q->orWhereAttr($attribute->name, '=', $key);
+                    }
+                });
+
+            case 'multiselect':
+                // Similar to select, but stored as comma-separated or JSON
+                $allowedValues = $attribute->allowedValues();
+                $matchingKeys = [];
+
+                foreach ($allowedValues as $key => $label) {
+                    if (stripos($key, $search) !== false || stripos($label, $search) !== false) {
+                        $matchingKeys[] = $key;
+                    }
+                }
+
+                if (empty($matchingKeys)) {
+                    return $query->whereRaw('1 = 0');
+                }
+
+                // Search for any of the matching keys in the stored value
+                return $query->where(function ($q) use ($attribute, $matchingKeys) {
+                    foreach ($matchingKeys as $key) {
+                        $q->orWhereAttr($attribute->name, 'LIKE', "%{$key}%");
+                    }
+                });
+
+            case 'text':
+            case 'html':
+            case 'json':
+            default:
+                // Text search using LIKE
+                return $query->whereAttr($attribute->name, 'LIKE', "%{$search}%");
+        }
+    }
+
+    /**
+     * Apply sort based on attribute data type.
+     */
+    public function applySort($query, Attribute $attribute, string $direction)
+    {
+        // Sorting works the same for all types - the database handles it correctly
+        // Integer columns sort numerically, text sorts alphabetically, etc.
+        return $query->orderByAttr($attribute->name, $direction);
     }
 
     /**
