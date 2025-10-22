@@ -287,52 +287,78 @@ class PipelineExecutionService
      *
      * @return array Array with passing/failing counts
      */
+    /**
+     * Execute a single evaluation immediately
+     */
+    public function executeSingleEval(\App\Models\PipelineEval $eval): array
+    {
+        $pipeline = $eval->pipeline;
+
+        try {
+            // Load modules
+            $modules = $pipeline->modules()->orderBy('order')->get();
+
+            // Load inputs from source module
+            $sourceModule = $modules->first();
+            $sourceInstance = $this->registry->make($sourceModule->module_class, $sourceModule);
+            $inputsMap = $sourceInstance->loadInputsForEntities([$eval->entity_id]);
+            $inputs = $inputsMap[$eval->entity_id] ?? [];
+
+            // Execute pipeline
+            $result = $this->executeForEntity(
+                $pipeline,
+                $eval->entity_id,
+                $inputs,
+                $modules->skip(1)
+            );
+
+            // Update eval with actual output
+            $actualOutput = is_array($result->value) ? $result->value : ['value' => $result->value];
+            $eval->updateActualOutput(
+                $actualOutput,
+                $result->justification,
+                $result->confidence
+            );
+
+            // Update hash
+            $eval->input_hash = $this->calculateInputHash($inputs, $pipeline);
+            $eval->save();
+
+            return [
+                'success' => true,
+                'passing' => $eval->isPassing(),
+                'actual_output' => $actualOutput,
+                'justification' => $result->justification,
+                'confidence' => $result->confidence,
+            ];
+        } catch (\Exception $e) {
+            Log::error('Eval execution failed', [
+                'eval_id' => $eval->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
     public function executeEvals(Pipeline $pipeline): array
     {
         $evals = $pipeline->evals;
         $stats = ['passing' => 0, 'failing' => 0, 'total' => $evals->count()];
 
         foreach ($evals as $eval) {
-            try {
-                // Load modules
-                $modules = $pipeline->modules()->orderBy('order')->get();
+            $result = $this->executeSingleEval($eval);
 
-                // Load inputs from source module
-                $sourceModule = $modules->first();
-                $sourceInstance = $this->registry->make($sourceModule->module_class, $sourceModule);
-                $inputsMap = $sourceInstance->loadInputsForEntities([$eval->entity_id]);
-                $inputs = $inputsMap[$eval->entity_id] ?? [];
-
-                // Execute pipeline
-                $result = $this->executeForEntity(
-                    $pipeline,
-                    $eval->entity_id,
-                    $inputs,
-                    $modules->skip(1)
-                );
-
-                // Update eval with actual output
-                $actualOutput = is_array($result->value) ? $result->value : ['value' => $result->value];
-                $eval->updateActualOutput(
-                    $actualOutput,
-                    $result->justification,
-                    $result->confidence
-                );
-
-                // Update hash
-                $eval->input_hash = $this->calculateInputHash($inputs, $pipeline);
-                $eval->save();
-
-                if ($eval->isPassing()) {
+            if ($result['success']) {
+                if ($result['passing']) {
                     $stats['passing']++;
                 } else {
                     $stats['failing']++;
                 }
-            } catch (\Exception $e) {
-                Log::error('Eval execution failed', [
-                    'eval_id' => $eval->id,
-                    'error' => $e->getMessage(),
-                ]);
+            } else {
                 $stats['failing']++;
             }
         }

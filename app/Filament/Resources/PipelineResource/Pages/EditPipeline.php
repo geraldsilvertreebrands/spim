@@ -126,49 +126,10 @@ class EditPipeline extends EditRecord
                         ->badge(fn ($record) => $record->failingEvals()->count() > 0 ? $record->failingEvals()->count() : null)
                         ->badgeColor('danger')
                         ->schema([
-                            Section::make('Evaluation Test Cases')
-                                ->description('Test cases to verify pipeline output quality. Evaluations are re-run after each pipeline execution.')
-                                ->schema([
-                                    Forms\Components\Repeater::make('evals_config')
-                                        ->label('Evaluations')
-                                        ->schema([
-                                            Forms\Components\TextInput::make('entity_external_id')
-                                                ->label('Entity ID (SKU)')
-                                                ->required()
-                                                ->helperText('The external identifier (e.g., SKU for products) of the entity to test against.'),
-
-                                            Forms\Components\Textarea::make('desired_output')
-                                                ->label('Desired Output')
-                                                ->required()
-                                                ->rows(4)
-                                                ->helperText('The expected output value only. Can be text, number, boolean, or JSON. Do not include justification or confidence.')
-                                                ->placeholder('Expected Value'),
-
-                                            Forms\Components\Textarea::make('notes')
-                                                ->label('Notes')
-                                                ->rows(2)
-                                                ->helperText('Optional notes about this test case.'),
-
-                                            Forms\Components\Hidden::make('id'),
-                                            Forms\Components\Hidden::make('input_hash'),
-                                            Forms\Components\Hidden::make('actual_output'),
-                                            Forms\Components\Hidden::make('justification'),
-                                            Forms\Components\Hidden::make('confidence'),
-                                            Forms\Components\Hidden::make('last_ran_at'),
-                                            Forms\Components\Hidden::make('is_passing'),
-                                        ])
-                                        ->columns(1)
-                                        ->reorderable(false)
-                                        ->collapsible()
-                                        ->itemLabel(fn (array $state): ?string =>
-                                            'Entity: ' . ($state['entity_external_id'] ?? 'New') .
-                                            ($state['is_passing'] === false ? ' ❌' : ($state['is_passing'] === true ? ' ✅' : ''))
-                                        )
-                                        ->addActionLabel('Add Evaluation')
-                                        ->defaultItems(0)
-                                        ->columnSpanFull(),
-                                ])
-                                ->collapsible(),
+                            Forms\Components\Placeholder::make('evaluations_placeholder')
+                                ->label('')
+                                ->content('Evaluation test cases are managed in the table below.')
+                                ->hiddenLabel(),
                         ]),
                 ]),
         ]);
@@ -295,6 +256,7 @@ class EditPipeline extends EditRecord
                                         'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
                                     ],
                                     'required' => ['value', 'justification', 'confidence'],
+                                    'additionalProperties' => false,
                                 ],
                                 'integer' => [
                                     'type' => 'object',
@@ -304,6 +266,7 @@ class EditPipeline extends EditRecord
                                         'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
                                     ],
                                     'required' => ['value', 'justification', 'confidence'],
+                                    'additionalProperties' => false,
                                 ],
                                 'boolean' => [
                                     'type' => 'object',
@@ -313,6 +276,7 @@ class EditPipeline extends EditRecord
                                         'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
                                     ],
                                     'required' => ['value', 'justification', 'confidence'],
+                                    'additionalProperties' => false,
                                 ],
                                 'array' => [
                                     'type' => 'object',
@@ -322,6 +286,7 @@ class EditPipeline extends EditRecord
                                         'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
                                     ],
                                     'required' => ['value', 'justification', 'confidence'],
+                                    'additionalProperties' => false,
                                 ],
                             ];
 
@@ -335,7 +300,7 @@ class EditPipeline extends EditRecord
                     ->label('Output Schema (JSON)')
                     ->required()
                     ->rows(10)
-                    ->default('{"type":"object","properties":{"value":{"type":"string"},"justification":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1}},"required":["value","justification","confidence"]}')
+                    ->default('{"type":"object","properties":{"value":{"type":"string"},"justification":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1}},"required":["value","justification","confidence"],"additionalProperties":false}')
                     ->helperText('OpenAI-compatible JSON schema for structured output'),
                 Forms\Components\Select::make('model')
                     ->label('Model')
@@ -414,66 +379,28 @@ JS
 
         $data['modules_config'] = $modulesConfig;
 
-        // Load existing evals
-        $evals = $this->record->evals()->with('entity')->get();
-
-        $evalsConfig = [];
-        foreach ($evals as $eval) {
-            // Get the external entity_id (e.g., SKU)
-            $entityExternalId = $eval->entity->entity_id ?? $eval->entity_id;
-
-            // Extract just the value from desired_output
-            $desiredValue = $eval->desired_output;
-            if (is_array($desiredValue) && isset($desiredValue['value'])) {
-                $desiredValue = $desiredValue['value'];
-            }
-            // Convert to string for display
-            $desiredOutputStr = is_array($desiredValue) || is_object($desiredValue)
-                ? json_encode($desiredValue, JSON_PRETTY_PRINT)
-                : (string) $desiredValue;
-
-            $evalsConfig[] = [
-                'id' => $eval->id,
-                'entity_id' => $eval->entity_id, // Keep internal ULID in hidden field
-                'entity_external_id' => $entityExternalId,
-                'desired_output' => $desiredOutputStr,
-                'notes' => $eval->notes,
-                'input_hash' => $eval->input_hash,
-                'actual_output' => $eval->actual_output,
-                'justification' => $eval->justification,
-                'confidence' => $eval->confidence,
-                'last_ran_at' => $eval->last_ran_at?->toDateTimeString(),
-                'is_passing' => $eval->isPassing(),
-            ];
-        }
-
-        $data['evals_config'] = $evalsConfig;
-
         return $data;
     }
 
     /**
-     * Save modules and evals from form to database
+     * Save modules from form to database
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $modulesConfig = $data['modules_config'] ?? [];
-        $evalsConfig = $data['evals_config'] ?? [];
 
-        // Don't save these to pipeline table
+        // Don't save this to pipeline table
         unset($data['modules_config']);
-        unset($data['evals_config']);
 
         return $data;
     }
 
     /**
-     * After save, sync modules and evals
+     * After save, sync modules
      */
     protected function afterSave(): void
     {
         $modulesConfig = $this->data['modules_config'] ?? [];
-        $evalsConfig = $this->data['evals_config'] ?? [];
         $registry = app(PipelineModuleRegistry::class);
 
         // Validate module configuration
@@ -531,82 +458,6 @@ JS
             $this->record->increment('pipeline_version');
             $this->record->update(['pipeline_updated_at' => now()]);
         }
-
-        // Sync evaluations
-        $this->syncEvaluations($evalsConfig);
-    }
-
-    /**
-     * Sync evaluations with database
-     */
-    protected function syncEvaluations(array $evalsConfig): void
-    {
-        $existingIds = [];
-
-        foreach ($evalsConfig as $evalData) {
-            // Look up entity by external ID
-            $entityExternalId = $evalData['entity_external_id'] ?? null;
-            if (!$entityExternalId) {
-                \Filament\Notifications\Notification::make()
-                    ->title('Missing Entity ID')
-                    ->body('Entity ID (SKU) is required for evaluation.')
-                    ->danger()
-                    ->send();
-                continue;
-            }
-
-            $entity = \App\Models\Entity::where('entity_type_id', $this->record->entity_type_id)
-                ->where('entity_id', $entityExternalId)
-                ->first();
-
-            if (!$entity) {
-                \Filament\Notifications\Notification::make()
-                    ->title('Entity Not Found')
-                    ->body("Entity with ID '{$entityExternalId}' not found.")
-                    ->danger()
-                    ->send();
-                continue;
-            }
-
-            // Parse desired output - can be JSON or plain value
-            $desiredOutputRaw = $evalData['desired_output'] ?? '';
-            $desiredValue = json_decode($desiredOutputRaw, true);
-
-            // If JSON decode failed or resulted in null/empty, use raw value
-            if (json_last_error() !== JSON_ERROR_NONE || $desiredValue === null) {
-                $desiredValue = $desiredOutputRaw;
-            }
-
-            // Update or create eval
-            $evalId = $evalData['id'] ?? null;
-
-            if ($evalId) {
-                // Update existing
-                $eval = $this->record->evals()->find($evalId);
-                if ($eval) {
-                    $eval->update([
-                        'entity_id' => $entity->id,
-                        'desired_output' => ['value' => $desiredValue],
-                        'notes' => $evalData['notes'] ?? null,
-                    ]);
-                    $existingIds[] = $evalId;
-                }
-            } else {
-                // Create new
-                $eval = $this->record->evals()->create([
-                    'entity_id' => $entity->id,
-                    'desired_output' => ['value' => $desiredValue],
-                    'notes' => $evalData['notes'] ?? null,
-                    'input_hash' => '', // Will be calculated on first run
-                ]);
-                $existingIds[] = $eval->id;
-            }
-        }
-
-        // Delete evals that were removed from the form
-        $this->record->evals()
-            ->whereNotIn('id', $existingIds)
-            ->delete();
     }
 
     /**

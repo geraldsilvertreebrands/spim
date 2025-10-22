@@ -26,6 +26,7 @@ class AiPromptProcessorModule extends AbstractPipelineModule
                 'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
             ],
             'required' => ['value', 'justification', 'confidence'],
+            'additionalProperties' => false,
         ],
         'integer' => [
             'type' => 'object',
@@ -35,6 +36,7 @@ class AiPromptProcessorModule extends AbstractPipelineModule
                 'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
             ],
             'required' => ['value', 'justification', 'confidence'],
+            'additionalProperties' => false,
         ],
         'boolean' => [
             'type' => 'object',
@@ -44,6 +46,7 @@ class AiPromptProcessorModule extends AbstractPipelineModule
                 'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
             ],
             'required' => ['value', 'justification', 'confidence'],
+            'additionalProperties' => false,
         ],
         'array' => [
             'type' => 'object',
@@ -53,6 +56,7 @@ class AiPromptProcessorModule extends AbstractPipelineModule
                 'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
             ],
             'required' => ['value', 'justification', 'confidence'],
+            'additionalProperties' => false,
         ],
     ];
 

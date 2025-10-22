@@ -118,6 +118,13 @@ class PipelineResource extends Resource
             ]);
     }
 
+    public static function getRelations(): array
+    {
+        return [
+            PipelineResource\RelationManagers\PipelineEvalsRelationManager::class,
+        ];
+    }
+
     public static function getPages(): array
     {
         return [
