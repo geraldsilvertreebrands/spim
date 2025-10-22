@@ -54,6 +54,23 @@ class ProductSyncTest extends TestCase
         $this->skuTest = 'TEST-' . Str::upper(Str::random(8));
     }
 
+    /**
+     * Helper to mock getProducts with callback support
+     */
+    private function mockGetProducts(array $products): void
+    {
+        $this->magentoClient->shouldReceive('getProducts')
+            ->once()
+            ->with([], \Mockery::type('callable'))
+            ->andReturnUsing(function ($filters, $callback) use ($products) {
+                // Simulate the callback being called with the products
+                if ($callback) {
+                    $callback($products, 1, count($products));
+                }
+                return ['items' => [], 'total_count' => count($products)];
+            });
+    }
+
     #[Test]
     public function test_imports_new_products_from_magento(): void
     {
@@ -72,17 +89,13 @@ class ProductSyncTest extends TestCase
             ->once()
             ->andReturn(['frontend_input' => 'text', 'backend_type' => 'varchar']);
 
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn([
-                'items' => [
-                    [
-                        'sku' => $this->skuNew,
-                        'name' => 'New Product',
-                        'custom_attributes' => [],
-                    ],
-                ],
-            ]);
+        $this->mockGetProducts([
+            [
+                'sku' => $this->skuNew,
+                'name' => 'New Product',
+                'custom_attributes' => [],
+            ],
+        ]);
 
         // Note: getProduct() won't be called in push phase because products
         // imported in the pull phase are skipped to avoid redundant updates
@@ -133,18 +146,14 @@ class ProductSyncTest extends TestCase
             ->once()
             ->andReturn(['frontend_input' => 'textarea', 'backend_type' => 'text']);
 
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn([
-                'items' => [
-                    [
-                        'sku' => $this->skuExisting,
-                        'custom_attributes' => [
-                            ['attribute_code' => 'description', 'value' => 'New description'],
-                        ],
-                    ],
+        $this->mockGetProducts([
+            [
+                'sku' => $this->skuExisting,
+                'custom_attributes' => [
+                    ['attribute_code' => 'description', 'value' => 'New description'],
                 ],
-            ]);
+            ],
+        ]);
 
         // Note: getProduct() won't be called in push phase because products
         // imported in the pull phase are skipped to avoid redundant updates
@@ -178,17 +187,13 @@ class ProductSyncTest extends TestCase
             ->once()
             ->andReturn(['frontend_input' => 'price', 'backend_type' => 'decimal']);
 
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn([
-                'items' => [
-                    [
-                        'sku' => $this->skuNew,
-                        'price' => '29.99',
-                        'custom_attributes' => [],
-                    ],
-                ],
-            ]);
+        $this->mockGetProducts([
+            [
+                'sku' => $this->skuNew,
+                'price' => '29.99',
+                'custom_attributes' => [],
+            ],
+        ]);
 
         // Note: getProduct() won't be called in push phase because products
         // imported in the pull phase are skipped to avoid redundant updates
@@ -236,9 +241,7 @@ class ProductSyncTest extends TestCase
             ->andReturn(['frontend_input' => 'text', 'backend_type' => 'varchar']);
 
         // Mock Magento responses
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn(['items' => []]); // No products in Magento
+        $this->mockGetProducts([]); // No products in Magento
 
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuSpimOnly)
@@ -284,9 +287,7 @@ class ProductSyncTest extends TestCase
             ->once()
             ->andReturn(['frontend_input' => 'text', 'backend_type' => 'varchar']);
 
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn(['items' => []]);
+        $this->mockGetProducts([]);
 
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuNew)
@@ -340,9 +341,7 @@ class ProductSyncTest extends TestCase
             ->once()
             ->andReturn(['frontend_input' => 'textarea', 'backend_type' => 'text']);
 
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn(['items' => []]);  // No products in pull phase
+        $this->mockGetProducts([]);  // No products in pull phase
 
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuExisting)
@@ -404,9 +403,7 @@ class ProductSyncTest extends TestCase
             ->once()
             ->andReturn(['frontend_input' => 'textarea', 'backend_type' => 'text']);
 
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn(['items' => [['sku' => 'EXISTING-001']]]);
+        $this->mockGetProducts([['sku' => 'EXISTING-001']]);
 
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuExisting)
@@ -457,9 +454,7 @@ class ProductSyncTest extends TestCase
             ->once()
             ->andReturn(['frontend_input' => 'textarea', 'backend_type' => 'text']);
 
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn(['items' => []]);  // No products in pull phase
+        $this->mockGetProducts([]);  // No products in pull phase
 
         $this->magentoClient->shouldReceive('getProduct')
             ->with($this->skuExisting)
@@ -510,9 +505,7 @@ class ProductSyncTest extends TestCase
         // Use upsertVersioned instead of writeVersioned
         $this->eavWriter->upsertVersioned($entity->id, $internalAttr->id, 'Internal notes');
 
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn(['items' => []]);  // No products in pull phase
+        $this->mockGetProducts([]);  // No products in pull phase
 
         $this->magentoClient->shouldReceive('getProduct')
             ->with($sku)
@@ -562,9 +555,7 @@ class ProductSyncTest extends TestCase
     public function test_logs_sync_results_to_database(): void
     {
         // Create entity that doesn't exist in SPIM yet
-        $this->magentoClient->shouldReceive('getProducts')
-            ->once()
-            ->andReturn(['items' => [['sku' => $this->skuTest]]]);
+        $this->mockGetProducts([['sku' => $this->skuTest]]);
 
         // Note: getProduct won't be called since the product will be imported in the pull phase
         // and then skipped in the push phase

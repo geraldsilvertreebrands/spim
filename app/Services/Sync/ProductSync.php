@@ -189,37 +189,53 @@ class ProductSync extends AbstractSync
     {
         $this->logInfo('Pulling products from Magento');
 
-        // Get products from Magento
-        $magentoProducts = $this->sku
-            ? [$this->magentoClient->getProduct($this->sku)]
-            : ($this->magentoClient->getProducts()['items'] ?? []);
-
-        $magentoProducts = array_filter($magentoProducts); // Remove nulls from failed fetches
-
-        foreach ($magentoProducts as $magentoProduct) {
-            try {
-                $this->importProduct($magentoProduct);
-            } catch (\Exception $e) {
-                $this->stats['errors']++;
-                $sku = $magentoProduct['sku'] ?? 'unknown';
-                $this->logError("Failed to import product {$sku}", [
-                    'sku' => $sku,
-                    'error' => $e->getMessage(),
-                    'product_data' => $magentoProduct,
-                ]);
-
-                // Log error to database (entity may not exist yet)
-                if ($this->syncRun) {
-                    SyncResult::create([
-                        'sync_run_id' => $this->syncRun->id,
-                        'item_identifier' => $sku,
-                        'operation' => 'create',
-                        'status' => 'error',
-                        'error_message' => $e->getMessage(),
-                        'created_at' => now(),
-                    ]);
+        if ($this->sku) {
+            // Single product sync
+            $magentoProduct = $this->magentoClient->getProduct($this->sku);
+            if ($magentoProduct) {
+                try {
+                    $this->importProduct($magentoProduct);
+                } catch (\Exception $e) {
+                    $this->handleImportError($magentoProduct, $e);
                 }
             }
+        } else {
+            // Full sync with incremental processing - process each page as it's fetched
+            $this->magentoClient->getProducts([], function ($products, $page, $total) {
+                foreach ($products as $magentoProduct) {
+                    try {
+                        $this->importProduct($magentoProduct);
+                    } catch (\Exception $e) {
+                        $this->handleImportError($magentoProduct, $e);
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Handle product import error
+     */
+    private function handleImportError(array $magentoProduct, \Exception $e): void
+    {
+        $this->stats['errors']++;
+        $sku = $magentoProduct['sku'] ?? 'unknown';
+        $this->logError("Failed to import product {$sku}", [
+            'sku' => $sku,
+            'error' => $e->getMessage(),
+            'product_data' => $magentoProduct,
+        ]);
+
+        // Log error to database (entity may not exist yet)
+        if ($this->syncRun) {
+            SyncResult::create([
+                'sync_run_id' => $this->syncRun->id,
+                'item_identifier' => $sku,
+                'operation' => 'create',
+                'status' => 'error',
+                'error_message' => $e->getMessage(),
+                'created_at' => now(),
+            ]);
         }
     }
 

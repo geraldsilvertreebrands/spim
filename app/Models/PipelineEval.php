@@ -45,6 +45,7 @@ class PipelineEval extends Model
 
     /**
      * Check if this eval is passing
+     * Compares only the 'value' field, ignoring justification and confidence
      */
     public function isPassing(): bool
     {
@@ -52,7 +53,17 @@ class PipelineEval extends Model
             return false;
         }
 
-        return json_encode($this->actual_output) === json_encode($this->desired_output);
+        // Extract the value from both outputs
+        $desiredValue = is_array($this->desired_output) && isset($this->desired_output['value'])
+            ? $this->desired_output['value']
+            : $this->desired_output;
+
+        $actualValue = is_array($this->actual_output) && isset($this->actual_output['value'])
+            ? $this->actual_output['value']
+            : $this->actual_output;
+
+        // Compare only the values
+        return json_encode($actualValue) === json_encode($desiredValue);
     }
 
     /**

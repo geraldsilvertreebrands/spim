@@ -47,24 +47,68 @@ class MagentoApiClient
     }
 
     /**
-     * Fetch all products from Magento
+     * Fetch all products from Magento with incremental processing
+     *
+     * Products are fetched page-by-page (100 per page). If a callback is provided,
+     * each page is processed immediately, preventing memory exhaustion on large catalogs.
      *
      * @param array $filters Search criteria filters
+     * @param callable|null $pageCallback Optional callback: function(array $products, int $page, int $total)
      * @return array Products response with 'items' and 'total_count'
      */
-    public function getProducts(array $filters = []): array
+    public function getProducts(array $filters = [], ?callable $pageCallback = null): array
     {
-        try {
-            $searchCriteria = $this->buildSearchCriteria($filters);
+        $allItems = [];
+        $currentPage = 1;
+        $pageSize = 100;
+        $totalCount = 0;
 
-            $response = $this->client()->get('/rest/V1/products', $searchCriteria);
+        do {
+            try {
+                $searchCriteria = $this->buildSearchCriteriaWithPagination($filters, $currentPage, $pageSize);
 
-            $this->ensureSuccessful($response, 'Failed to fetch products from Magento');
+                $response = $this->client()->get('/rest/V1/products', $searchCriteria);
 
-            return $response->json();
-        } catch (\Illuminate\Http\Client\RequestException $e) {
-            throw new RuntimeException("Magento API error: Failed to fetch products - " . $e->getMessage(), 0, $e);
-        }
+                $this->ensureSuccessful($response, 'Failed to fetch products from Magento');
+
+                $data = $response->json();
+
+                if ($data === null) {
+                    throw new RuntimeException('Failed to decode JSON response from Magento');
+                }
+
+                $items = $data['items'] ?? [];
+                $totalCount = $data['total_count'] ?? 0;
+
+                if ($pageCallback) {
+                    // Process page immediately via callback (memory efficient)
+                    $pageCallback($items, $currentPage, $totalCount);
+                } else {
+                    // Accumulate all items (for single product requests or tests)
+                    $allItems = array_merge($allItems, $items);
+                }
+
+                Log::info("Fetched page {$currentPage} of products", [
+                    'fetched' => $pageCallback ? min($currentPage * $pageSize, $totalCount) : count($allItems),
+                    'total' => $totalCount
+                ]);
+
+                $currentPage++;
+
+                // Stop when we get an empty page or reached total count
+                if (empty($items)) {
+                    break;
+                }
+            } catch (\Illuminate\Http\Client\RequestException $e) {
+                throw new RuntimeException("Magento API error: Failed to fetch products - " . $e->getMessage(), 0, $e);
+            }
+        } while (($pageCallback && (($currentPage - 1) * $pageSize < $totalCount)) ||
+                 (!$pageCallback && count($allItems) < $totalCount));
+
+        return [
+            'items' => $allItems,  // Empty if using callback
+            'total_count' => $totalCount,
+        ];
     }
 
     /**
@@ -263,30 +307,35 @@ class MagentoApiClient
     }
 
     /**
-     * Build Magento search criteria from filters
+     * Build Magento search criteria from filters with pagination
      *
      * @param array $filters
+     * @param int $currentPage
+     * @param int $pageSize
      * @return array
      */
-    private function buildSearchCriteria(array $filters): array
+    private function buildSearchCriteriaWithPagination(array $filters, int $currentPage, int $pageSize): array
     {
         $criteria = [];
 
-        if (empty($filters)) {
-            // Empty search criteria - return all products
-            return $criteria;
-        }
+        // Always add pagination
+        $criteria['searchCriteria[currentPage]'] = $currentPage;
+        $criteria['searchCriteria[pageSize]'] = $pageSize;
 
-        $filterIndex = 0;
-        foreach ($filters as $field => $value) {
-            $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][field]"] = $field;
-            $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][value]"] = $value;
-            $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][conditionType]"] = 'eq';
-            $filterIndex++;
+        // Add filters if provided
+        if (!empty($filters)) {
+            $filterIndex = 0;
+            foreach ($filters as $field => $value) {
+                $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][field]"] = $field;
+                $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][value]"] = $value;
+                $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][conditionType]"] = 'eq';
+                $filterIndex++;
+            }
         }
 
         return $criteria;
     }
+
 
     /**
      * Ensure the response was successful, throw exception if not

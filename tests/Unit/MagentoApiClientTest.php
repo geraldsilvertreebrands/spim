@@ -237,7 +237,7 @@ class MagentoApiClientTest extends TestCase
     public function test_handles_server_errors(): void
     {
         Http::fake([
-            'magento.test/rest/V1/products' => Http::response([
+            'magento.test/rest/V1/products*' => Http::response([
                 'message' => 'Internal server error',
             ], 500),
         ]);

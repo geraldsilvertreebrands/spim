@@ -132,17 +132,17 @@ class EditPipeline extends EditRecord
                                     Forms\Components\Repeater::make('evals_config')
                                         ->label('Evaluations')
                                         ->schema([
-                                            Forms\Components\TextInput::make('entity_id')
-                                                ->label('Entity ID')
+                                            Forms\Components\TextInput::make('entity_external_id')
+                                                ->label('Entity ID (SKU)')
                                                 ->required()
-                                                ->helperText('The ULID of the entity to test against.'),
+                                                ->helperText('The external identifier (e.g., SKU for products) of the entity to test against.'),
 
                                             Forms\Components\Textarea::make('desired_output')
-                                                ->label('Desired Output (JSON)')
+                                                ->label('Desired Output')
                                                 ->required()
                                                 ->rows(4)
-                                                ->helperText('The expected output in JSON format. Example: {"value": "Test Product", "justification": "...", "confidence": 0.95}')
-                                                ->placeholder('{"value": "Expected Value", "justification": "Why this value", "confidence": 0.95}'),
+                                                ->helperText('The expected output value only. Can be text, number, boolean, or JSON. Do not include justification or confidence.')
+                                                ->placeholder('Expected Value'),
 
                                             Forms\Components\Textarea::make('notes')
                                                 ->label('Notes')
@@ -161,7 +161,7 @@ class EditPipeline extends EditRecord
                                         ->reorderable(false)
                                         ->collapsible()
                                         ->itemLabel(fn (array $state): ?string =>
-                                            'Entity: ' . ($state['entity_id'] ?? 'New') .
+                                            'Entity: ' . ($state['entity_external_id'] ?? 'New') .
                                             ($state['is_passing'] === false ? ' ❌' : ($state['is_passing'] === true ? ' ✅' : ''))
                                         )
                                         ->addActionLabel('Add Evaluation')
@@ -270,7 +270,7 @@ class EditPipeline extends EditRecord
                 Forms\Components\Textarea::make('prompt')
                     ->label('Prompt')
                     ->required()
-                    ->rows(5)
+                    ->rows(10)
                     ->helperText('The prompt to send to OpenAI. Input attributes will be appended automatically.'),
                 Forms\Components\Select::make('schema_template')
                     ->label('Output Schema Template')
@@ -283,6 +283,53 @@ class EditPipeline extends EditRecord
                     ])
                     ->default('text')
                     ->live()
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        // Update output_schema when template changes (unless custom)
+                        if ($state !== 'custom') {
+                            $schemas = [
+                                'text' => [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'value' => ['type' => 'string'],
+                                        'justification' => ['type' => 'string'],
+                                        'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
+                                    ],
+                                    'required' => ['value', 'justification', 'confidence'],
+                                ],
+                                'integer' => [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'value' => ['type' => 'integer'],
+                                        'justification' => ['type' => 'string'],
+                                        'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
+                                    ],
+                                    'required' => ['value', 'justification', 'confidence'],
+                                ],
+                                'boolean' => [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'value' => ['type' => 'boolean'],
+                                        'justification' => ['type' => 'string'],
+                                        'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
+                                    ],
+                                    'required' => ['value', 'justification', 'confidence'],
+                                ],
+                                'array' => [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'value' => ['type' => 'array', 'items' => ['type' => 'string']],
+                                        'justification' => ['type' => 'string'],
+                                        'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
+                                    ],
+                                    'required' => ['value', 'justification', 'confidence'],
+                                ],
+                            ];
+
+                            if (isset($schemas[$state])) {
+                                $set('output_schema', json_encode($schemas[$state], JSON_PRETTY_PRINT));
+                            }
+                        }
+                    })
                     ->required(),
                 Forms\Components\Textarea::make('output_schema')
                     ->label('Output Schema (JSON)')
@@ -368,14 +415,28 @@ JS
         $data['modules_config'] = $modulesConfig;
 
         // Load existing evals
-        $evals = $this->record->evals()->get();
+        $evals = $this->record->evals()->with('entity')->get();
 
         $evalsConfig = [];
         foreach ($evals as $eval) {
+            // Get the external entity_id (e.g., SKU)
+            $entityExternalId = $eval->entity->entity_id ?? $eval->entity_id;
+
+            // Extract just the value from desired_output
+            $desiredValue = $eval->desired_output;
+            if (is_array($desiredValue) && isset($desiredValue['value'])) {
+                $desiredValue = $desiredValue['value'];
+            }
+            // Convert to string for display
+            $desiredOutputStr = is_array($desiredValue) || is_object($desiredValue)
+                ? json_encode($desiredValue, JSON_PRETTY_PRINT)
+                : (string) $desiredValue;
+
             $evalsConfig[] = [
                 'id' => $eval->id,
-                'entity_id' => $eval->entity_id,
-                'desired_output' => json_encode($eval->desired_output, JSON_PRETTY_PRINT),
+                'entity_id' => $eval->entity_id, // Keep internal ULID in hidden field
+                'entity_external_id' => $entityExternalId,
+                'desired_output' => $desiredOutputStr,
                 'notes' => $eval->notes,
                 'input_hash' => $eval->input_hash,
                 'actual_output' => $eval->actual_output,
@@ -483,20 +544,37 @@ JS
         $existingIds = [];
 
         foreach ($evalsConfig as $evalData) {
-            // Parse desired output JSON
-            $desiredOutput = null;
-            try {
-                $desiredOutput = json_decode($evalData['desired_output'], true);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new \Exception('Invalid JSON');
-                }
-            } catch (\Exception $e) {
+            // Look up entity by external ID
+            $entityExternalId = $evalData['entity_external_id'] ?? null;
+            if (!$entityExternalId) {
                 \Filament\Notifications\Notification::make()
-                    ->title('Invalid Eval JSON')
-                    ->body('Desired output for entity ' . ($evalData['entity_id'] ?? 'unknown') . ' is not valid JSON.')
+                    ->title('Missing Entity ID')
+                    ->body('Entity ID (SKU) is required for evaluation.')
                     ->danger()
                     ->send();
                 continue;
+            }
+
+            $entity = \App\Models\Entity::where('entity_type_id', $this->record->entity_type_id)
+                ->where('entity_id', $entityExternalId)
+                ->first();
+
+            if (!$entity) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Entity Not Found')
+                    ->body("Entity with ID '{$entityExternalId}' not found.")
+                    ->danger()
+                    ->send();
+                continue;
+            }
+
+            // Parse desired output - can be JSON or plain value
+            $desiredOutputRaw = $evalData['desired_output'] ?? '';
+            $desiredValue = json_decode($desiredOutputRaw, true);
+
+            // If JSON decode failed or resulted in null/empty, use raw value
+            if (json_last_error() !== JSON_ERROR_NONE || $desiredValue === null) {
+                $desiredValue = $desiredOutputRaw;
             }
 
             // Update or create eval
@@ -507,8 +585,8 @@ JS
                 $eval = $this->record->evals()->find($evalId);
                 if ($eval) {
                     $eval->update([
-                        'entity_id' => $evalData['entity_id'],
-                        'desired_output' => $desiredOutput,
+                        'entity_id' => $entity->id,
+                        'desired_output' => ['value' => $desiredValue],
                         'notes' => $evalData['notes'] ?? null,
                     ]);
                     $existingIds[] = $evalId;
@@ -516,8 +594,8 @@ JS
             } else {
                 // Create new
                 $eval = $this->record->evals()->create([
-                    'entity_id' => $evalData['entity_id'],
-                    'desired_output' => $desiredOutput,
+                    'entity_id' => $entity->id,
+                    'desired_output' => ['value' => $desiredValue],
                     'notes' => $evalData['notes'] ?? null,
                     'input_hash' => '', // Will be calculated on first run
                 ]);
