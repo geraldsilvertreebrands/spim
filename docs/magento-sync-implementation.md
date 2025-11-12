@@ -72,11 +72,11 @@ app/Console/Commands/
    - Fetch products from Magento
    - For new products:
      * Create entity record
-     * Write input attributes to eav_input
-     * Write versioned attributes to eav_versioned (all 3 values equal)
+     * Write all synced attributes to eav_versioned (all 3 values equal)
    - For existing products:
-     * Update only input attributes
-     * Leave versioned attributes unchanged
+     * Update is_sync='from_external' attributes
+     * For is_sync='bidirectional' attributes: use 3-way comparison (see below)
+     * Skip is_sync='to_external' attributes
    
 3. Push from SPIM → Magento (Step 2)
    - Find SPIM products that need syncing
@@ -84,10 +84,44 @@ app/Console/Commands/
      * Send all synced attributes
      * Set status=disabled unless status is synced
    - For existing products:
-     * Find versioned attributes where value_approved != value_live
+     * Find attributes with is_sync='to_external' or 'bidirectional'
+     * Where value_approved != value_live
      * Send only changed attributes
      * Use value_override if present, else value_approved
    - Update value_live after successful push
+```
+
+### Bidirectional Sync 3-Way Comparison
+
+For `is_sync='bidirectional'` attributes on existing products:
+
+```
+Compare three values:
+- value_live (last synced value)
+- value_approved (current SPIM value ready for sync)
+- Magento value (fresh from API)
+
+Case 1: Neither changed
+  value_approved == value_live AND Magento == value_live
+  → Skip (no changes)
+
+Case 2: SPIM only changed
+  value_approved != value_live AND Magento == value_live
+  → Push to Magento in export phase
+
+Case 3: Magento only changed
+  value_approved == value_live AND Magento != value_live
+  → Update all SPIM values to Magento value
+
+Case 4: Both changed (CONFLICT)
+  value_approved != value_live AND Magento != value_live
+  → Resolution:
+     - Set value_approved = Magento value
+     - Set value_live = Magento value
+     - Keep value_current unchanged
+     - Save conflict metadata with original SPIM values
+     - Log as warning with operation='conflict'
+     - Result: Magento wins, SPIM change queued for review
 ```
 
 ## Data Flow Diagrams

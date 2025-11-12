@@ -80,7 +80,7 @@ class ProductSync extends AbstractSync
         $this->logInfo('Validating synced attributes');
 
         $this->syncedAttributes = Attribute::where('entity_type_id', $this->entityType->id)
-            ->whereIn('is_sync', ['from_external', 'to_external'])
+            ->whereIn('is_sync', ['from_external', 'to_external', 'bidirectional'])
             ->get()
             ->keyBy('name')
             ->all();
@@ -287,9 +287,13 @@ class ProductSync extends AbstractSync
                     // Set all three value fields to the same value
                     $this->importVersionedAttribute($entity->id, $attribute->id, $stringValue);
                 } else {
-                    // For existing products, only update attributes with is_sync='from_external'
+                    // For existing products, handle based on sync direction
                     if ($attribute->is_sync === 'from_external') {
+                        // Read-only from Magento - always update from Magento
                         $this->importVersionedAttribute($entity->id, $attribute->id, $stringValue);
+                    } elseif ($attribute->is_sync === 'bidirectional') {
+                        // Bidirectional - use 3-way comparison to detect conflicts
+                        $this->handleBidirectionalAttribute($entity, $attribute, $stringValue);
                     }
                     // Attributes with is_sync='to_external' are not updated from Magento
                 }
@@ -347,6 +351,97 @@ class ProductSync extends AbstractSync
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+    }
+
+    /**
+     * Handle bidirectional attribute sync with 3-way comparison
+     * Compares Magento value, SPIM approved value, and SPIM live value to detect conflicts
+     *
+     * @param Entity $entity The entity being synced
+     * @param Attribute $attribute The attribute to sync
+     * @param string|null $magentoValue Fresh value from Magento
+     * @return void
+     */
+    private function handleBidirectionalAttribute(Entity $entity, Attribute $attribute, ?string $magentoValue): void
+    {
+        $now = now();
+
+        // Get current SPIM state
+        $existing = DB::table('eav_versioned')->where([
+            'entity_id' => $entity->id,
+            'attribute_id' => $attribute->id,
+        ])->first();
+
+        // If no existing record, create one with Magento's value
+        if (!$existing) {
+            $this->importVersionedAttribute($entity->id, $attribute->id, $magentoValue);
+            return;
+        }
+
+        // 3-way comparison to detect changes
+        $magentoChanged = ($magentoValue !== $existing->value_live);
+        $spimChanged = ($existing->value_approved !== $existing->value_live);
+
+        // Case 1: Neither changed - skip
+        if (!$magentoChanged && !$spimChanged) {
+            return;
+        }
+
+        // Case 2: SPIM only changed - will be pushed in export phase, nothing to do here
+        if ($spimChanged && !$magentoChanged) {
+            return;
+        }
+
+        // Case 3: Magento only changed - update all fields
+        if ($magentoChanged && !$spimChanged) {
+            DB::table('eav_versioned')
+                ->where('id', $existing->id)
+                ->update([
+                    'value_current' => $magentoValue,
+                    'value_approved' => $magentoValue,
+                    'value_live' => $magentoValue,
+                    'updated_at' => $now,
+                ]);
+            return;
+        }
+
+        // Case 4: BOTH changed - CONFLICT
+        // Resolution: Accept Magento's value in approved and live, but preserve SPIM's current value
+        // This pushes the SPIM change into the approval queue for user review
+
+        // Preserve SPIM's metadata in conflict marker
+        $existingMeta = json_decode($existing->meta ?? '{}', true) ?: [];
+        $conflictMeta = [
+            'sync_conflict' => true,
+            'sync_conflict_at' => now()->toIso8601String(),
+            'spim_value_at_conflict' => $existing->value_approved,
+            'spim_justification_at_conflict' => $existing->justification,
+            'spim_confidence_at_conflict' => $existing->confidence,
+        ];
+
+        // Update: value_current stays as-is, set approved & live to Magento's value
+        DB::table('eav_versioned')
+            ->where('id', $existing->id)
+            ->update([
+                'value_approved' => $magentoValue,
+                'value_live' => $magentoValue,
+                'meta' => json_encode(array_merge($existingMeta, $conflictMeta)),
+                'updated_at' => $now,
+            ]);
+
+        // Log conflict as warning
+        $this->logResult(
+            $entity,
+            'warning',
+            "Conflict detected for attribute '{$attribute->name}': Both SPIM and Magento changed. Using Magento value, SPIM change queued for review.",
+            'conflict',
+            [
+                'attribute' => $attribute->name,
+                'magento_value' => $magentoValue,
+                'spim_value' => $existing->value_approved,
+                'spim_current' => $existing->value_current,
+            ]
+        );
     }
 
     /**
@@ -438,13 +533,13 @@ class ProductSync extends AbstractSync
         }
 
         // For existing products, only sync attributes where:
-        // 1. is_sync='to_external'
+        // 1. is_sync='to_external' OR is_sync='bidirectional'
         // 2. AND value_approved != value_live
         $attributesToSync = [];
 
         foreach ($this->syncedAttributes as $attributeName => $attribute) {
-            // Only sync 'to_external' attributes (not 'from_external')
-            if ($attribute->is_sync === 'to_external') {
+            // Only sync 'to_external' and 'bidirectional' attributes (not 'from_external')
+            if (in_array($attribute->is_sync, ['to_external', 'bidirectional'])) {
                 $versionedRecord = DB::table('eav_versioned')
                     ->where('entity_id', $entity->id)
                     ->where('attribute_id', $attribute->id)

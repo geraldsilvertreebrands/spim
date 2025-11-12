@@ -90,6 +90,7 @@ class Attribute extends Model
         $errors = [];
 
         // Rule 1: Cannot have (editable='yes' OR editable='overridable') + is_sync='from_external'
+        // Note: bidirectional sync CAN be editable (allows both human and sync updates)
         if (in_array($this->editable, ['yes', 'overridable']) && $this->is_sync === 'from_external') {
             $errors[] = 'Attributes synced from external systems cannot be editable or overridable.';
         }
@@ -101,6 +102,7 @@ class Attribute extends Model
         }
 
         // Rule 3: Cannot have (needs_approval='yes' OR needs_approval='only_low_confidence') + is_sync='from_external'
+        // Note: bidirectional sync CAN have approval requirements (unlike from_external which auto-approves)
         if (in_array($this->needs_approval, ['yes', 'only_low_confidence']) && $this->is_sync === 'from_external') {
             $errors[] = 'Attributes synced from external systems cannot require approval (they are automatically approved on import).';
         }

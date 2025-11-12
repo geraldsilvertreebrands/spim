@@ -59,6 +59,7 @@ All attributes use a unified "versioned" structure (previously there were separa
   - `no`: SPIM only, not synced
   - `from_external`: Read from Magento (updates value_current, value_approved, and value_live)
   - `to_external`: Write to Magento (syncs value_approved → Magento → updates value_live)
+  - `bidirectional`: Two-way sync with conflict detection (reads from and writes to Magento)
 - **needs_approval**: Controls the approval workflow:
   - `yes`: Always requires human approval before value_approved is set
   - `only_low_confidence`: Requires approval only when confidence < 0.8
@@ -132,9 +133,31 @@ All methods handle upserts properly (won't overwrite `created_at` on updates).
 ### Sync Behavior
 
 During Magento sync:
-- **Initial import** (new products): ALL synced attributes (both `from_external` and `to_external`) are imported and all three value fields are set identically
-- **Subsequent imports**: Only `is_sync='from_external'` attributes are updated from Magento
-- **Export to Magento**: Only `is_sync='to_external'` attributes where `value_approved != value_live` are synced
+- **Initial import** (new products): ALL synced attributes (`from_external`, `to_external`, and `bidirectional`) are imported and all three value fields are set identically
+- **Subsequent imports**: 
+  - `is_sync='from_external'` attributes are always updated from Magento
+  - `is_sync='bidirectional'` attributes use 3-way comparison to detect conflicts (see below)
+- **Export to Magento**: Both `is_sync='to_external'` and `is_sync='bidirectional'` attributes where `value_approved != value_live` are synced
+
+#### Bidirectional Sync with Conflict Detection
+
+For `is_sync='bidirectional'` attributes, the sync performs a 3-way comparison:
+
+1. **Neither side changed** (`value_approved == value_live` AND Magento value == `value_live`):
+   - No action needed
+
+2. **SPIM only changed** (`value_approved != value_live` AND Magento value == `value_live`):
+   - Export phase pushes SPIM value to Magento
+
+3. **Magento only changed** (`value_approved == value_live` AND Magento value != `value_live`):
+   - Update all three value fields to Magento's value
+
+4. **Both changed - CONFLICT** (`value_approved != value_live` AND Magento value != `value_live`):
+   - Accept Magento's value: set `value_approved` and `value_live` to Magento's value
+   - Preserve SPIM's change: keep `value_current` unchanged
+   - This pushes the SPIM change into the approval queue for user review
+   - Save conflict metadata in `meta` field with `sync_conflict` flag
+   - Log as warning in `sync_results` with operation='conflict'
 
 ## Resolved values and JSON bags
 
