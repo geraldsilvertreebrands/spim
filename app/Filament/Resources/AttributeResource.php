@@ -97,6 +97,7 @@ class AttributeResource extends Resource
                     'no' => 'No sync - SPIM only',
                     'from_external' => 'From external - Read from Magento',
                     'to_external' => 'To external - Write to Magento',
+                    'bidirectional' => 'Bidirectional - Two-way sync with conflict detection',
                 ])
                 ->default('no')
                 ->required()
@@ -196,6 +197,7 @@ class AttributeResource extends Resource
                         'no' => 'No sync',
                         'from_external' => 'From external',
                         'to_external' => 'To external',
+                        'bidirectional' => 'Bidirectional',
                     ]),
                 Tables\Filters\SelectFilter::make('editable')
                     ->options([
