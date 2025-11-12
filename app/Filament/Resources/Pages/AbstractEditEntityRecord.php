@@ -6,6 +6,7 @@ use App\Filament\Resources\AbstractEntityTypeResource;
 use App\Models\Attribute;
 use Illuminate\Support\Facades\Auth;
 use Filament\Resources\Pages\EditRecord;
+use Livewire\Attributes\On;
 
 class AbstractEditEntityRecord extends EditRecord
 {
@@ -88,6 +89,52 @@ class AbstractEditEntityRecord extends EditRecord
 
             \Filament\Actions\DeleteAction::make(),
         ];
+    }
+
+    /**
+     * Handle the "Add as Eval" event from pipeline metadata links.
+     */
+    #[On('addAsEval')]
+    public function handleAddAsEval(string $pipelineId, $currentValue): void
+    {
+        try {
+            // Get the pipeline
+            $pipeline = \App\Models\Pipeline::findOrFail($pipelineId);
+
+            // Check if eval already exists for this entity
+            $existingEval = $pipeline->evals()
+                ->where('entity_id', $this->record->id)
+                ->first();
+
+            if ($existingEval) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Eval Already Exists')
+                    ->body('An eval for this entity already exists. Update it from the pipeline edit page.')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            // Create the eval
+            $pipeline->evals()->create([
+                'entity_id' => $this->record->id,
+                'desired_output' => ['value' => $currentValue],
+                'notes' => 'Added from entity edit form',
+                'input_hash' => '', // Will be calculated on first run
+            ]);
+
+            \Filament\Notifications\Notification::make()
+                ->title('Eval Created')
+                ->body('The current value has been added as an evaluation test case.')
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            \Filament\Notifications\Notification::make()
+                ->title('Error Creating Eval')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     /**

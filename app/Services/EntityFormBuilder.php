@@ -162,6 +162,11 @@ class EntityFormBuilder
             $field = $field->disabled();
         }
 
+        // For pipeline attributes, wrap with pipeline metadata display
+        if ($attribute->pipeline_id) {
+            return $this->wrapWithPipelineMetadata($attribute, $field);
+        }
+
         return $field;
     }
 
@@ -195,6 +200,48 @@ class EntityFormBuilder
             ->placeholder('Enter override value...')
             ->extraAttributes(['x-show' => 'showOverride', 'x-cloak' => true], true);
 
+        $schemaComponents = [
+            // Current value display with override link
+            Forms\Components\Placeholder::make('_current_' . $name)
+                ->hiddenLabel()
+                ->content(function ($record) use ($name, $hasOverrideCheck) {
+                    if (!$record) {
+                        $currentValue = '(not set)';
+                        $isEmpty = true;
+                        $hasOverride = false;
+                    } else {
+                        $currentValue = $record->getAttr($name, 'current', '(not set)');
+                        $displayValue = is_array($currentValue) ? json_encode($currentValue) : (string)$currentValue;
+                        if (empty($displayValue)) {
+                            $displayValue = '(not set)';
+                        }
+                        $currentValue = $displayValue;
+                        $isEmpty = empty($currentValue) || $currentValue === '(not set)';
+                        $hasOverride = $hasOverrideCheck($record);
+                    }
+
+                    return view('filament.components.attribute-overridable-value', [
+                        'value' => $currentValue,
+                        'isEmpty' => $isEmpty,
+                        'hasOverride' => $hasOverride,
+                    ]);
+                }),
+
+            // Override input field
+            $inputField,
+
+            // Helper text (shown only when input is visible)
+            Forms\Components\Placeholder::make('_helper_' . $name)
+                ->hiddenLabel()
+                ->content(fn () => new \Illuminate\Support\HtmlString('<p class="text-xs text-gray-500">Leave empty to use the current value shown above</p>'))
+                ->extraAttributes(['x-show' => 'showOverride', 'x-cloak' => true]),
+        ];
+
+        // Add pipeline metadata if this is a pipeline attribute
+        if ($attribute->pipeline_id) {
+            $schemaComponents[] = $this->buildPipelineMetadataComponent($attribute);
+        }
+
         return Grid::make(1)
             ->extraAttributes(function ($record) use ($hasOverrideCheck) {
                 $hasOverride = $hasOverrideCheck($record);
@@ -202,43 +249,62 @@ class EntityFormBuilder
                     'x-data' => '{ showOverride: ' . ($hasOverride ? 'true' : 'false') . ' }',
                 ];
             })
+            ->schema($schemaComponents)
+            ->columnSpanFull();
+    }
+
+    /**
+     * Wrap a field component with pipeline metadata display.
+     */
+    protected function wrapWithPipelineMetadata(Attribute $attribute, $field)
+    {
+        return Grid::make(1)
             ->schema([
-                // Current value display with override link
-                Forms\Components\Placeholder::make('_current_' . $name)
-                    ->hiddenLabel()
-                    ->content(function ($record) use ($name, $hasOverrideCheck) {
-                        if (!$record) {
-                            $currentValue = '(not set)';
-                            $isEmpty = true;
-                            $hasOverride = false;
-                        } else {
-                            $currentValue = $record->getAttr($name, 'current', '(not set)');
-                            $displayValue = is_array($currentValue) ? json_encode($currentValue) : (string)$currentValue;
-                            if (empty($displayValue)) {
-                                $displayValue = '(not set)';
-                            }
-                            $currentValue = $displayValue;
-                            $isEmpty = empty($currentValue) || $currentValue === '(not set)';
-                            $hasOverride = $hasOverrideCheck($record);
-                        }
-
-                        return view('filament.components.attribute-overridable-value', [
-                            'value' => $currentValue,
-                            'isEmpty' => $isEmpty,
-                            'hasOverride' => $hasOverride,
-                        ]);
-                    }),
-
-                // Override input field
-                $inputField,
-
-                // Helper text (shown only when input is visible)
-                Forms\Components\Placeholder::make('_helper_' . $name)
-                    ->hiddenLabel()
-                    ->content(fn () => new \Illuminate\Support\HtmlString('<p class="text-xs text-gray-500">Leave empty to use the current value shown above</p>'))
-                    ->extraAttributes(['x-show' => 'showOverride', 'x-cloak' => true]),
+                $field,
+                $this->buildPipelineMetadataComponent($attribute),
             ])
             ->columnSpanFull();
+    }
+
+    /**
+     * Build the pipeline metadata component (justification, confidence, add as eval link).
+     */
+    protected function buildPipelineMetadataComponent(Attribute $attribute)
+    {
+        return Forms\Components\Placeholder::make('_pipeline_meta_' . $attribute->name)
+            ->hiddenLabel()
+            ->content(function ($record) use ($attribute) {
+                if (!$record) {
+                    return '';
+                }
+
+                // Get the eav_versioned row to retrieve justification and confidence
+                $eavRow = \Illuminate\Support\Facades\DB::table('eav_versioned')
+                    ->where('entity_id', $record->id)
+                    ->where('attribute_id', $attribute->id)
+                    ->first();
+
+                if (!$eavRow) {
+                    return '';
+                }
+
+                $justification = $eavRow->justification;
+                $confidence = $eavRow->confidence;
+                $currentValue = $eavRow->value_current;
+
+                // Only show if there's justification or confidence
+                if (!$justification && !$confidence) {
+                    return '';
+                }
+
+                return view('filament.components.pipeline-metadata', [
+                    'justification' => $justification,
+                    'confidence' => $confidence,
+                    'entityId' => $record->id,
+                    'pipelineId' => $attribute->pipeline_id,
+                    'currentValue' => $currentValue,
+                ]);
+            });
     }
 
     /**
