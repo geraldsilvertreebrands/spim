@@ -21,6 +21,7 @@ class CategoryEntityResource extends AbstractEntityTypeResource
             'index' => Pages\ListCategories::route('/'),
             'create' => Pages\CreateCategories::route('/create'),
             'edit' => Pages\EditCategories::route('/{record}/edit'),
+            'side-by-side' => Pages\SideBySideEditCategories::route('/side-by-side'),
         ];
     }
 }

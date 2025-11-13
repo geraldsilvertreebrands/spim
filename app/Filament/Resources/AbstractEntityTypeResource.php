@@ -135,9 +135,38 @@ abstract class AbstractEntityTypeResource extends Resource
     protected static function getBulkActions(): array
     {
         return [
-            \Filament\Actions\BulkActionGroup::make([
-                \Filament\Actions\DeleteBulkAction::make(),
-            ]),
+            \Filament\Actions\BulkAction::make('edit_side_by_side')
+                ->label('Edit side-by-side')
+                ->icon('heroicon-o-table-cells')
+                ->action(function ($records) {
+                    $entityIds = $records->pluck('id')->toArray();
+
+                    // Validate entity count (2-15)
+                    if (count($entityIds) < 2) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('Please select at least 2 entities')
+                            ->warning()
+                            ->send();
+                        return;
+                    }
+
+                    if (count($entityIds) > 15) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('Please select no more than 15 entities')
+                            ->body('Side-by-side editing is limited to 15 entities at a time.')
+                            ->warning()
+                            ->send();
+                        return;
+                    }
+
+                    // Redirect to side-by-side page with entity IDs
+                    $url = static::getUrl('side-by-side', [
+                        'entityIds' => implode(',', $entityIds),
+                    ]);
+
+                    return redirect($url);
+                }),
+            \Filament\Actions\DeleteBulkAction::make(),
         ];
     }
 

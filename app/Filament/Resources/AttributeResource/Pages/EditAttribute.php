@@ -87,6 +87,14 @@ class EditAttribute extends EditRecord
                             ->success()
                             ->send();
 
+                        // Refresh the record from database to get updated allowed_values
+                        $this->record->refresh();
+
+                        // Refresh the form data to show the synced options
+                        $this->refreshFormData([
+                            'allowed_values' => $this->record->allowed_values,
+                        ]);
+
                     } catch (\Exception $e) {
                         // Update sync run with error if it exists
                         if (isset($syncRun)) {

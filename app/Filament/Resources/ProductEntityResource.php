@@ -17,6 +17,7 @@ class ProductEntityResource extends AbstractEntityTypeResource
             'index' => Pages\ListProducts::route('/'),
             'create' => Pages\CreateProduct::route('/create'),
             'edit' => Pages\EditProduct::route('/{record}/edit'),
+            'side-by-side' => Pages\SideBySideEditProducts::route('/side-by-side'),
         ];
     }
 }

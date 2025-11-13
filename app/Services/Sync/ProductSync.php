@@ -219,6 +219,9 @@ class ProductSync extends AbstractSync
     private function handleImportError(array $magentoProduct, \Exception $e): void
     {
         $this->stats['errors']++;
+        if ($this->syncRun) {
+            $this->syncRun->incrementError();
+        }
         $sku = $magentoProduct['sku'] ?? 'unknown';
         $this->logError("Failed to import product {$sku}", [
             'sku' => $sku,
@@ -301,9 +304,15 @@ class ProductSync extends AbstractSync
 
             if ($isNew) {
                 $this->stats['created']++;
+                if ($this->syncRun) {
+                    $this->syncRun->incrementSuccess();
+                }
                 $this->logResult($entity, 'success', 'Product imported from Magento', 'create');
             } else {
                 $this->stats['updated']++;
+                if ($this->syncRun) {
+                    $this->syncRun->incrementSuccess();
+                }
                 $this->logResult($entity, 'success', 'Product updated from Magento', 'update');
             }
         });
@@ -465,6 +474,9 @@ class ProductSync extends AbstractSync
                 $this->exportProduct($entity);
             } catch (\Exception $e) {
                 $this->stats['errors']++;
+                if ($this->syncRun) {
+                    $this->syncRun->incrementError();
+                }
                 $this->logError("Failed to export product {$entity->entity_id}", [
                     'sku' => $entity->entity_id,
                     'error' => $e->getMessage(),
@@ -493,6 +505,9 @@ class ProductSync extends AbstractSync
 
             if (empty($attributesToSync)) {
                 $this->stats['skipped']++;
+                if ($this->syncRun) {
+                    $this->syncRun->incrementSkipped();
+                }
                 $this->logDebug("No attributes to sync for {$sku}");
                 $this->logResult($entity, 'success', 'No changes to sync', 'skip');
                 return;
@@ -507,11 +522,17 @@ class ProductSync extends AbstractSync
                 $this->magentoClient->createProduct($payload);
                 $this->logInfo("Created product in Magento: {$sku}");
                 $this->stats['created']++;
+                if ($this->syncRun) {
+                    $this->syncRun->incrementSuccess();
+                }
                 $this->logResult($entity, 'success', 'Product created in Magento', 'create', ['attributes_synced' => $attributesToSync]);
             } else {
                 $this->magentoClient->updateProduct($sku, $payload);
                 $this->logInfo("Updated product in Magento: {$sku}");
                 $this->stats['updated']++;
+                if ($this->syncRun) {
+                    $this->syncRun->incrementSuccess();
+                }
                 $this->logResult($entity, 'success', 'Product updated in Magento', 'update', ['attributes_synced' => $attributesToSync]);
             }
 

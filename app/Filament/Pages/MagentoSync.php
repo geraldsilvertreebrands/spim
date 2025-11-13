@@ -42,6 +42,7 @@ class MagentoSync extends Page implements HasTable
     {
         return $table
             ->query(SyncRun::query()->with(['entityType', 'user'])->latest())
+            ->poll('5s')
             ->columns([
                 TextColumn::make('started_at')
                     ->label('Started')
@@ -145,23 +146,27 @@ class MagentoSync extends Page implements HasTable
                         return view('filament.components.sync-details', ['syncRun' => $record, 'cache_bust' => time()]);
                     })
                     ->modalSubmitActionLabel(fn ($record) => $record->isRunning() ? 'Cancel Sync' : null)
-                    ->modalSubmitAction(fn ($record) => $record->isRunning() ? function () use ($record) {
-                        try {
-                            $record->cancel();
+                    ->modalSubmitAction(fn ($record) => $record->isRunning()
+                        ? Action::make('cancelSync')
+                            ->color('danger')
+                            ->action(function () use ($record) {
+                                try {
+                                    $record->cancel();
 
-                            Notification::make()
-                                ->title('Sync cancelled')
-                                ->body('The sync has been successfully cancelled.')
-                                ->success()
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Cancel failed')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    } : null)
+                                    Notification::make()
+                                        ->title('Sync cancelled')
+                                        ->body('The sync has been successfully cancelled.')
+                                        ->success()
+                                        ->send();
+                                } catch (\Exception $e) {
+                                    Notification::make()
+                                        ->title('Cancel failed')
+                                        ->body($e->getMessage())
+                                        ->danger()
+                                        ->send();
+                                }
+                            })
+                        : null)
                     ->modalCancelActionLabel('Close'),
             ])
             ->defaultSort('started_at', 'desc');

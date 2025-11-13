@@ -60,6 +60,9 @@ class AttributeOptionSync extends AbstractSync
                 $this->syncAttributeOptions($attribute);
             } catch (\Exception $e) {
                 $this->stats['errors']++;
+                if ($this->syncRun) {
+                    $this->syncRun->incrementError();
+                }
                 $this->logError("Failed to sync options for attribute {$attribute->name}", [
                     'attribute' => $attribute->name,
                     'error' => $e->getMessage(),
@@ -106,6 +109,9 @@ class AttributeOptionSync extends AbstractSync
             $this->replaceSpimOptions($attribute, $magentoOptionsMap);
         } else {
             $this->stats['skipped']++;
+            if ($this->syncRun) {
+                $this->syncRun->incrementSkipped();
+            }
             $this->logResult($attribute, 'success', 'Options already in sync', 'skip');
         }
     }
@@ -126,6 +132,9 @@ class AttributeOptionSync extends AbstractSync
             ]);
 
         $this->stats['updated']++;
+        if ($this->syncRun) {
+            $this->syncRun->incrementSuccess();
+        }
         $this->logInfo("Replaced SPIM options with Magento options", [
             'attribute' => $attribute->name,
             'old_count' => count($oldOptions),
