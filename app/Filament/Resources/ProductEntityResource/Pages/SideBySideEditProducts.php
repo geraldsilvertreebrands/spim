@@ -10,3 +10,5 @@ class SideBySideEditProducts extends AbstractSideBySideEdit
     protected static string $resource = ProductEntityResource::class;
 }
 
+
+

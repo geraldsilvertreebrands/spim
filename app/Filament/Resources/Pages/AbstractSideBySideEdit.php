@@ -7,14 +7,22 @@ use App\Models\Attribute;
 use App\Models\Entity;
 use App\Models\UserPreference;
 use Filament\Actions\Action;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
-use Filament\Resources\Pages\ManageRecords;
+use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
-abstract class AbstractSideBySideEdit extends ManageRecords
+abstract class AbstractSideBySideEdit extends Page implements HasForms, HasActions
 {
+    use InteractsWithActions;
+    use InteractsWithForms;
+
     protected string $view = 'filament.pages.side-by-side-edit';
 
     protected array $entityIdsArray = [];

@@ -1,17 +1,9 @@
 <x-filament-panels::page>
-    {{-- Render header actions --}}
-    @if (count($this->getCachedHeaderActions()))
-        <x-slot name="headerActions">
-            @foreach ($this->getCachedHeaderActions() as $action)
-                {{ $action }}
-            @endforeach
-        </x-slot>
-    @endif
-
     @php
         $formBuilder = app(\App\Services\SideBySideFormBuilder::class);
     @endphp
 
+    @push('styles')
     <style>
         /* Remove default max-width constraints for wide layout */
         .fi-body > div {
@@ -63,31 +55,15 @@
         .side-by-side-table tbody td:first-child {
             position: sticky;
             left: 0;
-            z-index: 10;
-            background: #f9fafb;
+            background: white;
             font-weight: 500;
-            min-width: 200px;
-            max-width: 200px;
+            z-index: 10;
             border-right: 2px solid #e5e7eb;
         }
 
-        .side-by-side-table tbody tr:hover td {
-            background: #f3f4f6;
-        }
-
-        .side-by-side-table tbody tr:hover td:first-child {
-            background: #e5e7eb;
-        }
-
         .entity-column {
-            min-width: 280px;
-            max-width: 280px;
-        }
-
-        .attribute-metadata {
-            font-size: 0.75rem;
-            color: #6b7280;
-            margin-top: 0.25rem;
+            min-width: 250px;
+            max-width: 350px;
         }
 
         /* Form field adjustments for side-by-side context */
@@ -112,6 +88,7 @@
             color: #991b1b;
         }
     </style>
+    @endpush
 
     @if(empty($entities))
         <x-filament::section>
@@ -160,12 +137,12 @@
                             @endphp
                             <tr>
                                 <td>
-                                    <div class="{{ $metadata['color_class'] ?? 'text-gray-900' }}">
-                                        {{ $metadata['display_name'] }}
-                                    </div>
-                                    <div class="attribute-metadata">
-                                        {{ $metadata['editable_label'] }} • {{ $metadata['data_type'] }}
-                                    </div>
+                                    @include('filament.components.attribute-label-wrapper', [
+                                        'displayName' => $metadata['display_name'],
+                                        'attributeType' => $metadata['editable_label'],
+                                        'dataType' => $metadata['data_type'],
+                                        'typeColor' => $metadata['color_class']
+                                    ])
                                 </td>
                                 @foreach($entities as $entityId => $entityData)
                                     <td class="entity-column">
@@ -180,26 +157,53 @@
                                             @endphp
 
                                             @if($attribute->data_type === 'select')
-                                                <select wire:model="{{ $fieldName }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                                                <select
+                                                    wire:model.blur="{{ $fieldName }}"
+                                                    class="fi-select-input block w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 rounded-lg shadow-sm transition duration-75 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-primary-500"
+                                                >
                                                     <option value="">Select...</option>
                                                     @foreach($attribute->allowedValues() as $key => $label)
                                                         <option value="{{ $key }}">{{ $label }}</option>
                                                     @endforeach
                                                 </select>
                                             @elseif($attribute->data_type === 'multiselect')
-                                                <select wire:model="{{ $fieldName }}" multiple class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                                                <select
+                                                    wire:model.blur="{{ $fieldName }}"
+                                                    multiple
+                                                    class="fi-select-input block w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 rounded-lg shadow-sm transition duration-75 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-primary-500"
+                                                >
                                                     @foreach($attribute->allowedValues() as $key => $label)
                                                         <option value="{{ $key }}">{{ $label }}</option>
                                                     @endforeach
                                                 </select>
                                             @elseif($attribute->data_type === 'integer')
-                                                <input type="number" wire:model.blur="{{ $fieldName }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" placeholder="Enter number">
+                                                <input
+                                                    type="number"
+                                                    wire:model.blur="{{ $fieldName }}"
+                                                    class="fi-input block w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 rounded-lg shadow-sm transition duration-75 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-primary-500"
+                                                    placeholder="Enter number"
+                                                >
                                             @elseif($attribute->data_type === 'html')
-                                                <textarea wire:model.blur="{{ $fieldName }}" rows="4" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" placeholder="Enter HTML"></textarea>
+                                                <textarea
+                                                    wire:model.blur="{{ $fieldName }}"
+                                                    rows="4"
+                                                    class="fi-input block w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 rounded-lg shadow-sm transition duration-75 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-primary-500"
+                                                    placeholder="Enter HTML"
+                                                ></textarea>
                                             @elseif($attribute->data_type === 'json')
-                                                <textarea wire:model.blur="{{ $fieldName }}" rows="3" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 font-mono text-sm" placeholder="Enter JSON"></textarea>
+                                                <textarea
+                                                    wire:model.blur="{{ $fieldName }}"
+                                                    rows="3"
+                                                    class="fi-input block w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 rounded-lg shadow-sm transition duration-75 font-mono text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-primary-500"
+                                                    placeholder="Enter JSON"
+                                                ></textarea>
                                             @else
-                                                <input type="text" wire:model.blur="{{ $fieldName }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" placeholder="Enter value">
+                                                <input
+                                                    type="text"
+                                                    wire:model.blur="{{ $fieldName }}"
+                                                    class="fi-input block w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 rounded-lg shadow-sm transition duration-75 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-primary-500"
+                                                    placeholder="Enter value"
+                                                >
                                             @endif
                                         @endif
 
@@ -215,9 +219,9 @@
                     </tbody>
                 </table>
             </div>
-        </div>
 
-        @if(!empty($errors))
+            {{-- Global errors section --}}
+            @if(!empty($errors))
                 <x-filament::section class="mt-4">
                     <x-slot name="heading">
                         Errors
@@ -243,10 +247,9 @@
                 </x-filament::section>
             @endif
 
-        <div class="mt-4 text-sm text-gray-500">
+        <div class="mt-4 text-gray-500">
             <p>Editing {{ count($entities) }} {{ \Illuminate\Support\Str::plural('entity', count($entities)) }} •
                {{ count($selectedAttributes) }} {{ \Illuminate\Support\Str::plural('attribute', count($selectedAttributes)) }} visible</p>
         </div>
     @endif
 </x-filament-panels::page>
-

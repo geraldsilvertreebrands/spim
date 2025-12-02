@@ -10,3 +10,5 @@ class SideBySideEditCategories extends AbstractSideBySideEdit
     protected static string $resource = CategoryEntityResource::class;
 }
 
+
+
