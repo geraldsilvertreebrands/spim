@@ -68,6 +68,7 @@ class EntityTableBuilder
                 // This prevents TextColumn from treating arrays as lists to iterate over
                 try {
                     $ui = $this->registry->resolve($attribute);
+
                     return $ui->summarise($record, $attribute);
                 } catch (\Exception $e) {
                     // Fallback: get the raw value
@@ -102,6 +103,7 @@ class EntityTableBuilder
                     }
 
                     $strValue = (string) ($value ?? '');
+
                     return strlen($strValue) > 50 ? $strValue : null;
                 }
             });
@@ -118,6 +120,7 @@ class EntityTableBuilder
                 if (is_numeric($search)) {
                     return $query->whereAttr($attribute->name, '=', $search);
                 }
+
                 // If not numeric, no results
                 return $query->whereRaw('1 = 0');
 
@@ -213,4 +216,3 @@ class EntityTableBuilder
             ->toArray();
     }
 }
-

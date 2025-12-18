@@ -45,7 +45,8 @@ class AttributesSourceModule extends AbstractPipelineModule
     public static function getInputAttributes(array $settings): Collection
     {
         $attributeIds = $settings['attribute_ids'] ?? [];
-        return collect($attributeIds)->map(fn($id) => (int) $id);
+
+        return collect($attributeIds)->map(fn ($id) => (int) $id);
     }
 
     public function validateSettings(array $data): array
@@ -114,8 +115,8 @@ class AttributesSourceModule extends AbstractPipelineModule
      */
     public function processBatch(array $contexts): array
     {
-        $entityIds = array_map(fn($ctx) => $ctx->entityId, $contexts);
+        $entityIds = array_map(fn ($ctx) => $ctx->entityId, $contexts);
+
         return $this->loadInputsForEntities($entityIds);
     }
 }
-

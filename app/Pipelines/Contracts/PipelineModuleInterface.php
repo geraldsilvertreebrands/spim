@@ -42,9 +42,8 @@ interface PipelineModuleInterface
      * Process a batch of entities (optional optimization)
      * If not overridden, defaults to calling process() for each item
      *
-     * @param array<PipelineContext> $contexts
+     * @param  array<PipelineContext>  $contexts
      * @return array<PipelineResult>
      */
     public function processBatch(array $contexts): array;
 }
-

@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\AttributeResource\Pages\CreateAttribute;
-use App\Filament\Resources\AttributeResource\Pages\EditAttribute;
+use App\Filament\PimPanel\Resources\AttributeResource\Pages\CreateAttribute;
+use App\Filament\PimPanel\Resources\AttributeResource\Pages\EditAttribute;
 use App\Models\Attribute;
 use App\Models\EntityType;
 use App\Models\User;
@@ -41,7 +41,7 @@ class AttributeEditingTest extends TestCase
         ];
 
         // Use reflection to access the protected method
-        $createPage = new CreateAttribute();
+        $createPage = new CreateAttribute;
         $reflection = new \ReflectionClass($createPage);
         $method = $reflection->getMethod('mutateFormDataBeforeFill');
         $method->setAccessible(true);
@@ -128,4 +128,3 @@ class AttributeEditingTest extends TestCase
         $this->assertEquals($expectedOptions, $attribute->allowed_values);
     }
 }
-

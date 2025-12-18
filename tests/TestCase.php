@@ -11,6 +11,7 @@ abstract class TestCase extends BaseTestCase
 
     // Seed once per test class after migrations, not inside each test transaction
     protected bool $seed = true;
+
     protected string $seeder = \Database\Seeders\TestBaseSeeder::class;
 
     protected function setUp(): void

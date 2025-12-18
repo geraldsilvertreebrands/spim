@@ -9,7 +9,6 @@ use App\Pipelines\Data\PipelineResult;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Form;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 
 class AiPromptProcessorModule extends AbstractPipelineModule
@@ -96,7 +95,7 @@ class AiPromptProcessorModule extends AbstractPipelineModule
                 ->label('Output Schema (JSON)')
                 ->required()
                 ->rows(10)
-                ->default(fn() => json_encode(self::SCHEMA_TEMPLATES['text'], JSON_PRETTY_PRINT))
+                ->default(fn () => json_encode(self::SCHEMA_TEMPLATES['text'], JSON_PRETTY_PRINT))
                 ->helperText('OpenAI-compatible JSON schema for structured output'),
 
             Select::make('model')
@@ -130,7 +129,7 @@ class AiPromptProcessorModule extends AbstractPipelineModule
         }
 
         // Ensure schema has required structure
-        if (!isset($schema['type']) || $schema['type'] !== 'object') {
+        if (! isset($schema['type']) || $schema['type'] !== 'object') {
             throw new \Illuminate\Validation\ValidationException(
                 validator([], []),
                 ['output_schema' => ['The output schema must be an object type']]
@@ -164,7 +163,7 @@ class AiPromptProcessorModule extends AbstractPipelineModule
 
             return PipelineResult::ok($value, $confidence, $justification, $meta);
         } catch (\Exception $e) {
-            return PipelineResult::error('AI processing failed: ' . $e->getMessage());
+            return PipelineResult::error('AI processing failed: '.$e->getMessage());
         }
     }
 
@@ -181,8 +180,8 @@ class AiPromptProcessorModule extends AbstractPipelineModule
             $inputLines[] = "{$key}: {$value}";
         }
 
-        if (!empty($inputLines)) {
-            $prompt .= "\n\nInputs:\n" . implode("\n", $inputLines);
+        if (! empty($inputLines)) {
+            $prompt .= "\n\nInputs:\n".implode("\n", $inputLines);
         }
 
         return $prompt;
@@ -200,7 +199,7 @@ class AiPromptProcessorModule extends AbstractPipelineModule
         }
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $apiKey,
+            'Authorization' => 'Bearer '.$apiKey,
             'Content-Type' => 'application/json',
         ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
             'model' => $model,
@@ -223,14 +222,14 @@ class AiPromptProcessorModule extends AbstractPipelineModule
 
         if ($response->failed()) {
             throw new \RuntimeException(
-                'OpenAI API request failed: ' . $response->body()
+                'OpenAI API request failed: '.$response->body()
             );
         }
 
         $data = $response->json();
         $content = $data['choices'][0]['message']['content'] ?? null;
 
-        if (!$content) {
+        if (! $content) {
             throw new \RuntimeException('No content in OpenAI response');
         }
 
@@ -245,4 +244,3 @@ class AiPromptProcessorModule extends AbstractPipelineModule
         return $result;
     }
 }
-

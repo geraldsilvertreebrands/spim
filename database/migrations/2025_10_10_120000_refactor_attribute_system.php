@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -73,7 +73,7 @@ return new class extends Migration
         ");
 
         // Recreate entity_attr_json view (keep attrs_current name for backward compatibility)
-        DB::statement("
+        DB::statement('
             CREATE VIEW entity_attr_json AS
             SELECT
                 ear.entity_id,
@@ -84,7 +84,7 @@ return new class extends Migration
             FROM entity_attribute_resolved ear
             JOIN attributes a ON ear.attribute_id = a.id
             GROUP BY ear.entity_id
-        ");
+        ');
     }
 
     /**
@@ -131,7 +131,7 @@ return new class extends Migration
 
         // Add old fields back to attributes
         Schema::table('attributes', function (Blueprint $table) {
-            $table->enum('attribute_type', ['versioned','input','timeseries'])->default('versioned')->after('data_type');
+            $table->enum('attribute_type', ['versioned', 'input', 'timeseries'])->default('versioned')->after('data_type');
             $table->enum('review_required', ['always', 'low_confidence', 'no'])->default('no')->after('attribute_type');
             $table->boolean('is_synced')->default(false)->after('linked_entity_type_id');
         });
@@ -161,7 +161,7 @@ return new class extends Migration
         });
 
         // Recreate old views
-        DB::statement("
+        DB::statement('
             CREATE VIEW eav_timeseries_latest AS
             SELECT
                 entity_id,
@@ -185,7 +185,7 @@ return new class extends Migration
                 FROM eav_timeseries
             ) ranked
             WHERE rn = 1
-        ");
+        ');
 
         DB::statement("
             CREATE VIEW entity_attribute_resolved AS
@@ -214,7 +214,7 @@ return new class extends Migration
             FROM eav_timeseries_latest t
         ");
 
-        DB::statement("
+        DB::statement('
             CREATE VIEW entity_attr_json AS
             SELECT
                 ear.entity_id,
@@ -223,9 +223,6 @@ return new class extends Migration
             FROM entity_attribute_resolved ear
             JOIN attributes a ON ear.attribute_id = a.id
             GROUP BY ear.entity_id
-        ");
+        ');
     }
 };
-
-
-

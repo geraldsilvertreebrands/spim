@@ -5,8 +5,6 @@ namespace App\Ui\Attributes;
 use App\Contracts\AttributeUi;
 use App\Models\Attribute;
 use App\Models\Entity;
-use App\Services\AttributeService;
-use App\Services\EavWriter;
 
 class TextAttributeUi implements AttributeUi
 {

@@ -16,7 +16,7 @@ class AttributeService
             ->where('name', $name)
             ->first();
 
-        if (!$attr) {
+        if (! $attr) {
             throw new InvalidArgumentException("Attribute {$name} not found for entity type {$entityTypeId}");
         }
 
@@ -25,19 +25,19 @@ class AttributeService
 
     public function validateValue(Attribute $attribute, $value): void
     {
-        if (in_array($attribute->data_type, ['select','multiselect'], true)) {
+        if (in_array($attribute->data_type, ['select', 'multiselect'], true)) {
             $allowed = $attribute->allowedValues();
             $values = $attribute->data_type === 'multiselect' ? (array) $value : [$value];
             foreach ($values as $val) {
-                if (!array_key_exists((string) $val, $allowed)) {
+                if (! array_key_exists((string) $val, $allowed)) {
                     throw new InvalidArgumentException("Value {$val} is not allowed for attribute {$attribute->name}");
                 }
             }
         }
 
-        if (in_array($attribute->data_type, ['belongs_to','belongs_to_multi'], true)) {
+        if (in_array($attribute->data_type, ['belongs_to', 'belongs_to_multi'], true)) {
             $targetType = $attribute->linkedEntityType;
-            if (!$targetType) {
+            if (! $targetType) {
                 throw new InvalidArgumentException("Attribute {$attribute->name} has no linked entity type defined");
             }
             $values = $attribute->data_type === 'belongs_to_multi' ? (array) $value : [$value];

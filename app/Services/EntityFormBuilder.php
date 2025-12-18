@@ -53,7 +53,7 @@ class EntityFormBuilder
                     }
                 }
 
-                if (!empty($sectionComponents)) {
+                if (! empty($sectionComponents)) {
                     $components[] = Section::make($section->name)
                         ->schema($sectionComponents)
                         ->columns(1)  // Changed to 1 column since fields now have their own two-column layout
@@ -73,7 +73,7 @@ class EntityFormBuilder
                 }
             }
 
-            if (!empty($unsectionedComponents)) {
+            if (! empty($unsectionedComponents)) {
                 $components[] = Section::make('Other Attributes')
                     ->schema($unsectionedComponents)
                     ->columns(1)  // Changed to 1 column since fields now have their own two-column layout
@@ -103,7 +103,7 @@ class EntityFormBuilder
         ])
             ->schema([
                 // Left column: Attribute name and metadata (using Placeholder with hiddenLabel)
-                Forms\Components\Placeholder::make('_label_' . $name)
+                Forms\Components\Placeholder::make('_label_'.$name)
                     ->hiddenLabel()
                     ->content(function () use ($displayName, $attribute) {
                         // Determine color based on editable + sync status
@@ -128,7 +128,7 @@ class EntityFormBuilder
 
                         return view('filament.components.attribute-label-wrapper', [
                             'displayName' => $displayName,
-                            'attributeType' => $editableLabel . $syncLabel,
+                            'attributeType' => $editableLabel.$syncLabel,
                             'dataType' => $attribute->data_type,
                         ]);
                     })
@@ -180,7 +180,7 @@ class EntityFormBuilder
 
         // Check if override exists to determine initial state
         $hasOverrideCheck = function ($record) use ($name) {
-            if (!$record) {
+            if (! $record) {
                 return false;
             }
 
@@ -191,6 +191,7 @@ class EntityFormBuilder
                     ->where('name', $name)
                     ->value('id'))
                 ->first();
+
             return $row?->value_override !== null;
         };
 
@@ -202,16 +203,16 @@ class EntityFormBuilder
 
         $schemaComponents = [
             // Current value display with override link
-            Forms\Components\Placeholder::make('_current_' . $name)
+            Forms\Components\Placeholder::make('_current_'.$name)
                 ->hiddenLabel()
                 ->content(function ($record) use ($name, $hasOverrideCheck) {
-                    if (!$record) {
+                    if (! $record) {
                         $currentValue = '(not set)';
                         $isEmpty = true;
                         $hasOverride = false;
                     } else {
                         $currentValue = $record->getAttr($name, 'current', '(not set)');
-                        $displayValue = is_array($currentValue) ? json_encode($currentValue) : (string)$currentValue;
+                        $displayValue = is_array($currentValue) ? json_encode($currentValue) : (string) $currentValue;
                         if (empty($displayValue)) {
                             $displayValue = '(not set)';
                         }
@@ -231,7 +232,7 @@ class EntityFormBuilder
             $inputField,
 
             // Helper text (shown only when input is visible)
-            Forms\Components\Placeholder::make('_helper_' . $name)
+            Forms\Components\Placeholder::make('_helper_'.$name)
                 ->hiddenLabel()
                 ->content(fn () => new \Illuminate\Support\HtmlString('<p class="text-xs text-gray-500">Leave empty to use the current value shown above</p>'))
                 ->extraAttributes(['x-show' => 'showOverride', 'x-cloak' => true]),
@@ -245,8 +246,9 @@ class EntityFormBuilder
         return Grid::make(1)
             ->extraAttributes(function ($record) use ($hasOverrideCheck) {
                 $hasOverride = $hasOverrideCheck($record);
+
                 return [
-                    'x-data' => '{ showOverride: ' . ($hasOverride ? 'true' : 'false') . ' }',
+                    'x-data' => '{ showOverride: '.($hasOverride ? 'true' : 'false').' }',
                 ];
             })
             ->schema($schemaComponents)
@@ -271,10 +273,10 @@ class EntityFormBuilder
      */
     protected function buildPipelineMetadataComponent(Attribute $attribute)
     {
-        return Forms\Components\Placeholder::make('_pipeline_meta_' . $attribute->name)
+        return Forms\Components\Placeholder::make('_pipeline_meta_'.$attribute->name)
             ->hiddenLabel()
             ->content(function ($record) use ($attribute) {
-                if (!$record) {
+                if (! $record) {
                     return '';
                 }
 
@@ -284,7 +286,7 @@ class EntityFormBuilder
                     ->where('attribute_id', $attribute->id)
                     ->first();
 
-                if (!$eavRow) {
+                if (! $eavRow) {
                     return '';
                 }
 
@@ -293,7 +295,7 @@ class EntityFormBuilder
                 $currentValue = $eavRow->value_current;
 
                 // Only show if there's justification or confidence
-                if (!$justification && !$confidence) {
+                if (! $justification && ! $confidence) {
                     return '';
                 }
 
@@ -369,7 +371,7 @@ class EntityFormBuilder
      */
     protected function getRelatedEntityOptions(Attribute $attribute): array
     {
-        if (!$attribute->linked_entity_type_id) {
+        if (! $attribute->linked_entity_type_id) {
             return [];
         }
 
@@ -378,4 +380,3 @@ class EntityFormBuilder
             ->toArray();
     }
 }
-

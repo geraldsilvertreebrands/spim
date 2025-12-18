@@ -23,8 +23,7 @@ class RunPipelineForEntity implements ShouldQueue
         public string $entityId,
         public string $triggeredBy = 'entity_save',
         public ?string $triggerReference = null,
-    ) {
-    }
+    ) {}
 
     public function handle(PipelineExecutionService $executionService): void
     {
@@ -76,9 +75,8 @@ class RunPipelineForEntity implements ShouldQueue
     {
         return [
             'pipeline',
-            'pipeline:' . $this->pipeline->id,
-            'entity:' . $this->entityId,
+            'pipeline:'.$this->pipeline->id,
+            'entity:'.$this->entityId,
         ];
     }
 }
-

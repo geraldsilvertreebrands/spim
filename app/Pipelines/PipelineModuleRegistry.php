@@ -24,13 +24,13 @@ class PipelineModuleRegistry
      */
     public function register(string $moduleClass): void
     {
-        if (!class_exists($moduleClass)) {
+        if (! class_exists($moduleClass)) {
             throw new \InvalidArgumentException("Module class {$moduleClass} does not exist");
         }
 
-        if (!in_array(PipelineModuleInterface::class, class_implements($moduleClass))) {
+        if (! in_array(PipelineModuleInterface::class, class_implements($moduleClass))) {
             throw new \InvalidArgumentException(
-                "Module class {$moduleClass} must implement " . PipelineModuleInterface::class
+                "Module class {$moduleClass} must implement ".PipelineModuleInterface::class
             );
         }
 
@@ -52,7 +52,7 @@ class PipelineModuleRegistry
      */
     public function sources(): Collection
     {
-        return collect($this->definitions)->filter(fn($def) => $def->isSource());
+        return collect($this->definitions)->filter(fn ($def) => $def->isSource());
     }
 
     /**
@@ -60,7 +60,7 @@ class PipelineModuleRegistry
      */
     public function processors(): Collection
     {
-        return collect($this->definitions)->filter(fn($def) => $def->isProcessor());
+        return collect($this->definitions)->filter(fn ($def) => $def->isProcessor());
     }
 
     /**
@@ -74,11 +74,12 @@ class PipelineModuleRegistry
             if ($id === false) {
                 throw new \InvalidArgumentException("Module class {$moduleClass} is not registered");
             }
+
             return $this->definitions[$id];
         }
 
         // Otherwise treat as ID
-        if (!isset($this->definitions[$moduleClass])) {
+        if (! isset($this->definitions[$moduleClass])) {
             throw new \InvalidArgumentException("Module {$moduleClass} is not registered");
         }
 
@@ -90,7 +91,7 @@ class PipelineModuleRegistry
      */
     public function getClass(string $id): string
     {
-        if (!isset($this->modules[$id])) {
+        if (! isset($this->modules[$id])) {
             throw new \InvalidArgumentException("Module {$id} is not registered");
         }
 
@@ -110,7 +111,7 @@ class PipelineModuleRegistry
      */
     public function make(string $moduleClass, PipelineModule $moduleModel): PipelineModuleInterface
     {
-        if (!class_exists($moduleClass)) {
+        if (! class_exists($moduleClass)) {
             throw new \InvalidArgumentException("Module class {$moduleClass} does not exist");
         }
 
@@ -127,21 +128,22 @@ class PipelineModuleRegistry
 
         if ($modules->isEmpty()) {
             $errors[] = 'Pipeline must have at least one module';
+
             return $errors;
         }
 
         // First module must be a source
         $firstModule = $modules->first();
         $firstDef = $this->getDefinition($firstModule->module_class);
-        if (!$firstDef->isSource()) {
+        if (! $firstDef->isSource()) {
             $errors[] = 'First module must be a source module';
         }
 
         // All subsequent modules must be processors
         foreach ($modules->skip(1) as $index => $module) {
             $def = $this->getDefinition($module->module_class);
-            if (!$def->isProcessor()) {
-                $errors[] = "Module at position " . ($index + 2) . " must be a processor";
+            if (! $def->isProcessor()) {
+                $errors[] = 'Module at position '.($index + 2).' must be a processor';
             }
         }
 
@@ -161,9 +163,9 @@ class PipelineModuleRegistry
         $defs = $this->all();
 
         if ($sourcesOnly) {
-            $defs = $defs->filter(fn($def) => $def->isSource());
+            $defs = $defs->filter(fn ($def) => $def->isSource());
         } elseif ($processorsOnly) {
-            $defs = $defs->filter(fn($def) => $def->isProcessor());
+            $defs = $defs->filter(fn ($def) => $def->isProcessor());
         }
 
         return $defs->mapWithKeys(function ($def) {
@@ -171,4 +173,3 @@ class PipelineModuleRegistry
         })->toArray();
     }
 }
-

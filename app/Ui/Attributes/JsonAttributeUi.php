@@ -5,20 +5,20 @@ namespace App\Ui\Attributes;
 use App\Contracts\AttributeUi;
 use App\Models\Attribute;
 use App\Models\Entity;
-use App\Services\AttributeService;
-use App\Services\EavWriter;
 
 class JsonAttributeUi implements AttributeUi
 {
     public function summarise(Entity $entity, Attribute $attribute, string $mode = 'override'): string
     {
         $value = $entity->getAttr($attribute->name, $mode, []);
+
         return json_encode($value, JSON_PRETTY_PRINT);
     }
 
     public function show(Entity $entity, Attribute $attribute, string $mode = 'override'): string
     {
         $value = $entity->getAttr($attribute->name, $mode, []);
+
         return json_encode($value, JSON_PRETTY_PRINT);
     }
 

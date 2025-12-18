@@ -6,9 +6,6 @@ use App\Models\Attribute;
 use App\Models\Entity;
 use App\Models\EntityType;
 use App\Models\Pipeline;
-use App\Models\PipelineEval;
-use App\Models\PipelineModule;
-use App\Models\PipelineRun;
 use App\Pipelines\Modules\AttributesSourceModule;
 use Tests\TestCase;
 
@@ -254,4 +251,3 @@ class PipelineModelTest extends TestCase
         $this->assertEquals(15, $usage['avg_tokens_per_entity']); // 450/30
     }
 }
-

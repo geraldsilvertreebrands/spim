@@ -40,7 +40,8 @@ class RunNightlyPipelines extends Command
                     ->get();
 
             if ($pipelines->isEmpty()) {
-                $this->comment("  No pipelines found");
+                $this->comment('  No pipelines found');
+
                 continue;
             }
 
@@ -52,7 +53,7 @@ class RunNightlyPipelines extends Command
                 if ($this->option('pipeline')) {
                     $requestedId = $this->option('pipeline');
                     $orderedPipelines = $orderedPipelines->filter(
-                        fn($p) => $p->id === $requestedId
+                        fn ($p) => $p->id === $requestedId
                     );
                 }
 
@@ -68,14 +69,15 @@ class RunNightlyPipelines extends Command
                     );
 
                     // Queue eval job unless skipped
-                    if (!$this->option('skip-evals')) {
+                    if (! $this->option('skip-evals')) {
                         RunPipelineEvals::dispatch($pipeline);
                     }
 
                     $totalPipelines++;
                 }
             } catch (\Exception $e) {
-                $this->error("  Error processing entity type: " . $e->getMessage());
+                $this->error('  Error processing entity type: '.$e->getMessage());
+
                 continue;
             }
         }
@@ -85,4 +87,3 @@ class RunNightlyPipelines extends Command
         return self::SUCCESS;
     }
 }
-

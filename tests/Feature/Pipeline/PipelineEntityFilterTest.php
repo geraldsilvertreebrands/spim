@@ -19,9 +19,13 @@ class PipelineEntityFilterTest extends TestCase
     use RefreshDatabase;
 
     protected EntityType $entityType;
+
     protected Attribute $statusAttribute;
+
     protected Attribute $targetAttribute;
+
     protected Attribute $inputAttribute;
+
     protected Pipeline $pipeline;
 
     protected function setUp(): void
@@ -29,7 +33,7 @@ class PipelineEntityFilterTest extends TestCase
         parent::setUp();
 
         // Create entity type with unique name
-        $this->entityType = EntityType::factory()->create(['name' => 'Product_' . uniqid()]);
+        $this->entityType = EntityType::factory()->create(['name' => 'Product_'.uniqid()]);
 
         // Create attributes
         $this->statusAttribute = Attribute::factory()->create([

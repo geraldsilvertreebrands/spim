@@ -35,8 +35,9 @@ class SyncMagento extends Command
         // Find entity type
         $entityType = EntityType::where('name', $entityTypeName)->first();
 
-        if (!$entityType) {
+        if (! $entityType) {
             $this->error("Entity type '{$entityTypeName}' not found");
+
             return Command::FAILURE;
         }
 
@@ -80,4 +81,3 @@ class SyncMagento extends Command
         return Command::SUCCESS;
     }
 }
-

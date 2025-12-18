@@ -3,10 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\EntityType;
-use App\Services\MagentoApiClient;
-use App\Services\Sync\AttributeOptionSync;
 use Illuminate\Console\Command;
-use RuntimeException;
 
 class SyncMagentoOptions extends Command
 {
@@ -34,8 +31,9 @@ class SyncMagentoOptions extends Command
         // Find entity type
         $entityType = EntityType::where('name', $entityTypeName)->first();
 
-        if (!$entityType) {
+        if (! $entityType) {
             $this->error("Entity type '{$entityTypeName}' not found");
+
             return Command::FAILURE;
         }
 
@@ -51,6 +49,3 @@ class SyncMagentoOptions extends Command
         return Command::SUCCESS;
     }
 }
-
-
-

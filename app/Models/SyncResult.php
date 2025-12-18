@@ -82,4 +82,3 @@ class SyncResult extends Model
         return $query->where('status', 'success');
     }
 }
-

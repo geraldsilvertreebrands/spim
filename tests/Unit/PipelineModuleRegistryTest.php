@@ -15,7 +15,7 @@ class PipelineModuleRegistryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->registry = new PipelineModuleRegistry();
+        $this->registry = new PipelineModuleRegistry;
     }
 
     public function test_can_register_module(): void
@@ -56,7 +56,7 @@ class PipelineModuleRegistryTest extends TestCase
         $processors = $this->registry->processors();
 
         $this->assertCount(2, $processors);
-        $this->assertTrue($processors->every(fn($def) => $def->type === 'processor'));
+        $this->assertTrue($processors->every(fn ($def) => $def->type === 'processor'));
     }
 
     public function test_validates_pipeline_structure(): void
@@ -66,11 +66,11 @@ class PipelineModuleRegistryTest extends TestCase
 
         // Mock module collection with source first
         $modules = collect([
-            (object)[
+            (object) [
                 'module_class' => AttributesSourceModule::class,
                 'order' => 1,
             ],
-            (object)[
+            (object) [
                 'module_class' => AiPromptProcessorModule::class,
                 'order' => 2,
             ],
@@ -88,7 +88,7 @@ class PipelineModuleRegistryTest extends TestCase
 
         // Processor first - invalid
         $modules = collect([
-            (object)[
+            (object) [
                 'module_class' => AiPromptProcessorModule::class,
                 'order' => 1,
             ],
@@ -106,7 +106,7 @@ class PipelineModuleRegistryTest extends TestCase
 
         // Only source, no processor
         $modules = collect([
-            (object)[
+            (object) [
                 'module_class' => AttributesSourceModule::class,
                 'order' => 1,
             ],
@@ -125,4 +125,3 @@ class PipelineModuleRegistryTest extends TestCase
         $this->registry->getDefinition('nonexistent');
     }
 }
-

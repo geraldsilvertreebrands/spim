@@ -19,11 +19,12 @@ class PipelineTriggerService
         $entityId = $entity instanceof Entity ? $entity->id : $entity;
         $entityTypeId = $entity instanceof Entity ? $entity->entity_type_id : null;
 
-        if (!$entityTypeId) {
+        if (! $entityTypeId) {
             // Fetch entity type
             $entityModel = Entity::find($entityId);
-            if (!$entityModel) {
+            if (! $entityModel) {
                 Log::warning('Attempted to trigger pipelines for non-existent entity', ['entity_id' => $entityId]);
+
                 return;
             }
             $entityTypeId = $entityModel->entity_type_id;
@@ -106,4 +107,3 @@ class PipelineTriggerService
         return $pipelines->count();
     }
 }
-

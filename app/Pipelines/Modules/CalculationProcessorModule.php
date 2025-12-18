@@ -8,7 +8,6 @@ use App\Pipelines\Data\PipelineModuleDefinition;
 use App\Pipelines\Data\PipelineResult;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Form;
-use Illuminate\Support\Collection;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
@@ -81,7 +80,7 @@ JS
 
             return PipelineResult::ok($value, $confidence, $justification, $meta);
         } catch (\Exception $e) {
-            return PipelineResult::error('Calculation failed: ' . $e->getMessage());
+            return PipelineResult::error('Calculation failed: '.$e->getMessage());
         }
     }
 
@@ -116,13 +115,15 @@ JS
             foreach ($contexts as $index => $context) {
                 $result = $results[$index] ?? null;
 
-                if (!$result) {
+                if (! $result) {
                     $pipelineResults[] = PipelineResult::error('No result returned for entity');
+
                     continue;
                 }
 
                 if (isset($result['error'])) {
                     $pipelineResults[] = PipelineResult::error($result['error']);
+
                     continue;
                 }
 
@@ -138,7 +139,7 @@ JS
         } catch (\Exception $e) {
             // If batch fails, return error for all items
             return array_map(
-                fn() => PipelineResult::error('Batch calculation failed: ' . $e->getMessage()),
+                fn () => PipelineResult::error('Batch calculation failed: '.$e->getMessage()),
                 $contexts
             );
         }
@@ -182,8 +183,8 @@ JS
     {
         $helperPath = base_path('resources/node/pipeline-runner.cjs');
 
-        if (!file_exists($helperPath)) {
-            throw new \RuntimeException('Node.js pipeline runner not found at: ' . $helperPath);
+        if (! file_exists($helperPath)) {
+            throw new \RuntimeException('Node.js pipeline runner not found at: '.$helperPath);
         }
 
         // Create process
@@ -201,19 +202,18 @@ JS
 
             $result = json_decode($output, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \RuntimeException('Invalid JSON from Node helper: ' . $output);
+                throw new \RuntimeException('Invalid JSON from Node helper: '.$output);
             }
 
             if (isset($result['error'])) {
-                throw new \RuntimeException('Node helper error: ' . $result['error']);
+                throw new \RuntimeException('Node helper error: '.$result['error']);
             }
 
             return $result['results'] ?? [];
         } catch (ProcessFailedException $e) {
             throw new \RuntimeException(
-                'Node process failed: ' . $e->getMessage() . "\nOutput: " . $process->getOutput() . "\nError: " . $process->getErrorOutput()
+                'Node process failed: '.$e->getMessage()."\nOutput: ".$process->getOutput()."\nError: ".$process->getErrorOutput()
             );
         }
     }
 }
-

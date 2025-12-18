@@ -110,4 +110,3 @@ class PipelineDataClassesTest extends TestCase
         $this->assertFalse($processor->isSource());
     }
 }
-

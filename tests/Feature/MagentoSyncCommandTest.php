@@ -11,13 +11,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use Illuminate\Support\Str;
 
 class MagentoSyncCommandTest extends TestCase
 {
     use RefreshDatabase;
 
     private EntityType $entityType;
+
     private string $sku;
 
     protected function setUp(): void
@@ -228,4 +228,3 @@ class MagentoSyncCommandTest extends TestCase
         ]);
     }
 }
-

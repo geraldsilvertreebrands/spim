@@ -216,4 +216,3 @@ class PipelineDependencyTest extends TestCase
         $this->assertStringContainsString('circular', strtolower($errors[0]));
     }
 }
-

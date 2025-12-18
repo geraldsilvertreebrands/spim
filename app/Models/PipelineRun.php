@@ -104,7 +104,7 @@ class PipelineRun extends Model
      */
     public function getDurationMs(): ?int
     {
-        if (!$this->completed_at) {
+        if (! $this->completed_at) {
             return null;
         }
 
@@ -119,4 +119,3 @@ class PipelineRun extends Model
         return $this->status === 'completed' && $this->entities_failed === 0;
     }
 }
-

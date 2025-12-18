@@ -8,11 +8,11 @@ use App\Models\SyncResult;
 use App\Models\SyncRun;
 use App\Services\MagentoApiClient;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 class AttributeOptionSync extends AbstractSync
 {
     private EntityType $entityType;
+
     private ?SyncRun $syncRun;
 
     public function __construct(
@@ -52,6 +52,7 @@ class AttributeOptionSync extends AbstractSync
 
         if ($attributes->isEmpty()) {
             $this->logInfo('No select/multiselect attributes marked for sync');
+
             return ['stats' => $this->stats];
         }
 
@@ -93,12 +94,12 @@ class AttributeOptionSync extends AbstractSync
         // Convert Magento options to associative array: ['value' => 'label', ...]
         $magentoOptionsMap = [];
         foreach ($magentoOptions as $option) {
-            if (!empty($option['value'])) {
+            if (! empty($option['value'])) {
                 $magentoOptionsMap[$option['value']] = $option['label'];
             }
         }
 
-        $this->logDebug("Found options", [
+        $this->logDebug('Found options', [
             'attribute' => $attribute->name,
             'spim_count' => count($spimOptions),
             'magento_count' => count($magentoOptionsMap),
@@ -135,7 +136,7 @@ class AttributeOptionSync extends AbstractSync
         if ($this->syncRun) {
             $this->syncRun->incrementSuccess();
         }
-        $this->logInfo("Replaced SPIM options with Magento options", [
+        $this->logInfo('Replaced SPIM options with Magento options', [
             'attribute' => $attribute->name,
             'old_count' => count($oldOptions),
             'new_count' => count($magentoOptions),
@@ -144,7 +145,7 @@ class AttributeOptionSync extends AbstractSync
         $this->logResult(
             $attribute,
             'success',
-            'Synced ' . count($magentoOptions) . ' options from Magento',
+            'Synced '.count($magentoOptions).' options from Magento',
             'update',
             [
                 'old_options' => $oldOptions,
@@ -163,7 +164,7 @@ class AttributeOptionSync extends AbstractSync
         ?string $operation = null,
         ?array $details = null
     ): void {
-        if (!$this->syncRun) {
+        if (! $this->syncRun) {
             return; // No database logging if sync run not provided
         }
 
@@ -179,6 +180,3 @@ class AttributeOptionSync extends AbstractSync
         ]);
     }
 }
-
-
-

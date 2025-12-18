@@ -4,9 +4,9 @@ namespace Tests\Unit;
 
 use App\Models\Attribute;
 use App\Models\EntityType;
+use App\Services\EavWriter;
 use App\Services\MagentoApiClient;
 use App\Services\Sync\ProductSync;
-use App\Services\EavWriter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -16,6 +16,7 @@ class ProductSyncConversionTest extends TestCase
     use RefreshDatabase;
 
     private ProductSync $productSync;
+
     private EntityType $entityType;
 
     protected function setUp(): void
@@ -175,4 +176,3 @@ class ProductSyncConversionTest extends TestCase
         $this->assertNull($result);
     }
 }
-

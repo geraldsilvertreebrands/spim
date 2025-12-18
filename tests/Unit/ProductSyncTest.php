@@ -21,13 +21,21 @@ class ProductSyncTest extends TestCase
     use RefreshDatabase;
 
     private EntityType $entityType;
+
     private MagentoApiClient $magentoClient;
+
     private EavWriter $eavWriter;
+
     private SyncRun $syncRun;
+
     private string $skuNew;
+
     private string $skuExisting;
+
     private string $skuSpimOnly;
+
     private string $skuSingle;
+
     private string $skuTest;
 
     protected function setUp(): void
@@ -35,7 +43,7 @@ class ProductSyncTest extends TestCase
         parent::setUp();
 
         $this->entityType = EntityType::create([
-            'name' => 'et_' . Str::lower(Str::random(8)),
+            'name' => 'et_'.Str::lower(Str::random(8)),
             'display_name' => 'Test Type',
             'description' => 'Isolated test entity type',
         ]);
@@ -47,11 +55,11 @@ class ProductSyncTest extends TestCase
         $this->eavWriter = app(EavWriter::class);
 
         // Generate unique identifiers to avoid cross-test collisions
-        $this->skuNew = 'NEW-' . Str::upper(Str::random(8));
-        $this->skuExisting = 'EXISTING-' . Str::upper(Str::random(8));
-        $this->skuSpimOnly = 'SPIM-ONLY-' . Str::upper(Str::random(8));
-        $this->skuSingle = 'SINGLE-' . Str::upper(Str::random(8));
-        $this->skuTest = 'TEST-' . Str::upper(Str::random(8));
+        $this->skuNew = 'NEW-'.Str::upper(Str::random(8));
+        $this->skuExisting = 'EXISTING-'.Str::upper(Str::random(8));
+        $this->skuSpimOnly = 'SPIM-ONLY-'.Str::upper(Str::random(8));
+        $this->skuSingle = 'SINGLE-'.Str::upper(Str::random(8));
+        $this->skuTest = 'TEST-'.Str::upper(Str::random(8));
     }
 
     /**
@@ -67,6 +75,7 @@ class ProductSyncTest extends TestCase
                 if ($callback) {
                     $callback($products, 1, count($products));
                 }
+
                 return ['items' => [], 'total_count' => count($products)];
             });
     }
@@ -352,8 +361,7 @@ class ProductSyncTest extends TestCase
             ->once()
             ->with($this->skuExisting, Mockery::on(function ($payload) {
                 return isset($payload['custom_attributes']) &&
-                       collect($payload['custom_attributes'])->contains(fn ($attr) =>
-                           $attr['attribute_code'] === 'description' && $attr['value'] === 'Approved desc'
+                       collect($payload['custom_attributes'])->contains(fn ($attr) => $attr['attribute_code'] === 'description' && $attr['value'] === 'Approved desc'
                        );
             }))
             ->andReturn(['sku' => $this->skuExisting]);
@@ -464,8 +472,7 @@ class ProductSyncTest extends TestCase
         $this->magentoClient->shouldReceive('updateProduct')
             ->once()
             ->with($this->skuExisting, Mockery::on(function ($payload) {
-                return collect($payload['custom_attributes'])->contains(fn ($attr) =>
-                    $attr['attribute_code'] === 'description' && $attr['value'] === 'Manual override'
+                return collect($payload['custom_attributes'])->contains(fn ($attr) => $attr['attribute_code'] === 'description' && $attr['value'] === 'Manual override'
                 );
             }))
             ->andReturn(['sku' => $this->skuExisting]);
@@ -986,4 +993,3 @@ class ProductSyncTest extends TestCase
         parent::tearDown();
     }
 }
-

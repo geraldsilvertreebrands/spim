@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Attribute;
-use App\Models\EntityType;
 use App\Models\Entity;
+use App\Models\EntityType;
 use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 

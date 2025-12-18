@@ -12,12 +12,14 @@ class BelongsToMultiAttributeUi implements AttributeUi
     public function summarise(Entity $entity, Attribute $attribute, string $mode = 'override'): string
     {
         $ids = $entity->getRelated($attribute->name);
+
         return implode(', ', $ids);
     }
 
     public function show(Entity $entity, Attribute $attribute, string $mode = 'override'): string
     {
         $ids = $entity->getRelated($attribute->name);
+
         return implode("\n", $ids);
     }
 

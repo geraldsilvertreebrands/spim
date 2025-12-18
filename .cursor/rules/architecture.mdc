@@ -1,4 +1,106 @@
 ---
 alwaysApply: true
 ---
-Make sure to read /docs/architecture before doing anything else.
+
+# Architecture Rules
+
+## Read Documentation First
+
+Before starting ANY major work, read:
+1. `/docs/architecture.md` - Full system design
+2. `/PROJECT-TRACKER.md` - Current phase and tickets
+3. `/CLAUDE.md` - All development rules
+
+## Project Structure
+
+```
+/spim
+├── app/
+│   ├── Console/Commands/         # Artisan commands
+│   ├── Filament/                 # Admin UI
+│   │   ├── PimPanel/            # Product management
+│   │   ├── SupplyPanel/         # Supplier analytics
+│   │   ├── PricingPanel/        # Price tracking
+│   │   └── Shared/              # Shared components
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   └── Middleware/
+│   ├── Models/                   # Eloquent models
+│   ├── Policies/                 # Authorization
+│   ├── Providers/
+│   │   └── Filament/            # Panel providers
+│   └── Services/                 # Business logic
+├── config/
+├── database/
+│   ├── factories/
+│   ├── migrations/
+│   └── seeders/
+├── docs/                         # Documentation
+├── tests/
+└── resources/views/filament/     # Blade views
+```
+
+## Multi-Panel Architecture
+
+Three Filament panels with separate concerns:
+
+| Panel | Path | Purpose | Users |
+|-------|------|---------|-------|
+| PIM | `/pim` | Product management | Internal team |
+| Supply | `/supply` | Supplier analytics | Brand partners |
+| Pricing | `/pricing` | Price tracking | Pricing team |
+
+## Key Services
+
+| Service | Purpose |
+|---------|---------|
+| `BigQueryService` | Query analytics warehouse |
+| `EavWriter` | Write versioned attribute values |
+| `PipelineExecutionService` | Run AI pipelines |
+| `MagentoApiClient` | Sync with Magento |
+
+## Database Design
+
+**EAV System** (Existing):
+- `entity_types` - Types (Product, Category)
+- `entities` - Instances
+- `attributes` - Field definitions
+- `eav_versioned` - Values with 4 states (current, approved, live, override)
+
+**Brand System** (Phase B):
+- `brands` - Cached from BigQuery
+- `brand_competitors` - Competitor mappings
+- `supplier_brand_access` - User-brand links
+
+## Authorization Pattern
+
+```php
+// Middleware enforces panel access
+EnsureUserCanAccessPimPanel::class
+EnsureUserCanAccessSupplyPanel::class
+EnsureUserCanAccessPricingPanel::class
+
+// Policies enforce model access
+$user->can('view', $brand)
+$user->canAccessBrand($brand)
+```
+
+## BigQuery Integration (Phase B)
+
+```php
+// Service pattern
+$bq = app(BigQueryService::class);
+$brands = $bq->getBrands();
+$sales = $bq->getSalesTrend($brand, 12);
+
+// Always use company_id filter
+WHERE company_id = @company_id
+```
+
+## Company IDs
+
+| Company | ID | Project |
+|---------|-----|---------|
+| Faithful to Nature | 3 | ftn-production-1 |
+| Pet Heaven | 5 | ph-production-2 |
+| UCOOK | 9 | ucook-production-471812 |

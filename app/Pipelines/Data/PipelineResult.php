@@ -12,7 +12,7 @@ class PipelineResult
         public readonly string $status = 'ok', // 'ok', 'skipped', 'error'
         public readonly array $errors = [],
     ) {
-        if (!in_array($status, ['ok', 'skipped', 'error'])) {
+        if (! in_array($status, ['ok', 'skipped', 'error'])) {
             throw new \InvalidArgumentException("Status must be 'ok', 'skipped', or 'error'");
         }
     }
@@ -99,4 +99,3 @@ class PipelineResult
         return implode('; ', $this->errors);
     }
 }
-

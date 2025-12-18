@@ -16,6 +16,7 @@ class EntityFilterTest extends TestCase
     use RefreshDatabase;
 
     protected EntityType $entityType;
+
     protected EavWriter $eavWriter;
 
     protected function setUp(): void
@@ -280,4 +281,3 @@ class EntityFilterTest extends TestCase
         $this->assertEquals('TEST-001', $results->first()->entity_id);
     }
 }
-

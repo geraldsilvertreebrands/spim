@@ -20,7 +20,7 @@ class MagentoApiClientTest extends TestCase
             'services.magento.access_token' => 'test-token-123',
         ]);
 
-        $this->client = new MagentoApiClient();
+        $this->client = new MagentoApiClient;
     }
 
     #[Test]
@@ -294,4 +294,3 @@ class MagentoApiClientTest extends TestCase
         });
     }
 }
-

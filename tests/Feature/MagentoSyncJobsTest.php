@@ -13,17 +13,20 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use Illuminate\Support\Str;
 
 class MagentoSyncJobsTest extends TestCase
 {
     use RefreshDatabase;
 
     private EntityType $entityType;
+
     private User $user;
+
     private string $skuA;
+
     private string $skuB;
 
     protected function setUp(): void
@@ -36,13 +39,13 @@ class MagentoSyncJobsTest extends TestCase
         ]);
 
         $this->entityType = EntityType::create([
-            'name' => 'et_' . Str::lower(Str::random(8)),
+            'name' => 'et_'.Str::lower(Str::random(8)),
             'display_name' => 'Test Type',
             'description' => 'Isolated test entity type',
         ]);
         $this->user = User::factory()->create();
-        $this->skuA = 'SKU-' . Str::upper(Str::random(8));
-        $this->skuB = 'SKU-' . Str::upper(Str::random(8));
+        $this->skuA = 'SKU-'.Str::upper(Str::random(8));
+        $this->skuB = 'SKU-'.Str::upper(Str::random(8));
 
         // Mock Magento API responses
         Http::fake([
@@ -511,6 +514,4 @@ class MagentoSyncJobsTest extends TestCase
         $this->assertContains($syncRun->status, ['partial', 'completed', 'failed']);
         $this->assertNotNull($syncRun->completed_at);
     }
-
 }
-

@@ -13,15 +13,21 @@ final class AttributeCaster
             case 'integer':
                 return is_numeric($value) ? (int) $value : null;
             case 'json':
-                if (is_array($value) || is_object($value)) return $value;
+                if (is_array($value) || is_object($value)) {
+                    return $value;
+                }
                 $decoded = json_decode((string) $value, true);
+
                 return $decoded === null && $value !== 'null' ? (string) $value : $decoded;
             case 'multiselect':
-                if (is_array($value)) return array_values($value);
+                if (is_array($value)) {
+                    return array_values($value);
+                }
                 $decoded = json_decode((string) $value, true);
                 if (is_array($decoded)) {
                     return array_values($decoded);
                 }
+
                 return [(string) $value];
             case 'select':
             case 'text':

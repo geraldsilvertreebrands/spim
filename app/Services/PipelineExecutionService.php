@@ -16,16 +16,13 @@ class PipelineExecutionService
     public function __construct(
         protected PipelineModuleRegistry $registry,
         protected EavWriter $eavWriter,
-    ) {
-    }
+    ) {}
 
     /**
      * Execute a pipeline for a batch of entities
      *
-     * @param Pipeline $pipeline
-     * @param Collection|array $entityIds
-     * @param PipelineRun|null $run Optional run to track execution
-     * @param bool $force Force reprocess even if inputs haven't changed
+     * @param  PipelineRun|null  $run  Optional run to track execution
+     * @param  bool  $force  Force reprocess even if inputs haven't changed
      * @return array Stats array with processed, failed, skipped counts
      */
     public function executeBatch(Pipeline $pipeline, Collection|array $entityIds, ?PipelineRun $run = null, bool $force = false): array
@@ -66,15 +63,15 @@ class PipelineExecutionService
 
             // Validate pipeline structure
             $errors = $this->registry->validatePipeline($modules);
-            if (!empty($errors)) {
-                throw new \RuntimeException('Invalid pipeline: ' . implode(', ', $errors));
+            if (! empty($errors)) {
+                throw new \RuntimeException('Invalid pipeline: '.implode(', ', $errors));
             }
 
             // First module must be source
             $sourceModule = $modules->first();
             $sourceInstance = $this->registry->make($sourceModule->module_class, $sourceModule);
 
-            if (!($sourceInstance instanceof AttributesSourceModule)) {
+            if (! ($sourceInstance instanceof AttributesSourceModule)) {
                 throw new \RuntimeException('First module must be an AttributesSourceModule');
             }
 
@@ -147,7 +144,7 @@ class PipelineExecutionService
 
                     // Abort on first failure as per spec
                     throw new \RuntimeException(
-                        "Pipeline aborted at entity {$entityId}: " . $e->getMessage()
+                        "Pipeline aborted at entity {$entityId}: ".$e->getMessage()
                     );
                 }
             }
@@ -171,8 +168,6 @@ class PipelineExecutionService
     /**
      * Execute pipeline for a single entity
      *
-     * @param Pipeline $pipeline
-     * @param string $entityId
      * @return array Stats array
      */
     public function executeForSingleEntity(Pipeline $pipeline, string $entityId): array
@@ -250,7 +245,7 @@ class PipelineExecutionService
             // - No existing value
             // - Input hash changed
             // - Pipeline version is newer than stored version
-            if (!$existing
+            if (! $existing
                 || $existing->input_hash !== $inputHash
                 || $existing->pipeline_version < $pipeline->pipeline_version
             ) {
@@ -399,13 +394,12 @@ class PipelineExecutionService
     /**
      * Filter entities by condition
      *
-     * @param Collection $entityIds
-     * @param array $filter Filter configuration
+     * @param  array  $filter  Filter configuration
      * @return Collection Filtered entity IDs
      */
     protected function filterByCondition(Collection $entityIds, array $filter): Collection
     {
-        if (empty($filter) || !isset($filter['attribute_id'])) {
+        if (empty($filter) || ! isset($filter['attribute_id'])) {
             return $entityIds;
         }
 
@@ -450,7 +444,7 @@ class PipelineExecutionService
                 $query->whereNotNull('value_current');
                 break;
             case 'contains':
-                $query->where('value_current', 'LIKE', '%' . $value . '%');
+                $query->where('value_current', 'LIKE', '%'.$value.'%');
                 break;
             default:
                 // Unknown operator, return unfiltered
@@ -460,4 +454,3 @@ class PipelineExecutionService
         return $query->pluck('entity_id');
     }
 }
-

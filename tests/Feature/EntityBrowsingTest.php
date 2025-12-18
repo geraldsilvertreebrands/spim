@@ -195,7 +195,7 @@ class EntityBrowsingTest extends TestCase
     public function test_entity_search_multiple_attributes(): void
     {
         $entityType = EntityType::factory()->create();
-        
+
         $titleAttr = Attribute::factory()->create([
             'entity_type_id' => $entityType->id,
             'name' => 'title',
@@ -233,7 +233,7 @@ class EntityBrowsingTest extends TestCase
         $results = Entity::where('entities.entity_type_id', $entityType->id)
             ->where(function ($query) {
                 $query->whereAttr('title', 'LIKE', '%apple%')
-                      ->orWhereAttr('description', 'LIKE', '%apple%');
+                    ->orWhereAttr('description', 'LIKE', '%apple%');
             })
             ->get();
 
@@ -245,7 +245,7 @@ class EntityBrowsingTest extends TestCase
     public function test_entity_sort_by_attribute(): void
     {
         $entityType = EntityType::factory()->create();
-        
+
         $priceAttr = Attribute::factory()->create([
             'entity_type_id' => $entityType->id,
             'name' => 'price',
@@ -286,7 +286,7 @@ class EntityBrowsingTest extends TestCase
     public function test_entity_search_and_sort_combined(): void
     {
         $entityType = EntityType::factory()->create();
-        
+
         $nameAttr = Attribute::factory()->create([
             'entity_type_id' => $entityType->id,
             'name' => 'name',

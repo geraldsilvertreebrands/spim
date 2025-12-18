@@ -8,7 +8,6 @@ use App\Models\SyncRun;
 use App\Services\MagentoApiClient;
 use App\Services\Sync\AttributeOptionSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -18,7 +17,9 @@ class AttributeOptionSyncTest extends TestCase
     use RefreshDatabase;
 
     private EntityType $entityType;
+
     private MagentoApiClient $magentoClient;
+
     private SyncRun $syncRun;
 
     protected function setUp(): void
@@ -300,15 +301,16 @@ class AttributeOptionSyncTest extends TestCase
             ]);
 
         // Use SyncRunService to properly update sync run
-        $service = new \App\Services\Sync\SyncRunService();
+        $service = new \App\Services\Sync\SyncRunService;
         $syncRun = $service->run(
             'options',
             $this->entityType,
             null,
             'schedule',
-            function($run) {
+            function ($run) {
                 $sync = new AttributeOptionSync($this->magentoClient, $this->entityType, $run);
                 $result = $sync->sync();
+
                 return $result['stats'] ?? [];
             }
         );
@@ -361,4 +363,3 @@ class AttributeOptionSyncTest extends TestCase
         parent::tearDown();
     }
 }
-

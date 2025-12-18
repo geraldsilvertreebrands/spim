@@ -30,4 +30,3 @@ class PipelineFactory extends Factory
         ]);
     }
 }
-

@@ -14,11 +14,11 @@ class AttributeFactory extends Factory
     public function definition(): array
     {
         $entityTypeId = EntityType::query()->inRandomOrder()->value('id') ?? EntityType::factory()->create()->id;
-        $dataTypes = ['integer','text','html','json','select','multiselect','belongs_to','belongs_to_multi'];
+        $dataTypes = ['integer', 'text', 'html', 'json', 'select', 'multiselect', 'belongs_to', 'belongs_to_multi'];
         $dataType = $this->faker->randomElement($dataTypes);
 
         $allowedValues = null;
-        if (in_array($dataType, ['select','multiselect'], true)) {
+        if (in_array($dataType, ['select', 'multiselect'], true)) {
             $allowedValues = [
                 'RED' => 'Red',
                 'BLU' => 'Blue',
@@ -26,7 +26,7 @@ class AttributeFactory extends Factory
         }
 
         $linkedTypeId = null;
-        if (in_array($dataType, ['belongs_to','belongs_to_multi'], true)) {
+        if (in_array($dataType, ['belongs_to', 'belongs_to_multi'], true)) {
             $linkedTypeId = EntityType::factory()->create()->id;
         }
 

@@ -1,0 +1,399 @@
+/**
+ * Mobile Responsive Styles for Pricing Panel
+ * These styles ensure the pricing panel works well on mobile devices.
+ */
+
+/* ===================================
+   Mobile-First Base Styles (< 640px)
+   =================================== */
+
+/* Improved touch targets for buttons */
+.pricing-panel button,
+.pricing-panel select,
+.pricing-panel a.btn,
+.fi-btn {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Better spacing for mobile */
+.pricing-panel .fi-section {
+    margin-bottom: 1rem;
+}
+
+/* ===================================
+   Small Screens (< 640px)
+   =================================== */
+
+@media (max-width: 639px) {
+    /* KPI Grid - Stack on mobile */
+    .pricing-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Single column for small KPIs on very small screens */
+    .pricing-kpi-single {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* KPI tiles - smaller text on mobile */
+    .pricing-kpi-grid .text-3xl {
+        font-size: 1.5rem;
+        line-height: 2rem;
+    }
+
+    .pricing-kpi-grid .text-2xl {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+    }
+
+    /* Secondary stats - stack vertically */
+    .pricing-secondary-stats {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Filter controls - stack vertically */
+    .pricing-controls {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .pricing-controls > * {
+        width: 100% !important;
+    }
+
+    /* Sort buttons - wrap nicely */
+    .pricing-sort-buttons {
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+
+    .pricing-sort-buttons button {
+        flex: 1 1 auto;
+        text-align: center;
+    }
+
+    /* Table improvements */
+    .pricing-table-container {
+        margin: 0 -1rem;
+        padding: 0 1rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .pricing-table {
+        min-width: 600px;
+    }
+
+    /* Smaller table text on mobile */
+    .pricing-table th,
+    .pricing-table td {
+        padding: 0.5rem !important;
+        font-size: 0.75rem !important;
+    }
+
+    /* Hide less important columns on mobile */
+    .pricing-table .hide-mobile {
+        display: none !important;
+    }
+
+    /* Scroll indicator for tables */
+    .pricing-table-scroll-hint {
+        display: block !important;
+        text-align: center;
+        font-size: 0.75rem;
+        color: #6b7280;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Chart containers - reduce height on mobile */
+    .pricing-chart-container {
+        height: 250px !important;
+    }
+
+    /* Legend - compact on mobile */
+    .pricing-legend {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+
+    .pricing-legend > div {
+        width: 100%;
+    }
+
+    /* Matrix summary stats - stack vertically */
+    .pricing-matrix-summary {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Margin analysis stats - 2 columns on mobile */
+    .pricing-margin-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Sticky column width on mobile */
+    .pricing-table .sticky {
+        max-width: 120px;
+    }
+
+    .pricing-table .sticky .max-w-xs {
+        max-width: 100px;
+    }
+
+    /* Notification badge positioning */
+    .pricing-notification-badge {
+        position: relative;
+    }
+
+    /* Dropdown menus - full width on mobile */
+    .pricing-dropdown {
+        width: calc(100vw - 2rem) !important;
+        max-width: 400px;
+        right: 0 !important;
+        left: auto !important;
+    }
+
+    /* Competitor expandable rows */
+    .pricing-competitor-expand td {
+        padding: 0.75rem !important;
+    }
+
+    .pricing-competitor-expand table {
+        font-size: 0.7rem !important;
+    }
+
+    .pricing-competitor-expand th,
+    .pricing-competitor-expand td {
+        padding: 0.25rem 0.5rem !important;
+    }
+}
+
+/* ===================================
+   Medium Screens (640px - 1023px)
+   =================================== */
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    /* KPI Grid - 2x2 layout */
+    .pricing-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Secondary stats - 3 columns */
+    .pricing-secondary-stats {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* Margin stats - 3 columns */
+    .pricing-margin-stats {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* Chart containers */
+    .pricing-chart-container {
+        height: 300px !important;
+    }
+}
+
+/* ===================================
+   Large Screens (>= 1024px)
+   =================================== */
+
+@media (min-width: 1024px) {
+    /* KPI Grid - 4 columns */
+    .pricing-kpi-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+
+    /* Secondary stats - 3 columns */
+    .pricing-secondary-stats {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* Margin stats - 5 columns */
+    .pricing-margin-stats {
+        grid-template-columns: repeat(5, 1fr) !important;
+    }
+
+    /* Chart containers */
+    .pricing-chart-container {
+        height: 400px !important;
+    }
+
+    /* Hide scroll hint on large screens */
+    .pricing-table-scroll-hint {
+        display: none !important;
+    }
+}
+
+/* ===================================
+   Touch Device Enhancements
+   =================================== */
+
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .pricing-panel button,
+    .pricing-panel a,
+    .pricing-panel select {
+        min-height: 48px;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    /* Remove hover effects on touch devices */
+    .pricing-panel tr:hover {
+        background-color: inherit !important;
+    }
+
+    /* Add active state instead */
+    .pricing-panel tr:active {
+        background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    /* Dark mode active state */
+    .dark .pricing-panel tr:active {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+}
+
+/* ===================================
+   Print Styles
+   =================================== */
+
+@media print {
+    /* Hide interactive elements */
+    .pricing-panel button,
+    .pricing-panel select,
+    .pricing-panel .pricing-controls,
+    .pricing-notification-badge,
+    .print\\:hidden {
+        display: none !important;
+    }
+
+    /* Force light backgrounds */
+    .pricing-panel,
+    .pricing-panel * {
+        background-color: white !important;
+        color: black !important;
+    }
+
+    /* Tables print nicely */
+    .pricing-table {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    .pricing-table th,
+    .pricing-table td {
+        border: 1px solid #ccc !important;
+        padding: 4px 8px !important;
+        font-size: 9pt !important;
+    }
+
+    /* Show all columns when printing */
+    .pricing-table .hide-mobile {
+        display: table-cell !important;
+    }
+
+    /* Page breaks */
+    .pricing-panel .fi-section {
+        page-break-inside: avoid !important;
+    }
+
+    /* Charts */
+    .pricing-chart-container {
+        height: 250px !important;
+        page-break-inside: avoid !important;
+    }
+}
+
+/* ===================================
+   Accessibility Enhancements
+   =================================== */
+
+/* Focus states */
+.pricing-panel button:focus,
+.pricing-panel select:focus,
+.pricing-panel a:focus {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .pricing-panel * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .pricing-panel .text-gray-500,
+    .pricing-panel .text-gray-400 {
+        color: #374151 !important;
+    }
+
+    .dark .pricing-panel .text-gray-500,
+    .dark .pricing-panel .text-gray-400 {
+        color: #d1d5db !important;
+    }
+}
+
+/* ===================================
+   Utility Classes
+   =================================== */
+
+/* Mobile scroll indicator animation */
+.scroll-indicator {
+    animation: scrollHint 1.5s ease-in-out infinite;
+}
+
+@keyframes scrollHint {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(5px);
+    }
+}
+
+/* Mobile-only display */
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 639px) {
+    .mobile-only {
+        display: block;
+    }
+}
+
+/* Desktop-only display */
+.desktop-only {
+    display: block;
+}
+
+@media (max-width: 639px) {
+    .desktop-only {
+        display: none;
+    }
+}
+
+/* Truncate text with ellipsis */
+.pricing-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+    .pricing-panel {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+}

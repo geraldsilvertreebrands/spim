@@ -1,0 +1,61 @@
+# Silvertree Platform - Cursor Rules
+
+## Project
+Silvertree Multi-Panel Platform (PIM, Supply Insights, Pricing)
+Stack: Laravel 12, Filament 4, PHP 8.2+, MySQL 8, BigQuery
+
+## RULE 1: TEST AFTER EVERY CODE CHANGE
+After ANY code modification:
+```bash
+php artisan test --filter=<Relevant>
+```
+If tests fail → Fix → Retest → Only proceed when ALL pass.
+
+## RULE 2: TICKET-DRIVEN DEVELOPMENT
+When I say "do X-NNN" or "ticket X-NNN":
+1. Read ticket from appropriate file
+2. Implement exactly as specified
+3. Meet ALL acceptance criteria
+4. Run tests after each change
+5. Iterate until perfect
+
+Ticket files:
+- A-001 to C-015: PROJECT-TRACKER.md
+- D-001 to D-025: PHASE-D-TICKETS.md
+- E-001 to F-010: PHASE-E-F-TICKETS.md
+
+## RULE 3: QUALITY GATES
+Before ANY work is complete:
+- [ ] php artisan test (all pass)
+- [ ] composer run analyse (no errors)
+- [ ] composer run format (applied)
+- [ ] No hardcoded credentials
+- [ ] All acceptance criteria met
+
+## RULE 4: NEVER
+- Never skip tests
+- Never commit with failing tests
+- Never remove tests to make suite pass
+- Never use @phpstan-ignore without justification
+- Never commit secrets/credentials
+
+## RULE 5: FILAMENT NAMESPACES
+Check existing code first. Common mistake:
+- WRONG: Filament\Tables\Actions\Action
+- RIGHT: Filament\Actions\Action
+
+## Key Files
+- CLAUDE.md - Full development rules
+- PROJECT-TRACKER.md - Master ticket tracker
+- docs/architecture.md - System design
+
+## Commands
+```bash
+docker exec spim_app php artisan test
+docker exec spim_app composer run analyse
+docker exec spim_app composer run format
+```
+
+## Test Users
+admin@silvertreebrands.com / password (all access)
+admin@example.com / password (legacy)

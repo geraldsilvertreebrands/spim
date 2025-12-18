@@ -12,16 +12,16 @@ class NodePipelineRunnerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->helperPath = __DIR__ . '/../../resources/node/pipeline-runner.cjs';
+        $this->helperPath = __DIR__.'/../../resources/node/pipeline-runner.cjs';
 
-        if (!file_exists($this->helperPath)) {
+        if (! file_exists($this->helperPath)) {
             $this->markTestSkipped('Node helper script not found');
         }
 
         // Check if node is available
         $process = new Process(['which', 'node']);
         $process->run();
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             $this->markTestSkipped('Node.js not installed');
         }
     }
@@ -44,7 +44,7 @@ class NodePipelineRunnerTest extends TestCase
         $process->setTimeout(5);
         $process->run();
 
-        $this->assertTrue($process->isSuccessful(), 'Process failed: ' . $process->getErrorOutput());
+        $this->assertTrue($process->isSuccessful(), 'Process failed: '.$process->getErrorOutput());
 
         $result = json_decode($process->getOutput(), true);
         $this->assertArrayHasKey('results', $result);
@@ -202,4 +202,3 @@ class NodePipelineRunnerTest extends TestCase
         $this->assertEquals(1.0, $result['results'][0]['confidence']);
     }
 }
-

@@ -34,6 +34,7 @@ class CreateAdminUser extends Command
 
         if (User::where('email', $email)->exists()) {
             $this->error("User with email {$email} already exists!");
+
             return self::FAILURE;
         }
 
@@ -46,19 +47,19 @@ class CreateAdminUser extends Command
 
         // Assign admin role
         $adminRole = Role::where('name', 'admin')->first();
-        if (!$adminRole) {
+        if (! $adminRole) {
             $this->error('Admin role not found. Please run: php artisan db:seed --class=RoleSeeder');
             $user->delete();
+
             return self::FAILURE;
         }
 
         $user->assignRole($adminRole);
 
-        $this->info("Admin user created successfully!");
+        $this->info('Admin user created successfully!');
         $this->info("Email: {$email}");
         $this->info("Name: {$name}");
 
         return self::SUCCESS;
     }
 }
-

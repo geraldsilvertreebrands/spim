@@ -19,8 +19,7 @@ class RunPipelineEvals implements ShouldQueue
 
     public function __construct(
         public Pipeline $pipeline,
-    ) {
-    }
+    ) {}
 
     public function handle(PipelineExecutionService $executionService): void
     {
@@ -51,8 +50,7 @@ class RunPipelineEvals implements ShouldQueue
         return [
             'pipeline',
             'evals',
-            'pipeline:' . $this->pipeline->id,
+            'pipeline:'.$this->pipeline->id,
         ];
     }
 }
-

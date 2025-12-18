@@ -26,8 +26,7 @@ class RunPipelineBatch implements ShouldQueue
         public int $batchSize = 200,
         public ?int $maxEntities = null, // Limit number of entities to process
         public bool $force = false, // Force reprocess even if inputs unchanged
-    ) {
-    }
+    ) {}
 
     public function handle(PipelineExecutionService $executionService): void
     {
@@ -78,6 +77,7 @@ class RunPipelineBatch implements ShouldQueue
                     'status' => 'completed',
                     'completed_at' => now(),
                 ]);
+
                 return;
             }
 
@@ -126,8 +126,8 @@ class RunPipelineBatch implements ShouldQueue
     {
         return [
             'pipeline',
-            'pipeline:' . $this->pipeline->id,
-            'triggered:' . $this->triggeredBy,
+            'pipeline:'.$this->pipeline->id,
+            'triggered:'.$this->triggeredBy,
         ];
     }
 
@@ -141,7 +141,7 @@ class RunPipelineBatch implements ShouldQueue
         $operator = $filter['operator'] ?? '=';
         $value = $filter['value'] ?? null;
 
-        if (!$attributeId) {
+        if (! $attributeId) {
             return $baseQuery->pluck('id');
         }
 
@@ -186,7 +186,7 @@ class RunPipelineBatch implements ShouldQueue
                 $query->whereNotNull('value_current');
                 break;
             case 'contains':
-                $query->where('value_current', 'LIKE', '%' . $value . '%');
+                $query->where('value_current', 'LIKE', '%'.$value.'%');
                 break;
             default:
                 // Unknown operator, return all
@@ -196,4 +196,3 @@ class RunPipelineBatch implements ShouldQueue
         return $query->pluck('entity_id');
     }
 }
-

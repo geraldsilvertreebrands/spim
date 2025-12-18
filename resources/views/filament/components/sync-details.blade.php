@@ -13,7 +13,7 @@
         if (!this.isRunning) return;
 
         try {
-            const response = await fetch('/admin/api/sync-runs/' + this.syncRunId);
+            const response = await fetch('/pim/api/sync-runs/' + this.syncRunId);
             const data = await response.json();
 
             this.stats.total = data.total_items || 0;

@@ -21,7 +21,7 @@ class EavWriter
     {
         $now = now();
         $attr = DB::table('attributes')->find($attributeId);
-        if (!$attr) {
+        if (! $attr) {
             throw new \InvalidArgumentException('Attribute not found: '.$attributeId);
         }
 
@@ -42,21 +42,22 @@ class EavWriter
             'attribute_id' => $attributeId,
         ])->first();
 
-        if (!$existing) {
+        if (! $existing) {
             DB::table('eav_versioned')->insert([
-                'entity_id'      => $entityId,
-                'attribute_id'   => $attributeId,
-                'value_current'  => $newValue,
+                'entity_id' => $entityId,
+                'attribute_id' => $attributeId,
+                'value_current' => $newValue,
                 'value_approved' => $autoApprove ? $newValue : null,
-                'value_live'     => $autoSetLive ? $newValue : null,
+                'value_live' => $autoSetLive ? $newValue : null,
                 'value_override' => null,
-                'input_hash'     => $opts['input_hash'] ?? null,
-                'justification'  => $opts['justification'] ?? null,
-                'confidence'     => $confidence,
-                'meta'           => json_encode($opts['meta'] ?? []),
-                'created_at'     => $now,
-                'updated_at'     => $now,
+                'input_hash' => $opts['input_hash'] ?? null,
+                'justification' => $opts['justification'] ?? null,
+                'confidence' => $confidence,
+                'meta' => json_encode($opts['meta'] ?? []),
+                'created_at' => $now,
+                'updated_at' => $now,
             ]);
+
             return;
         }
 
@@ -67,11 +68,11 @@ class EavWriter
 
         $updates = [
             'value_current' => $newValue,
-            'updated_at'    => $now,
-            'input_hash'    => $opts['input_hash'] ?? $existing->input_hash,
+            'updated_at' => $now,
+            'input_hash' => $opts['input_hash'] ?? $existing->input_hash,
             'justification' => $opts['justification'] ?? $existing->justification,
-            'confidence'    => $confidence ?? $existing->confidence,
-            'meta'          => json_encode(array_replace((array) json_decode($existing->meta ?? '[]', true), $opts['meta'] ?? [])),
+            'confidence' => $confidence ?? $existing->confidence,
+            'meta' => json_encode(array_replace((array) json_decode($existing->meta ?? '[]', true), $opts['meta'] ?? [])),
         ];
 
         if ($autoApprove) {
@@ -95,7 +96,7 @@ class EavWriter
             'attribute_id' => $attributeId,
         ])->first();
 
-        if (!$existing) {
+        if (! $existing) {
             DB::table('eav_versioned')->insert([
                 'entity_id' => $entityId,
                 'attribute_id' => $attributeId,
@@ -103,6 +104,7 @@ class EavWriter
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
             return;
         }
 
@@ -111,7 +113,6 @@ class EavWriter
             'updated_at' => now(),
         ]);
     }
-
 
     /**
      * Approve a versioned attribute value (set value_approved = override or current)
@@ -125,13 +126,13 @@ class EavWriter
             'attribute_id' => $attributeId,
         ])->first();
 
-        if (!$existing) {
+        if (! $existing) {
             throw new \InvalidArgumentException("Versioned attribute not found for entity {$entityId} and attribute {$attributeId}");
         }
 
         // Get attribute configuration
         $attr = DB::table('attributes')->find($attributeId);
-        if (!$attr) {
+        if (! $attr) {
             throw new \InvalidArgumentException('Attribute not found: '.$attributeId);
         }
 
@@ -153,7 +154,8 @@ class EavWriter
 
     /**
      * Bulk approve versioned attributes
-     * @param array $items Array of ['entity_id' => string, 'attribute_id' => int]
+     *
+     * @param  array  $items  Array of ['entity_id' => string, 'attribute_id' => int]
      */
     public function bulkApprove(array $items): void
     {

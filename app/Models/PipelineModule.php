@@ -30,6 +30,7 @@ class PipelineModule extends Model
     public function getInstance(): object
     {
         $registry = app(PipelineModuleRegistry::class);
+
         return $registry->make($this->module_class, $this);
     }
 
@@ -39,6 +40,7 @@ class PipelineModule extends Model
     public function getDefinition(): object
     {
         $registry = app(PipelineModuleRegistry::class);
+
         return $registry->getDefinition($this->module_class);
     }
 
@@ -56,4 +58,3 @@ class PipelineModule extends Model
         });
     }
 }
-

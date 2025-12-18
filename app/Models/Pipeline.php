@@ -141,10 +141,9 @@ class Pipeline extends Model
     protected static function booted(): void
     {
         static::saving(function (Pipeline $pipeline) {
-            if ($pipeline->isDirty() && !$pipeline->isDirty('pipeline_updated_at')) {
+            if ($pipeline->isDirty() && ! $pipeline->isDirty('pipeline_updated_at')) {
                 $pipeline->pipeline_updated_at = now();
             }
         });
     }
 }
-

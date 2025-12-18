@@ -11,14 +11,13 @@ class PipelineDependencyService
 {
     public function __construct(
         protected PipelineModuleRegistry $registry,
-    ) {
-    }
+    ) {}
 
     /**
      * Get execution order for all pipelines in an entity type using Kahn's algorithm
      *
-     * @param EntityType $entityType
      * @return Collection<Pipeline> Pipelines in execution order
+     *
      * @throws \RuntimeException if a cycle is detected
      */
     public function getExecutionOrder(EntityType $entityType): Collection
@@ -41,7 +40,6 @@ class PipelineDependencyService
     /**
      * Validate a single pipeline for dependency issues
      *
-     * @param Pipeline $pipeline
      * @return array Array of error messages (empty if valid)
      */
     public function validatePipeline(Pipeline $pipeline): array
@@ -73,7 +71,6 @@ class PipelineDependencyService
     /**
      * Get dependencies for a pipeline
      *
-     * @param Pipeline $pipeline
      * @return Collection<int> Attribute IDs this pipeline depends on
      */
     public function getDependencies(Pipeline $pipeline): Collection
@@ -108,7 +105,7 @@ class PipelineDependencyService
             $dependencies = $this->getDependencies($pipeline);
 
             // Initialize node if not exists
-            if (!isset($graph[$targetAttributeId])) {
+            if (! isset($graph[$targetAttributeId])) {
                 $graph[$targetAttributeId] = [
                     'pipeline' => $pipeline,
                     'dependencies' => [],
@@ -118,12 +115,12 @@ class PipelineDependencyService
 
             // Add dependencies
             foreach ($dependencies as $depAttributeId) {
-                if (!in_array($depAttributeId, $graph[$targetAttributeId]['dependencies'])) {
+                if (! in_array($depAttributeId, $graph[$targetAttributeId]['dependencies'])) {
                     $graph[$targetAttributeId]['dependencies'][] = $depAttributeId;
                 }
 
                 // Initialize dependency node if not exists
-                if (!isset($graph[$depAttributeId])) {
+                if (! isset($graph[$depAttributeId])) {
                     $graph[$depAttributeId] = [
                         'pipeline' => null,
                         'dependencies' => [],
@@ -132,7 +129,7 @@ class PipelineDependencyService
                 }
 
                 // Track reverse edges
-                if (!in_array($targetAttributeId, $graph[$depAttributeId]['dependents'])) {
+                if (! in_array($targetAttributeId, $graph[$depAttributeId]['dependents'])) {
                     $graph[$depAttributeId]['dependents'][] = $targetAttributeId;
                 }
             }
@@ -165,7 +162,7 @@ class PipelineDependencyService
         $sorted = [];
         $visited = 0;
 
-        while (!empty($queue)) {
+        while (! empty($queue)) {
             $current = array_shift($queue);
             $visited++;
 
@@ -209,14 +206,14 @@ class PipelineDependencyService
             return 'Circular dependency detected in pipeline dependencies';
         }
 
-        return 'Circular dependency detected involving: ' . implode(', ', $cycleNodes);
+        return 'Circular dependency detected involving: '.implode(', ', $cycleNodes);
     }
 
     /**
      * Check if adding a dependency would create a cycle
      *
-     * @param Pipeline $pipeline Pipeline that would depend on attribute
-     * @param int $dependencyAttributeId Attribute ID to depend on
+     * @param  Pipeline  $pipeline  Pipeline that would depend on attribute
+     * @param  int  $dependencyAttributeId  Attribute ID to depend on
      * @return bool True if would create cycle
      */
     public function wouldCreateCycle(Pipeline $pipeline, int $dependencyAttributeId): bool
@@ -238,7 +235,7 @@ class PipelineDependencyService
             $graph = $this->buildDependencyGraph($pipelines);
 
             // Manually add the new dependency
-            if (!isset($graph[$pipeline->attribute_id])) {
+            if (! isset($graph[$pipeline->attribute_id])) {
                 $graph[$pipeline->attribute_id] = [
                     'pipeline' => $tempPipeline,
                     'dependencies' => [],
@@ -246,7 +243,7 @@ class PipelineDependencyService
                 ];
             }
 
-            if (!in_array($dependencyAttributeId, $graph[$pipeline->attribute_id]['dependencies'])) {
+            if (! in_array($dependencyAttributeId, $graph[$pipeline->attribute_id]['dependencies'])) {
                 $graph[$pipeline->attribute_id]['dependencies'][] = $dependencyAttributeId;
             }
 
@@ -259,4 +256,3 @@ class PipelineDependencyService
         }
     }
 }
-

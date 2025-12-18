@@ -4,16 +4,13 @@ namespace App\Pipelines;
 
 use App\Models\PipelineModule;
 use App\Pipelines\Contracts\PipelineModuleInterface;
-use App\Pipelines\Data\PipelineContext;
-use App\Pipelines\Data\PipelineModuleDefinition;
-use App\Pipelines\Data\PipelineResult;
-use Filament\Forms\Form;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 
 abstract class AbstractPipelineModule implements PipelineModuleInterface
 {
     protected array $settings;
+
     protected PipelineModule $moduleModel;
 
     public function __construct(PipelineModule $moduleModel)
@@ -47,6 +44,7 @@ abstract class AbstractPipelineModule implements PipelineModuleInterface
         foreach ($contexts as $context) {
             $results[] = $this->process($context);
         }
+
         return $results;
     }
 
@@ -72,4 +70,3 @@ abstract class AbstractPipelineModule implements PipelineModuleInterface
         return $validator->validated();
     }
 }
-

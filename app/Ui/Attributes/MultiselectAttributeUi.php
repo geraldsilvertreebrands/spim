@@ -5,8 +5,6 @@ namespace App\Ui\Attributes;
 use App\Contracts\AttributeUi;
 use App\Models\Attribute;
 use App\Models\Entity;
-use App\Services\AttributeService;
-use App\Services\EavWriter;
 
 class MultiselectAttributeUi implements AttributeUi
 {
@@ -14,6 +12,7 @@ class MultiselectAttributeUi implements AttributeUi
     {
         $values = (array) $entity->getAttr($attribute->name, $mode, []);
         $allowed = $attribute->allowedValues();
+
         return implode(', ', array_map(fn ($val) => $allowed[$val] ?? $val, $values));
     }
 
@@ -21,6 +20,7 @@ class MultiselectAttributeUi implements AttributeUi
     {
         $values = (array) $entity->getAttr($attribute->name, $mode, []);
         $allowed = $attribute->allowedValues();
+
         return implode(
             "\n",
             array_map(fn ($val) => $allowed[$val] ?? $val, $values)

@@ -2,19 +2,21 @@
 
 namespace App\Models;
 
+use App\Services\AttributeService;
+use App\Support\AttributeCaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use App\Support\AttributeCaster;
-use App\Services\AttributeService;
 
 class Entity extends Model
 {
     use HasFactory;
 
     public $incrementing = false;
+
     protected $keyType = 'string';
+
     protected $guarded = [];
 
     protected array $attrCache = [];
@@ -22,13 +24,14 @@ class Entity extends Model
     protected function loadAttrBags(): array
     {
         $id = $this->getKey();
-        if (!$id) {
+        if (! $id) {
             return ['override' => [], 'current' => []];
         }
         $row = DB::table('entity_attr_json')->where('entity_id', $id)->first();
+
         return [
             'override' => $row?->attrs_with_override ? json_decode($row->attrs_with_override, true) : [],
-            'current'  => $row?->attrs_current        ? json_decode($row->attrs_current, true) : [],
+            'current' => $row?->attrs_current ? json_decode($row->attrs_current, true) : [],
         ];
     }
 
@@ -38,10 +41,11 @@ class Entity extends Model
      */
     public function attrs(string $mode = 'override'): object
     {
-        if (!isset($this->attrCache[$mode])) {
+        if (! isset($this->attrCache[$mode])) {
             $bags = $this->loadAttrBags();
             $this->attrCache[$mode] = (object) ($bags[$mode] ?? []);
         }
+
         return $this->attrCache[$mode];
     }
 
@@ -49,11 +53,14 @@ class Entity extends Model
     {
         $bag = (array) $this->attrs($mode);
         $raw = Arr::get($bag, $name, $default);
-        if ($raw === $default) return $raw;
+        if ($raw === $default) {
+            return $raw;
+        }
         $attr = DB::table('attributes')
             ->where('entity_type_id', $this->entity_type_id)
             ->where('name', $name)
             ->first();
+
         return AttributeCaster::castOut($attr->data_type ?? null, $raw);
     }
 
@@ -100,7 +107,7 @@ class Entity extends Model
             $attributeModel = app(AttributeService::class)->findByName($this->entity_type_id, $key);
 
             // Handle relationship attributes separately
-            if (in_array($attr->data_type, ['belongs_to','belongs_to_multi'], true)) {
+            if (in_array($attr->data_type, ['belongs_to', 'belongs_to_multi'], true)) {
                 $ids = $attr->data_type === 'belongs_to' ? [$value] : (array) $value;
                 app(AttributeService::class)->validateValue($attributeModel, $ids);
                 $this->setRelated($attr->name, $ids);
@@ -124,6 +131,7 @@ class Entity extends Model
 
             // bust local cache so next read is fresh
             $this->attrCache = [];
+
             return $this;
         }
 
@@ -134,7 +142,7 @@ class Entity extends Model
     public function scopeWhereAttr($query, string $name, $operator, $value, string $mode = 'override')
     {
         $col = $mode === 'current' ? 'resolved_current_only' : 'resolved_with_override';
-        
+
         return $query->whereExists(function ($query) use ($name, $operator, $value, $col) {
             $query->selectRaw('1')
                 ->from('entity_attribute_resolved as ear')
@@ -149,7 +157,7 @@ class Entity extends Model
     public function scopeOrWhereAttr($query, string $name, $operator, $value, string $mode = 'override')
     {
         $col = $mode === 'current' ? 'resolved_current_only' : 'resolved_with_override';
-        
+
         return $query->orWhereExists(function ($query) use ($name, $operator, $value, $col) {
             $query->selectRaw('1')
                 ->from('entity_attribute_resolved as ear')
@@ -165,8 +173,8 @@ class Entity extends Model
     {
         $col = $mode === 'current' ? 'resolved_current_only' : 'resolved_with_override';
         // Use unique aliases based on attribute name to avoid conflicts with multiple joins
-        $alias = 'ear_' . preg_replace('/[^a-zA-Z0-9]/', '_', $name);
-        
+        $alias = 'ear_'.preg_replace('/[^a-zA-Z0-9]/', '_', $name);
+
         // Use a subquery to get the attribute value for sorting
         $subquery = DB::table('entity_attribute_resolved as ear')
             ->select("ear.{$col}")
@@ -174,7 +182,7 @@ class Entity extends Model
             ->whereColumn('ear.entity_id', '=', 'entities.id')
             ->where('a.name', '=', $name)
             ->limit(1);
-        
+
         return $query->orderBy(DB::raw("({$subquery->toSql()})"), $direction)
             ->addBinding($subquery->getBindings(), 'order');
     }
@@ -186,7 +194,10 @@ class Entity extends Model
             ->where('entity_type_id', $this->entity_type_id)
             ->where('name', $attributeName)
             ->first();
-        if (!$attr) return [];
+        if (! $attr) {
+            return [];
+        }
+
         return DB::table('entity_attr_links')
             ->where('entity_id', $this->id)
             ->where('attribute_id', $attr->id)
@@ -201,14 +212,16 @@ class Entity extends Model
             ->where('entity_type_id', $this->entity_type_id)
             ->where('name', $attributeName)
             ->first();
-        if (!$attr) return;
+        if (! $attr) {
+            return;
+        }
 
         DB::transaction(function () use ($attr, $targetEntityIds) {
             DB::table('entity_attr_links')
                 ->where('entity_id', $this->id)
                 ->where('attribute_id', $attr->id)
                 ->delete();
-            if (!empty($targetEntityIds)) {
+            if (! empty($targetEntityIds)) {
                 $now = now();
                 $rows = array_map(function ($tid) use ($attr, $now) {
                     return [

@@ -18,10 +18,15 @@ class ApprovalWorkflowTest extends TestCase
     use RefreshDatabase;
 
     protected EntityType $entityType;
+
     protected Entity $entity;
+
     protected Attribute $alwaysReviewAttr;
+
     protected Attribute $lowConfidenceAttr;
+
     protected Attribute $noReviewAttr;
+
     protected User $user;
 
     protected function setUp(): void
@@ -73,7 +78,7 @@ class ApprovalWorkflowTest extends TestCase
         $this->entity = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
+            'entity_id' => 'TEST-'.Str::upper(Str::random(8)),
         ]);
 
         // Create test user
@@ -187,7 +192,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
+            'entity_id' => 'TEST-'.Str::upper(Str::random(8)),
         ]);
 
         $writer->upsertVersioned($this->entity->id, $this->alwaysReviewAttr->id, 'Value 1', [
@@ -412,7 +417,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
+            'entity_id' => 'TEST-'.Str::upper(Str::random(8)),
         ]);
 
         // Entity 2: has override
@@ -448,7 +453,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
+            'entity_id' => 'TEST-'.Str::upper(Str::random(8)),
         ]);
         $writer->upsertVersioned($entity2->id, $this->alwaysReviewAttr->id, 'Current 2', []);
         $writer->setOverride($entity2->id, $this->alwaysReviewAttr->id, 'Override 2');
@@ -529,7 +534,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
+            'entity_id' => 'TEST-'.Str::upper(Str::random(8)),
         ]);
 
         // Low confidence (0.79) - should need review
@@ -560,7 +565,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity2 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
+            'entity_id' => 'TEST-'.Str::upper(Str::random(8)),
         ]);
         $writer->upsertVersioned($entity2->id, $this->alwaysReviewAttr->id, 'Value 2', []);
 
@@ -568,7 +573,7 @@ class ApprovalWorkflowTest extends TestCase
         $entity3 = Entity::create([
             'id' => (string) Str::ulid(),
             'entity_type_id' => $this->entityType->id,
-            'entity_id' => 'TEST-' . Str::upper(Str::random(8)),
+            'entity_id' => 'TEST-'.Str::upper(Str::random(8)),
         ]);
         $writer->upsertVersioned($entity3->id, $this->alwaysReviewAttr->id, 'Current 3', []);
         $writer->setOverride($entity3->id, $this->alwaysReviewAttr->id, 'Override 3');
@@ -577,7 +582,7 @@ class ApprovalWorkflowTest extends TestCase
         $count = $service->countPendingApprovals();
 
         // Count should match actual items
-        $totalAttributes = array_sum(array_map(fn($e) => count($e['attributes']), $pending));
+        $totalAttributes = array_sum(array_map(fn ($e) => count($e['attributes']), $pending));
         $this->assertEquals($totalAttributes, $count);
         $this->assertEquals(3, $count);
     }
@@ -692,4 +697,3 @@ class ApprovalWorkflowTest extends TestCase
         $this->assertNull($row->value_live);
     }
 }
-

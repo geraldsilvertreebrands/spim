@@ -1,0 +1,166 @@
+<?php
+
+namespace App\Filament\PimPanel\Resources;
+
+use App\Filament\PimPanel\Resources\PipelineResource\Pages;
+use App\Models\Pipeline;
+use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Forms;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+use UnitEnum;
+
+class PipelineResource extends Resource
+{
+    protected static ?string $model = Pipeline::class;
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-bolt';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+
+    protected static ?int $navigationSort = 5;
+
+    protected static ?string $navigationLabel = 'Pipelines';
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                Tables\Columns\TextColumn::make('entityType.name')
+                    ->label('Entity Type')
+                    ->sortable()
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('attribute.name')
+                    ->label('Attribute')
+                    ->sortable()
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('last_run_at')
+                    ->label('Last Run')
+                    ->dateTime()
+                    ->sortable(),
+
+                Tables\Columns\BadgeColumn::make('last_run_status')
+                    ->label('Status')
+                    ->colors([
+                        'success' => 'completed',
+                        'danger' => 'failed',
+                        'warning' => 'partial',
+                        'secondary' => 'running',
+                    ]),
+
+                Tables\Columns\TextColumn::make('last_run_processed')
+                    ->label('Processed')
+                    ->default('—'),
+
+                Tables\Columns\TextColumn::make('last_run_failed')
+                    ->label('Failed')
+                    ->default('—'),
+
+                Tables\Columns\TextColumn::make('average_confidence')
+                    ->label('Avg Confidence')
+                    ->getStateUsing(fn ($record) => $record->getAverageConfidence())
+                    ->formatStateUsing(fn ($state) => $state ? number_format($state, 2) : '—'),
+
+                Tables\Columns\TextColumn::make('evals_count')
+                    ->label('Evals')
+                    ->counts('evals')
+                    ->default('0'),
+
+                Tables\Columns\TextColumn::make('failing_evals_count')
+                    ->label('Failing')
+                    ->counts('failingEvals')
+                    ->default('0')
+                    ->color('danger'),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('entity_type_id')
+                    ->label('Entity Type')
+                    ->relationship('entityType', 'name'),
+            ])
+            ->actions([
+                EditAction::make(),
+
+                Action::make('run')
+                    ->label('Run Now')
+                    ->icon('heroicon-o-play')
+                    ->form([
+                        Forms\Components\Radio::make('run_type')
+                            ->label('How many entities to process?')
+                            ->options([
+                                'all' => 'Run All Entities',
+                                'sample' => 'Run on 100 Entities (for testing)',
+                            ])
+                            ->default('all')
+                            ->required(),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $maxEntities = $data['run_type'] === 'sample' ? 100 : null;
+
+                        \App\Jobs\Pipeline\RunPipelineBatch::dispatch(
+                            pipeline: $record,
+                            triggeredBy: 'manual',
+                            maxEntities: $maxEntities
+                        );
+
+                        $message = $data['run_type'] === 'sample'
+                            ? 'The pipeline will run on the first 100 entities.'
+                            : 'All entities will be processed.';
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Pipeline Queued')
+                            ->body($message)
+                            ->success()
+                            ->send();
+                    })
+                    ->modalHeading('Run Pipeline')
+                    ->modalSubmitActionLabel('Run Pipeline'),
+
+                Action::make('run_evals')
+                    ->label('Run Evals')
+                    ->icon('heroicon-o-beaker')
+                    ->action(function ($record) {
+                        \App\Jobs\Pipeline\RunPipelineEvals::dispatch($record);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Evals Queued')
+                            ->success()
+                            ->send();
+                    }),
+            ])
+            ->bulkActions([
+                DeleteBulkAction::make(),
+            ]);
+    }
+
+    /**
+     * Optimize query to prevent N+1 issues.
+     */
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['entityType', 'attribute'])
+            ->withCount(['evals', 'failingEvals']);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            PipelineResource\RelationManagers\PipelineEvalsRelationManager::class,
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListPipelines::route('/'),
+            'create' => Pages\CreatePipeline::route('/create'),
+            'edit' => Pages\EditPipeline::route('/{record}/edit'),
+        ];
+    }
+}

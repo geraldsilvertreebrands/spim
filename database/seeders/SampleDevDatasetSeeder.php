@@ -2,24 +2,34 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\EntityType;
 use App\Models\Attribute;
 use App\Models\Entity;
+use App\Models\EntityType;
+use Illuminate\Database\Seeder;
 
 class SampleDevDatasetSeeder extends Seeder
 {
     public function run(): void
     {
-        $productType = EntityType::query()->firstOrCreate(['name' => 'product'], ['description' => 'Product']);
+        $productType = EntityType::query()->firstOrCreate(['name' => 'product'], [
+            'display_name' => 'Products',
+            'description' => 'Product entities',
+        ]);
+
+        $categoryType = EntityType::query()->firstOrCreate(['name' => 'category'], [
+            'display_name' => 'Categories',
+            'description' => 'Category entities',
+        ]);
 
         $title = Attribute::query()->firstOrCreate([
             'entity_type_id' => $productType->id,
             'name' => 'title',
         ], [
             'data_type' => 'text',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         $brand = Attribute::query()->firstOrCreate([
@@ -27,8 +37,10 @@ class SampleDevDatasetSeeder extends Seeder
             'name' => 'brand',
         ], [
             'data_type' => 'text',
-            'attribute_type' => 'input',
-            'review_required' => 'no',
+            'editable' => 'no',
+            'is_pipeline' => 'no',
+            'is_sync' => 'from_external',
+            'needs_approval' => 'no',
         ]);
 
         $weight = Attribute::query()->firstOrCreate([
@@ -36,8 +48,33 @@ class SampleDevDatasetSeeder extends Seeder
             'name' => 'weight',
         ], [
             'data_type' => 'integer',
-            'attribute_type' => 'versioned',
-            'review_required' => 'no',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
+        ]);
+
+        // Create category attributes
+        Attribute::query()->firstOrCreate([
+            'entity_type_id' => $categoryType->id,
+            'name' => 'name',
+        ], [
+            'data_type' => 'text',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
+        ]);
+
+        Attribute::query()->firstOrCreate([
+            'entity_type_id' => $categoryType->id,
+            'name' => 'description',
+        ], [
+            'data_type' => 'text',
+            'editable' => 'yes',
+            'is_pipeline' => 'no',
+            'is_sync' => 'no',
+            'needs_approval' => 'no',
         ]);
 
         // Create a few entities
@@ -45,7 +82,7 @@ class SampleDevDatasetSeeder extends Seeder
             $e = Entity::query()->create([
                 'id' => str()->ulid()->toBase32(),
                 'entity_type_id' => $productType->id,
-                'entity_id' => 'sku'.str_pad((string)$i, 4, '0', STR_PAD_LEFT),
+                'entity_id' => 'sku'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
             ]);
 
             // Seed some values

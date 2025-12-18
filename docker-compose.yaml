@@ -9,12 +9,14 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
+      - ~/.config/gcloud:/root/.config/gcloud:ro  # Mount gcloud credentials for BigQuery
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
       PHP_MEMORY_LIMIT: 512M
       XDEBUG_MODE: "debug"          # enable debug mode
       XDEBUG_CONFIG: "client_host=host.docker.internal idekey=SPIM"
+      GOOGLE_APPLICATION_CREDENTIALS: /var/www/html/storage/app/gcloud/application_default_credentials.json
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "m2.ftn.test:host-gateway"
@@ -104,6 +106,7 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
+      - ~/.config/gcloud:/root/.config/gcloud:ro  # Mount gcloud credentials for BigQuery
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -111,6 +114,7 @@ services:
       XDEBUG_MODE: "debug"
       XDEBUG_CONFIG: "client_host=host.docker.internal idekey=SPIM"
       XDEBUG_TRIGGER: "1"
+      GOOGLE_APPLICATION_CREDENTIALS: /var/www/html/storage/app/gcloud/application_default_credentials.json
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "m2.ftn.test:host-gateway"

@@ -5,11 +5,9 @@ namespace App\Services;
 use App\Models\Attribute;
 use App\Models\Entity;
 use App\Models\EntityType;
-use Filament\Tables\Filters\BaseFilter;
+use Filament\Forms\Components\TextInput;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
-use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
 
 class EntityFilterBuilder
@@ -185,7 +183,7 @@ class EntityFilterBuilder
      */
     protected function buildBelongsToFilter(Attribute $attribute, string $label): ?SelectFilter
     {
-        if (!$attribute->linked_entity_type_id) {
+        if (! $attribute->linked_entity_type_id) {
             return null;
         }
 
@@ -234,4 +232,3 @@ class EntityFilterBuilder
         return $this->buildBelongsToFilter($attribute, $label);
     }
 }
-

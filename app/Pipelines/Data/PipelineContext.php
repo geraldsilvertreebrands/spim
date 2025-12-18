@@ -12,8 +12,7 @@ class PipelineContext
         public readonly array $settings,
         public readonly ?int $batchIndex = null,
         public array $meta = [],
-    ) {
-    }
+    ) {}
 
     /**
      * Get a specific input attribute value
@@ -79,4 +78,3 @@ class PipelineContext
         return $this->withInputs(array_merge($this->inputs, $newInputs));
     }
 }
-

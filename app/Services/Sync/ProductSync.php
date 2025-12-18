@@ -16,9 +16,13 @@ use RuntimeException;
 class ProductSync extends AbstractSync
 {
     private EntityType $entityType;
+
     private ?string $sku;
+
     private EavWriter $eavWriter;
+
     private array $syncedAttributes;
+
     private ?SyncRun $syncRun;
 
     public function __construct(
@@ -87,6 +91,7 @@ class ProductSync extends AbstractSync
 
         if (empty($this->syncedAttributes)) {
             $this->logWarning('No attributes marked for sync');
+
             return;
         }
 
@@ -98,6 +103,7 @@ class ProductSync extends AbstractSync
             // Check if belongs_to types are not marked for sync
             if (in_array($attribute->data_type, ['belongs_to', 'belongs_to_multi'])) {
                 $errors[] = "Attribute '{$attribute->name}' is a relationship type, which cannot be synced";
+
                 continue;
             }
 
@@ -128,20 +134,20 @@ class ProductSync extends AbstractSync
             $this->logWarning($warning);
         }
 
-        if (!empty($errors)) {
-            $errorMessage = "Attribute validation failed:\n" . implode("\n", $errors);
+        if (! empty($errors)) {
+            $errorMessage = "Attribute validation failed:\n".implode("\n", $errors);
             $this->logError($errorMessage);
             throw new RuntimeException($errorMessage);
         }
 
-        $this->logInfo("Validated {count} synced attributes", ['count' => count($this->syncedAttributes)]);
+        $this->logInfo('Validated {count} synced attributes', ['count' => count($this->syncedAttributes)]);
     }
 
     /**
      * Check if SPIM and Magento data types are compatible
      *
-     * @param string $spimType SPIM data type
-     * @param string $magentoType Magento frontend_input or backend_type
+     * @param  string  $spimType  SPIM data type
+     * @param  string  $magentoType  Magento frontend_input or backend_type
      * @return string 'compatible', 'warning', or 'incompatible'
      */
     private function checkTypeCompatibility(string $spimType, string $magentoType): string
@@ -173,6 +179,7 @@ class ProductSync extends AbstractSync
                     if (isset($warningMap[$spimType]) && in_array($compatibleMagentoType, $warningMap[$spimType])) {
                         return 'warning';
                     }
+
                     return 'compatible';
                 }
             }
@@ -255,7 +262,7 @@ class ProductSync extends AbstractSync
                 ->where('entity_id', $sku)
                 ->first();
 
-            $isNew = !$entity;
+            $isNew = ! $entity;
 
             if ($isNew) {
                 // Create new entity
@@ -342,6 +349,7 @@ class ProductSync extends AbstractSync
                     'value_live' => $value,
                     'updated_at' => $now,
                 ]);
+
             return;
         }
 
@@ -366,10 +374,9 @@ class ProductSync extends AbstractSync
      * Handle bidirectional attribute sync with 3-way comparison
      * Compares Magento value, SPIM approved value, and SPIM live value to detect conflicts
      *
-     * @param Entity $entity The entity being synced
-     * @param Attribute $attribute The attribute to sync
-     * @param string|null $magentoValue Fresh value from Magento
-     * @return void
+     * @param  Entity  $entity  The entity being synced
+     * @param  Attribute  $attribute  The attribute to sync
+     * @param  string|null  $magentoValue  Fresh value from Magento
      */
     private function handleBidirectionalAttribute(Entity $entity, Attribute $attribute, ?string $magentoValue): void
     {
@@ -382,8 +389,9 @@ class ProductSync extends AbstractSync
         ])->first();
 
         // If no existing record, create one with Magento's value
-        if (!$existing) {
+        if (! $existing) {
             $this->importVersionedAttribute($entity->id, $attribute->id, $magentoValue);
+
             return;
         }
 
@@ -392,17 +400,17 @@ class ProductSync extends AbstractSync
         $spimChanged = ($existing->value_approved !== $existing->value_live);
 
         // Case 1: Neither changed - skip
-        if (!$magentoChanged && !$spimChanged) {
+        if (! $magentoChanged && ! $spimChanged) {
             return;
         }
 
         // Case 2: SPIM only changed - will be pushed in export phase, nothing to do here
-        if ($spimChanged && !$magentoChanged) {
+        if ($spimChanged && ! $magentoChanged) {
             return;
         }
 
         // Case 3: Magento only changed - update all fields
-        if ($magentoChanged && !$spimChanged) {
+        if ($magentoChanged && ! $spimChanged) {
             DB::table('eav_versioned')
                 ->where('id', $existing->id)
                 ->update([
@@ -411,6 +419,7 @@ class ProductSync extends AbstractSync
                     'value_live' => $magentoValue,
                     'updated_at' => $now,
                 ]);
+
             return;
         }
 
@@ -510,6 +519,7 @@ class ProductSync extends AbstractSync
                 }
                 $this->logDebug("No attributes to sync for {$sku}");
                 $this->logResult($entity, 'success', 'No changes to sync', 'skip');
+
                 return;
             }
 
@@ -608,12 +618,12 @@ class ProductSync extends AbstractSync
             }
         }
 
-        if (!empty($customAttributes)) {
+        if (! empty($customAttributes)) {
             $payload['custom_attributes'] = $customAttributes;
         }
 
         // For new products, set status to disabled unless status is synced
-        if ($isNew && !isset($payload['status'])) {
+        if ($isNew && ! isset($payload['status'])) {
             $payload['status'] = 2; // Disabled
         }
 
@@ -631,7 +641,7 @@ class ProductSync extends AbstractSync
             ->where('attribute_id', $attribute->id)
             ->first();
 
-        if (!$record) {
+        if (! $record) {
             return null;
         }
 
@@ -660,7 +670,7 @@ class ProductSync extends AbstractSync
         $decodedValue = \App\Support\AttributeCaster::castOut($attribute->data_type, $value);
 
         // Handle different data types
-        return match($attribute->data_type) {
+        return match ($attribute->data_type) {
             'integer' => (int) $decodedValue,
             'select' => $decodedValue, // Already a string/integer
             'multiselect' => is_array($decodedValue)
@@ -739,7 +749,7 @@ class ProductSync extends AbstractSync
         ?string $operation = null,
         ?array $details = null
     ): void {
-        if (!$this->syncRun) {
+        if (! $this->syncRun) {
             return; // No database logging if sync run not provided
         }
 
@@ -755,7 +765,3 @@ class ProductSync extends AbstractSync
         ]);
     }
 }
-
-
-
-

@@ -357,7 +357,7 @@ class EntityTableSearchSortTest extends TestCase
         $this->assertEquals($entity1->id, $results->first()->id);
     }
 
-    public function test_buildColumn_creates_searchable_sortable_columns(): void
+    public function test_build_column_creates_searchable_sortable_columns(): void
     {
         $entityType = EntityType::factory()->create();
 
@@ -407,4 +407,3 @@ class EntityTableSearchSortTest extends TestCase
         $this->assertInstanceOf(\Filament\Tables\Columns\TextColumn::class, $column);
     }
 }
-

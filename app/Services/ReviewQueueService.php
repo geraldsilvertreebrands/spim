@@ -48,10 +48,10 @@ class ReviewQueueService
                 $query->where('a.needs_approval', 'yes')
                     ->orWhere(function ($q) {
                         $q->where('a.needs_approval', 'only_low_confidence')
-                          ->where(function ($q2) {
-                              $q2->whereNull('ev.confidence')
-                                 ->orWhereRaw('ev.confidence < 0.8');
-                          });
+                            ->where(function ($q2) {
+                                $q2->whereNull('ev.confidence')
+                                    ->orWhereRaw('ev.confidence < 0.8');
+                            });
                     });
             })
             ->orderBy('e.entity_type_id')
@@ -63,7 +63,7 @@ class ReviewQueueService
         $grouped = [];
         foreach ($results as $row) {
             $entityKey = $row->entity_id;
-            if (!isset($grouped[$entityKey])) {
+            if (! isset($grouped[$entityKey])) {
                 $grouped[$entityKey] = [
                     'entity_id' => $row->entity_id,
                     'entity_natural_id' => $row->entity_natural_id,
@@ -113,10 +113,10 @@ class ReviewQueueService
                 $query->where('a.needs_approval', 'yes')
                     ->orWhere(function ($q) {
                         $q->where('a.needs_approval', 'only_low_confidence')
-                          ->where(function ($q2) {
-                              $q2->whereNull('ev.confidence')
-                                 ->orWhereRaw('ev.confidence < 0.8');
-                          });
+                            ->where(function ($q2) {
+                                $q2->whereNull('ev.confidence')
+                                    ->orWhereRaw('ev.confidence < 0.8');
+                            });
                     });
             })
             ->count();
@@ -138,6 +138,7 @@ class ReviewQueueService
         if ($dataType === 'json') {
             $oldFormatted = $this->prettyJson($old);
             $newFormatted = $this->prettyJson($new);
+
             return $this->generateSimpleTextDiff($oldFormatted, $newFormatted);
         }
 
@@ -184,4 +185,3 @@ class ReviewQueueService
         return json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 }
-

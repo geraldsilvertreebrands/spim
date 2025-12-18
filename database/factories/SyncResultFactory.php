@@ -25,7 +25,7 @@ class SyncResultFactory extends Factory
         ];
     }
 
-    public function withError(string $message = null): static
+    public function withError(?string $message = null): static
     {
         return $this->state(fn (array $attributes) => [
             'status' => 'error',

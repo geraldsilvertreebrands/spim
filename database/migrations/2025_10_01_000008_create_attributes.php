@@ -12,8 +12,8 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('entity_type_id');
             $table->string('name');
-            $table->enum('data_type', ['integer','text','html','json','select','multiselect','belongs_to','belongs_to_multi']);
-            $table->enum('attribute_type', ['versioned','input','timeseries']);
+            $table->enum('data_type', ['integer', 'text', 'html', 'json', 'select', 'multiselect', 'belongs_to', 'belongs_to_multi']);
+            $table->enum('attribute_type', ['versioned', 'input', 'timeseries']);
             $table->enum('review_required', ['always', 'low_confidence', 'no'])->default('no');
             $table->json('allowed_values')->nullable();
             $table->unsignedBigInteger('linked_entity_type_id')->nullable();

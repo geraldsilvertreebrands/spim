@@ -16,6 +16,7 @@ class EntityColumnCustomizationTest extends TestCase
     use RefreshDatabase;
 
     protected EntityType $entityType;
+
     protected User $user;
 
     protected function setUp(): void
@@ -103,7 +104,7 @@ class EntityColumnCustomizationTest extends TestCase
         $this->assertGreaterThanOrEqual(1, count($columns));
 
         // First column should be entity_id
-        $columnNames = array_map(fn($col) => $col->getName(), $columns);
+        $columnNames = array_map(fn ($col) => $col->getName(), $columns);
         $this->assertEquals('entity_id', $columnNames[0]);
     }
 
@@ -129,7 +130,7 @@ class EntityColumnCustomizationTest extends TestCase
         // Should have entity_id + selected attributes
         $this->assertCount(count($attributes) + 1, $columns);
 
-        $columnNames = array_map(fn($col) => $col->getName(), $columns);
+        $columnNames = array_map(fn ($col) => $col->getName(), $columns);
 
         // First should be entity_id
         $this->assertEquals('entity_id', $columnNames[0]);
@@ -162,7 +163,7 @@ class EntityColumnCustomizationTest extends TestCase
         $builder = app(EntityTableBuilder::class);
         $columns = $builder->buildColumns($this->entityType);
 
-        $columnNames = array_map(fn($col) => $col->getName(), $columns);
+        $columnNames = array_map(fn ($col) => $col->getName(), $columns);
 
         // Skip entity_id and check the rest
         $actualAttributeColumns = array_slice($columnNames, 1);
@@ -260,13 +261,13 @@ class EntityColumnCustomizationTest extends TestCase
         Auth::login($this->user);
         $builder = app(EntityTableBuilder::class);
         $columns1 = $builder->buildColumns($this->entityType);
-        $columnNames1 = array_map(fn($col) => $col->getName(), $columns1);
+        $columnNames1 = array_map(fn ($col) => $col->getName(), $columns1);
 
         // Test user 2
         Auth::logout();
         Auth::login($user2);
         $columns2 = $builder->buildColumns($this->entityType);
-        $columnNames2 = array_map(fn($col) => $col->getName(), $columns2);
+        $columnNames2 = array_map(fn ($col) => $col->getName(), $columns2);
 
         // Columns should be different
         $this->assertNotEquals($columnNames1, $columnNames2);
@@ -300,7 +301,7 @@ class EntityColumnCustomizationTest extends TestCase
         $validAttribute = Attribute::where('entity_type_id', $this->entityType->id)
             ->first();
 
-        if (!$validAttribute) {
+        if (! $validAttribute) {
             $this->markTestSkipped('No attributes found for testing');
         }
 
@@ -319,7 +320,7 @@ class EntityColumnCustomizationTest extends TestCase
 
         // Should only include entity_id and the valid attribute
         $this->assertCount(2, $columns);
-        $columnNames = array_map(fn($col) => $col->getName(), $columns);
+        $columnNames = array_map(fn ($col) => $col->getName(), $columns);
         $this->assertEquals('entity_id', $columnNames[0]);
         $this->assertEquals($validAttribute->name, $columnNames[1]);
     }
@@ -342,9 +343,8 @@ class EntityColumnCustomizationTest extends TestCase
         // Should respect the provided attributes, not user preference
         $this->assertCount(count($attributes) + 1, $columns);
 
-        $columnNames = array_map(fn($col) => $col->getName(), $columns);
+        $columnNames = array_map(fn ($col) => $col->getName(), $columns);
         $this->assertEquals('entity_id', $columnNames[0]);
         $this->assertEquals($attributes, array_slice($columnNames, 1));
     }
 }
-

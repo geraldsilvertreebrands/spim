@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SyncRun extends Model
 {
     use HasFactory;
+
     protected $guarded = [];
 
     protected $casts = [
@@ -69,7 +70,7 @@ class SyncRun extends Model
      */
     public function getDurationAttribute(): ?int
     {
-        if (!$this->completed_at) {
+        if (! $this->completed_at) {
             return null;
         }
 
@@ -116,7 +117,7 @@ class SyncRun extends Model
      */
     public function cancel(): void
     {
-        if (!$this->isRunning()) {
+        if (! $this->isRunning()) {
             throw new \InvalidArgumentException('Cannot cancel a sync that is not running');
         }
 
@@ -148,4 +149,3 @@ class SyncRun extends Model
         $this->increment('total_items');
     }
 }
-

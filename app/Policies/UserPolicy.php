@@ -72,4 +72,3 @@ class UserPolicy
         return $user->hasPermissionTo('delete users') || $user->hasRole('admin');
     }
 }
-

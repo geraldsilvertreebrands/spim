@@ -43,6 +43,7 @@ class Attribute extends Model
             // normalize list into dictionary where key == label
             return collect($values)->mapWithKeys(fn ($value) => [$value => $value])->toArray();
         }
+
         return $values;
     }
 
@@ -50,6 +51,7 @@ class Attribute extends Model
     {
         if ($value === null) {
             $this->attributes['allowed_values'] = null;
+
             return;
         }
 
@@ -74,6 +76,7 @@ class Attribute extends Model
                 }
             }
             $this->attributes['allowed_values'] = json_encode($normalized);
+
             return;
         }
 
@@ -107,7 +110,7 @@ class Attribute extends Model
             $errors[] = 'Attributes synced from external systems cannot require approval (they are automatically approved on import).';
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw ValidationException::withMessages([
                 'configuration' => $errors,
             ]);

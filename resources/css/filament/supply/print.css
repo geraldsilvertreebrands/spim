@@ -1,0 +1,231 @@
+/**
+ * Print Styles for Supply Panel
+ * These styles are applied when printing pages from the Supply portal.
+ */
+
+@media print {
+    /* Hide non-essential elements */
+    .fi-sidebar,
+    .fi-topbar,
+    .fi-header,
+    nav,
+    footer,
+    .print\\:hidden,
+    [wire\\:loading],
+    button:not(.print-visible),
+    select,
+    input,
+    .filament-notifications,
+    .fi-modal,
+    .fi-dropdown,
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* Reset page margins */
+    @page {
+        size: A4 landscape;
+        margin: 1cm;
+    }
+
+    /* Main content area */
+    body {
+        background: white !important;
+        color: black !important;
+        font-size: 10pt !important;
+        line-height: 1.4 !important;
+    }
+
+    .fi-main,
+    .fi-page,
+    main {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    /* Page title */
+    .fi-header-heading,
+    h1, h2, h3 {
+        color: black !important;
+        page-break-after: avoid !important;
+    }
+
+    /* Sections */
+    .fi-section {
+        border: 1px solid #ccc !important;
+        margin-bottom: 1cm !important;
+        page-break-inside: avoid !important;
+        box-shadow: none !important;
+    }
+
+    .fi-section-header {
+        background: #f5f5f5 !important;
+        border-bottom: 1px solid #ccc !important;
+        padding: 0.5cm !important;
+    }
+
+    .fi-section-content {
+        padding: 0.5cm !important;
+    }
+
+    /* Tables */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 9pt !important;
+    }
+
+    th, td {
+        border: 1px solid #ccc !important;
+        padding: 4px 8px !important;
+        text-align: left !important;
+        color: black !important;
+        background: white !important;
+    }
+
+    th {
+        background: #f5f5f5 !important;
+        font-weight: bold !important;
+    }
+
+    tr:nth-child(even) td {
+        background: #fafafa !important;
+    }
+
+    /* Prevent table rows from breaking across pages */
+    tr {
+        page-break-inside: avoid !important;
+    }
+
+    thead {
+        display: table-header-group !important;
+    }
+
+    /* KPI tiles / cards */
+    .rounded-lg,
+    .shadow {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+
+    /* Grid layouts - ensure they print in columns */
+    .grid {
+        display: grid !important;
+    }
+
+    .grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .grid-cols-4,
+    .md\\:grid-cols-4 {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+
+    /* Charts - ensure they're visible */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+        page-break-inside: avoid !important;
+    }
+
+    /* Chart containers */
+    .h-48, .h-64, .h-80, .h-96,
+    .md\\:h-64, .md\\:h-80,
+    .lg\\:h-80, .lg\\:h-96 {
+        height: auto !important;
+        min-height: 200px !important;
+        max-height: 300px !important;
+    }
+
+    /* Colors - ensure readability */
+    .text-gray-500,
+    .text-gray-600,
+    .dark\\:text-gray-400 {
+        color: #333 !important;
+    }
+
+    .text-green-600,
+    .text-red-600,
+    .text-blue-600,
+    .text-purple-600 {
+        color: black !important;
+        font-weight: bold !important;
+    }
+
+    /* Badges */
+    .rounded-full,
+    .bg-green-100,
+    .bg-red-100,
+    .bg-blue-100,
+    .bg-yellow-100 {
+        border: 1px solid #999 !important;
+        background: white !important;
+        color: black !important;
+    }
+
+    /* Premium gate - hide it */
+    [class*="premium-gate"] {
+        display: none !important;
+    }
+
+    /* Links */
+    a {
+        color: black !important;
+        text-decoration: underline !important;
+    }
+
+    /* Page break utilities */
+    .page-break-before {
+        page-break-before: always !important;
+    }
+
+    .page-break-after {
+        page-break-after: always !important;
+    }
+
+    .avoid-break {
+        page-break-inside: avoid !important;
+    }
+
+    /* Print header/footer */
+    .print-header {
+        display: block !important;
+        text-align: center !important;
+        margin-bottom: 1cm !important;
+    }
+
+    .print-footer {
+        display: block !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        text-align: center !important;
+        font-size: 8pt !important;
+        color: #666 !important;
+        border-top: 1px solid #ccc !important;
+        padding-top: 0.25cm !important;
+    }
+
+    /* Dark mode overrides - force light colors for print */
+    .dark\\:bg-gray-800,
+    .dark\\:bg-gray-900,
+    .dark\\:bg-gray-700 {
+        background: white !important;
+    }
+
+    .dark\\:text-white,
+    .dark\\:text-gray-100,
+    .dark\\:text-gray-200,
+    .dark\\:text-gray-300 {
+        color: black !important;
+    }
+
+    .dark\\:border-gray-600,
+    .dark\\:border-gray-700 {
+        border-color: #ccc !important;
+    }
+}

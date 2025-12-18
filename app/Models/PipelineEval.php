@@ -74,4 +74,3 @@ class PipelineEval extends Model
         return $this->input_hash !== null && $this->input_hash !== $currentHash;
     }
 }
-

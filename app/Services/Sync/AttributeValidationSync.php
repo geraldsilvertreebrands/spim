@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\DB;
 class AttributeValidationSync extends AbstractSync
 {
     private EntityType $entityType;
+
     private ?SyncRun $syncRun;
+
     private array $validationResults = [];
 
     public function __construct(
@@ -44,6 +46,7 @@ class AttributeValidationSync extends AbstractSync
         if ($attributes->isEmpty()) {
             $this->logInfo('No attributes marked for sync');
             $this->validationResults['summary'] = 'No attributes are marked for sync';
+
             return [
                 'stats' => $this->stats,
                 'validation_results' => $this->validationResults,
@@ -122,7 +125,7 @@ class AttributeValidationSync extends AbstractSync
                 $result['message'] = "Potential issue: SPIM '{$attribute->data_type}' with Magento '{$magentoType}'";
                 $this->logWarning($result['message']);
             } else {
-                $result['message'] = "Compatible";
+                $result['message'] = 'Compatible';
             }
 
             return $result;
@@ -147,7 +150,7 @@ class AttributeValidationSync extends AbstractSync
             // Convert Magento options to associative array
             $magentoOptionsMap = [];
             foreach ($magentoOptions as $option) {
-                if (!empty($option['value'])) {
+                if (! empty($option['value'])) {
                     $magentoOptionsMap[$option['value']] = $option['label'];
                 }
             }
@@ -172,7 +175,7 @@ class AttributeValidationSync extends AbstractSync
                 $this->logInfo($result['message'], ['attribute' => $attribute->name]);
             } else {
                 $result['status'] = 'unchanged';
-                $result['message'] = "Options already in sync";
+                $result['message'] = 'Options already in sync';
             }
 
             return $result;
@@ -213,6 +216,7 @@ class AttributeValidationSync extends AbstractSync
                     if (isset($warningMap[$spimType]) && in_array($compatibleMagentoType, $warningMap[$spimType])) {
                         return 'warning';
                     }
+
                     return 'compatible';
                 }
             }
@@ -258,10 +262,10 @@ class AttributeValidationSync extends AbstractSync
             }
         }
 
-        $summary = "Checked " . count($typeCheckResults) . " attribute(s): ";
+        $summary = 'Checked '.count($typeCheckResults).' attribute(s): ';
         $summary .= "{$compatible} compatible, {$warnings} warning(s), {$incompatible} incompatible, {$errors} error(s). ";
 
-        if (!empty($optionSyncResults)) {
+        if (! empty($optionSyncResults)) {
             $summary .= "Options: {$optionsSynced} synced, {$optionsUnchanged} unchanged.";
         }
 
@@ -278,7 +282,7 @@ class AttributeValidationSync extends AbstractSync
         ?string $operation = null,
         ?array $details = null
     ): void {
-        if (!$this->syncRun) {
+        if (! $this->syncRun) {
             return;
         }
 
@@ -294,6 +298,3 @@ class AttributeValidationSync extends AbstractSync
         ]);
     }
 }
-
-
-

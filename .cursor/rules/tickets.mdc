@@ -1,0 +1,103 @@
+---
+alwaysApply: true
+---
+
+# Ticket System Rules
+
+## Ticket References
+
+When the user says any of these:
+- "do ticket X-NNN"
+- "implement X-NNN"
+- "work on X-NNN"
+- "start X-NNN"
+- Just "X-NNN" (e.g., "A-003", "D-015")
+
+You MUST:
+
+1. Find and read the ticket from the correct file:
+   - **A-001 to C-015**: Read from `PROJECT-TRACKER.md`
+   - **D-001 to D-025**: Read from `PHASE-D-TICKETS.md`
+   - **E-001 to F-010**: Read from `PHASE-E-F-TICKETS.md`
+
+2. Announce: "Starting ticket X-NNN: [Title]"
+
+3. List the acceptance criteria from the ticket
+
+4. Implement step-by-step following the ticket's solution
+
+5. After each significant change, run tests
+
+6. When complete, verify ALL acceptance criteria
+
+7. Announce: "Ticket X-NNN complete. All criteria met."
+
+## Ticket Structure
+
+Each ticket contains:
+
+```markdown
+## Ticket X-NNN: Title
+
+### Summary
+What needs to be done
+
+### Current State (if applicable)
+What's currently broken/missing
+
+### Solution
+Exact steps/code to implement
+
+### Acceptance Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] ...
+
+### Priority: HIGH/MEDIUM/LOW
+### Effort: X hours
+### Status: NOT STARTED/IN PROGRESS/COMPLETED
+```
+
+## Phase Order
+
+Phases MUST be completed in order:
+```
+A → B → C → D → E → F
+```
+
+Within a phase, tickets should generally be done in order (001, 002, 003...)
+unless dependencies allow parallelization.
+
+## Phase Completion
+
+Before moving to next phase, ALL tickets in current phase must be:
+- Status: COMPLETED
+- All acceptance criteria checked off
+- Full test suite passing
+
+## Updating Ticket Status
+
+When starting a ticket:
+- Change `Status: NOT STARTED` to `Status: IN PROGRESS`
+
+When completing a ticket:
+- Change `Status: IN PROGRESS` to `Status: COMPLETED`
+- Check all acceptance criteria boxes
+
+## Current Phase Location
+
+Check `PROJECT-TRACKER.md` for:
+- Current phase
+- Ticket completion status
+- Phase completion checklists
+
+## Ticket Files Quick Reference
+
+| File | Tickets | Phase |
+|------|---------|-------|
+| `PROJECT-TRACKER.md` | A-001 to A-012 | Foundation |
+| `PROJECT-TRACKER.md` | B-001 to B-008 | BigQuery |
+| `PROJECT-TRACKER.md` | C-001 to C-015 | Multi-Panel |
+| `PHASE-D-TICKETS.md` | D-001 to D-025 | Supply Insights |
+| `PHASE-E-F-TICKETS.md` | E-001 to E-012 | Pricing Tool |
+| `PHASE-E-F-TICKETS.md` | F-001 to F-010 | Production |

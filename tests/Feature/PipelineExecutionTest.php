@@ -16,6 +16,7 @@ use Tests\TestCase;
 class PipelineExecutionTest extends TestCase
 {
     protected PipelineExecutionService $service;
+
     protected EavWriter $eavWriter;
 
     protected function setUp(): void
@@ -205,11 +206,11 @@ class PipelineExecutionTest extends TestCase
         $entityType = EntityType::factory()->create();
         $inputAttr = Attribute::factory()->create([
             'entity_type_id' => $entityType->id,
-            'name' => 'test_input'
+            'name' => 'test_input',
         ]);
         $outputAttr = Attribute::factory()->create([
             'entity_type_id' => $entityType->id,
-            'name' => 'test_output'
+            'name' => 'test_output',
         ]);
 
         $entity = Entity::factory()->create(['entity_type_id' => $entityType->id]);
@@ -266,4 +267,3 @@ class PipelineExecutionTest extends TestCase
         $this->assertEquals('changed_processed', $result2->value_current);
     }
 }
-

@@ -3,12 +3,10 @@
 namespace Tests\Unit;
 
 use App\Models\Attribute;
-use App\Models\Entity;
 use App\Models\EntityType;
 use App\Models\Pipeline;
 use App\Models\PipelineModule;
 use App\Pipelines\Modules\AiPromptProcessorModule;
-use App\Pipelines\Data\PipelineContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -178,4 +176,3 @@ class AiPromptProcessorModuleTest extends TestCase
         }
     }
 }
-

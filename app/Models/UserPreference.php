@@ -23,6 +23,7 @@ class UserPreference extends Model
     public static function get(int $userId, string $key, $default = null)
     {
         $pref = static::where('user_id', $userId)->where('key', $key)->first();
+
         return $pref ? $pref->value : $default;
     }
 
@@ -37,4 +38,3 @@ class UserPreference extends Model
         );
     }
 }
-

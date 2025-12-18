@@ -33,10 +33,10 @@ class SyncRunService
             $result = $runner($syncRun);
             $stats = is_array($result) ? $result : [];
 
-            $created = (int)($stats['created'] ?? 0);
-            $updated = (int)($stats['updated'] ?? 0);
-            $errors = (int)($stats['errors'] ?? 0);
-            $skipped = (int)($stats['skipped'] ?? 0);
+            $created = (int) ($stats['created'] ?? 0);
+            $updated = (int) ($stats['updated'] ?? 0);
+            $errors = (int) ($stats['errors'] ?? 0);
+            $skipped = (int) ($stats['skipped'] ?? 0);
 
             $syncRun->update([
                 'completed_at' => now(),
@@ -54,5 +54,3 @@ class SyncRunService
         return $syncRun;
     }
 }
-
-

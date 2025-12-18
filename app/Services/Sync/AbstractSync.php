@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 abstract class AbstractSync
 {
     protected MagentoApiClient $magentoClient;
+
     protected string $logChannel = 'magento-sync';
+
     protected array $stats = [
         'created' => 0,
         'updated' => 0,
@@ -104,5 +106,3 @@ abstract class AbstractSync
         $this->logInfo("Completed {$operation}", $this->stats);
     }
 }
-
-

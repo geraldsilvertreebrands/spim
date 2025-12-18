@@ -2,14 +2,96 @@
 alwaysApply: true
 ---
 
-When running terminal commands, use `docker exec spim_app bash` or similar.
+# Silvertree Platform - Development Rules
 
-Be careful about namespaces with Filament, and when in doubt check existing code first. E.g., `Filament\Tables\Actions\Action` is wrong, `Filament\Actions\Action` is right.
+## CRITICAL: Test After Every Code Change
 
-When doing changes or refactoring, fixing, updating and running tests is always part of the tasks to be done. Don't skip this!
+After ANY code modification, you MUST run tests:
 
-When fixing bugs, try to start by writing a failing test to reproduce the bug, then fix it and then run the test.
+```bash
+docker exec spim_app php artisan test --filter=<RelevantTest>
+```
 
-When editing tests or fixing linting issues, NEVER remove functionality or hide issues in order to make it look like it passes. Always fix the underlying problem correctly. When you HAVE to remove a test due to functionality changing so test is no longer relevant, then you HAVE to raise this as an important issue for me to approve.
+If tests fail:
+1. DO NOT move on
+2. Fix the failing tests
+3. Re-run tests until ALL pass
+4. Only then consider the change complete
 
-The site as available for local debug at http://spim.test:8080/admin/pipelines . If needed, user "admin@example.com" and password "password".
+## Terminal Commands
+
+Always use Docker exec for commands:
+```bash
+docker exec spim_app php artisan <command>
+docker exec spim_app composer <command>
+```
+
+Or if running locally with Docker up:
+```bash
+php artisan <command>
+```
+
+## Filament Namespaces (IMPORTANT)
+
+Be careful about namespaces. When in doubt, check existing code first:
+- CORRECT: `Filament\Actions\Action`
+- WRONG: `Filament\Tables\Actions\Action`
+
+## Ticket-Driven Development
+
+When I reference a ticket (e.g., "do A-003" or "implement D-005"):
+
+1. Read the full ticket from:
+   - Phase A-C: `PROJECT-TRACKER.md`
+   - Phase D: `PHASE-D-TICKETS.md`
+   - Phase E-F: `PHASE-E-F-TICKETS.md`
+
+2. Implement the solution as specified
+3. Meet ALL acceptance criteria
+4. Run tests after each change
+5. Iterate until ALL criteria pass
+
+## Quality Checklist (Every Change)
+
+Before considering ANY work complete:
+- [ ] Tests pass: `php artisan test`
+- [ ] Static analysis passes: `composer run analyse`
+- [ ] Code formatted: `composer run format`
+- [ ] No hardcoded credentials
+- [ ] All acceptance criteria from ticket met
+
+## Test Requirements
+
+- Changes/refactoring ALWAYS includes running tests
+- Bug fixes: Write failing test FIRST, then fix
+- NEVER remove functionality or hide issues to make tests pass
+- If removing a test, RAISE THIS for approval
+
+## Panel Structure (After Phase C)
+
+```
+app/Filament/
+├── PimPanel/       # /pim - internal product management
+├── SupplyPanel/    # /supply - supplier analytics
+├── PricingPanel/   # /pricing - price tracking
+└── Shared/         # shared components
+```
+
+## Test Users
+
+| Email | Password | Access |
+|-------|----------|--------|
+| admin@silvertreebrands.com | password | All panels |
+| admin@example.com | password | Legacy admin |
+
+## URLs
+
+- Local: http://localhost:8080/admin (current) or http://spim.test:8080/admin
+- After refactor: /pim, /supply, /pricing
+
+## Read First
+
+Before major work, read:
+- `/docs/architecture.md` - System design
+- `/PROJECT-TRACKER.md` - Current tickets
+- `/CLAUDE.md` - Full development rules

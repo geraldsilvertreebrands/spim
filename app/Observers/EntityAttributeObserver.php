@@ -4,7 +4,6 @@ namespace App\Observers;
 
 use App\Jobs\Pipeline\RunPipelineForEntity;
 use App\Models\Pipeline;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Observer for EAV versioned table changes
@@ -64,4 +63,3 @@ class EntityAttributeObserver
         return $dependent;
     }
 }
-

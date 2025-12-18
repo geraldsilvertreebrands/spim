@@ -13,12 +13,14 @@ class BelongsToAttributeUi implements AttributeUi
     public function summarise(Entity $entity, Attribute $attribute, string $mode = 'override'): string
     {
         $ids = $entity->getRelated($attribute->name);
+
         return implode(', ', $ids);
     }
 
     public function show(Entity $entity, Attribute $attribute, string $mode = 'override'): string
     {
         $ids = $entity->getRelated($attribute->name);
+
         return implode("\n", $ids);
     }
 
@@ -33,7 +35,7 @@ class BelongsToAttributeUi implements AttributeUi
     public function save(Entity $entity, Attribute $attribute, $input): void
     {
         $value = $input['value'] ?? null;
-        if (!$value) {
+        if (! $value) {
             throw new InvalidArgumentException('Related entity ID required');
         }
         app(AttributeService::class)->validateValue($attribute, $value);

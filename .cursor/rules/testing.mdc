@@ -1,0 +1,118 @@
+---
+alwaysApply: true
+---
+
+# Testing Rules - MANDATORY
+
+## The Testing Loop
+
+Every code change MUST follow this loop:
+
+```
+1. Make code change
+2. Run: php artisan test --filter=<Relevant>
+3. If FAIL → Fix → Go to step 2
+4. Run: composer run analyse
+5. If FAIL → Fix → Go to step 2
+6. Run: composer run format
+7. Verify manually if needed
+8. DONE only when ALL pass
+```
+
+## When to Run Tests
+
+| What Changed | Test Command |
+|--------------|--------------|
+| Any PHP file | `php artisan test --filter=<ClassName>` |
+| Model | `php artisan test --filter=<ModelName>` |
+| Service | `php artisan test --filter=<ServiceName>` |
+| Migration | `php artisan test` (FULL) |
+| Controller | `php artisan test --filter=<ControllerName>` |
+| Filament Resource | `php artisan test --filter=<ResourceName>` |
+| Before ANY commit | `php artisan test` (FULL) |
+
+## Test File Locations
+
+```
+tests/
+├── Unit/           # No database, pure logic
+│   ├── Models/
+│   └── Services/
+├── Feature/        # With database
+│   ├── Auth/
+│   └── Filament/
+└── Integration/    # External services
+```
+
+## Writing New Tests
+
+Every new feature MUST have tests. Minimum pattern:
+
+```php
+public function test_it_does_the_thing(): void
+{
+    // Arrange - Set up data
+    $user = User::factory()->create();
+
+    // Act - Do the thing
+    $response = $this->actingAs($user)->get('/route');
+
+    // Assert - Verify result
+    $response->assertStatus(200);
+    $this->assertDatabaseHas('table', ['column' => 'value']);
+}
+```
+
+## Bug Fix Process
+
+When fixing a bug:
+
+1. FIRST: Write a failing test that reproduces the bug
+2. THEN: Fix the bug
+3. THEN: Run the test - should now pass
+4. THEN: Run full test suite to check no regressions
+
+## NEVER Do These
+
+- NEVER skip tests
+- NEVER delete tests to make suite pass
+- NEVER use `@phpstan-ignore` without justification
+- NEVER commit with failing tests
+- NEVER remove test assertions to hide failures
+- NEVER change expected values to match wrong output
+
+## Test Naming Convention
+
+```php
+test_[action]_[condition]_[expected_result]
+
+// Examples:
+test_user_can_login_with_valid_credentials()
+test_supplier_cannot_access_pim_panel()
+test_brand_sync_creates_new_brands()
+```
+
+## Factories
+
+All models should have factories:
+
+```php
+// database/factories/BrandFactory.php
+Brand::factory()->create();          // Persisted
+Brand::factory()->make();            // Not persisted
+Brand::factory()->count(5)->create(); // Multiple
+Brand::factory()->premium()->create(); // With state
+```
+
+## Database in Tests
+
+Use RefreshDatabase trait for clean state:
+
+```php
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class MyTest extends TestCase
+{
+    use RefreshDatabase;
+}
+```

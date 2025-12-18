@@ -10,7 +10,7 @@ class PipelineModuleDefinition
         public readonly string $description,
         public readonly string $type, // 'source' or 'processor'
     ) {
-        if (!in_array($type, ['source', 'processor'])) {
+        if (! in_array($type, ['source', 'processor'])) {
             throw new \InvalidArgumentException("Module type must be 'source' or 'processor'");
         }
     }
@@ -25,4 +25,3 @@ class PipelineModuleDefinition
         return $this->type === 'processor';
     }
 }
-

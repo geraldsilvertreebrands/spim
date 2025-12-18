@@ -3,9 +3,8 @@
 namespace Tests\Unit;
 
 use App\Models\Attribute;
-use App\Services\AttributeService;
 use App\Models\EntityType;
-use Illuminate\Support\Str;
+use App\Services\AttributeService;
 use Tests\TestCase;
 
 class AttributeServiceTest extends TestCase
@@ -54,7 +53,7 @@ class AttributeServiceTest extends TestCase
             'allowed_values' => ['A' => 'Alpha', 'B' => 'Beta'],
         ]);
 
-        $encoded = $this->service->coerceIn($attribute, ['A','B']);
+        $encoded = $this->service->coerceIn($attribute, ['A', 'B']);
         $this->assertJson($encoded);
     }
 

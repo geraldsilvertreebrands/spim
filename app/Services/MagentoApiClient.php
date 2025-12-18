@@ -11,6 +11,7 @@ use RuntimeException;
 class MagentoApiClient
 {
     private string $baseUrl;
+
     private string $token;
 
     public function __construct()
@@ -52,8 +53,8 @@ class MagentoApiClient
      * Products are fetched page-by-page (100 per page). If a callback is provided,
      * each page is processed immediately, preventing memory exhaustion on large catalogs.
      *
-     * @param array $filters Search criteria filters
-     * @param callable|null $pageCallback Optional callback: function(array $products, int $page, int $total)
+     * @param  array  $filters  Search criteria filters
+     * @param  callable|null  $pageCallback  Optional callback: function(array $products, int $page, int $total)
      * @return array Products response with 'items' and 'total_count'
      */
     public function getProducts(array $filters = [], ?callable $pageCallback = null): array
@@ -90,7 +91,7 @@ class MagentoApiClient
 
                 Log::info("Fetched page {$currentPage} of products", [
                     'fetched' => $pageCallback ? min($currentPage * $pageSize, $totalCount) : count($allItems),
-                    'total' => $totalCount
+                    'total' => $totalCount,
                 ]);
 
                 $currentPage++;
@@ -100,10 +101,10 @@ class MagentoApiClient
                     break;
                 }
             } catch (\Illuminate\Http\Client\RequestException $e) {
-                throw new RuntimeException("Magento API error: Failed to fetch products - " . $e->getMessage(), 0, $e);
+                throw new RuntimeException('Magento API error: Failed to fetch products - '.$e->getMessage(), 0, $e);
             }
         } while (($pageCallback && (($currentPage - 1) * $pageSize < $totalCount)) ||
-                 (!$pageCallback && count($allItems) < $totalCount));
+                 (! $pageCallback && count($allItems) < $totalCount));
 
         return [
             'items' => $allItems,  // Empty if using callback
@@ -114,7 +115,7 @@ class MagentoApiClient
     /**
      * Fetch a single product by SKU
      *
-     * @param string $sku Product SKU
+     * @param  string  $sku  Product SKU
      * @return array|null Product data or null if not found
      */
     public function getProduct(string $sku): ?array
@@ -133,14 +134,14 @@ class MagentoApiClient
             if ($e->response->status() === 404) {
                 return null;
             }
-            throw new RuntimeException("Magento API error: Failed to fetch product {$sku} - " . $e->getMessage(), 0, $e);
+            throw new RuntimeException("Magento API error: Failed to fetch product {$sku} - ".$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Create a new product in Magento
      *
-     * @param array $payload Product data
+     * @param  array  $payload  Product data
      * @return array Created product data
      */
     public function createProduct(array $payload): array
@@ -157,8 +158,8 @@ class MagentoApiClient
     /**
      * Update an existing product in Magento
      *
-     * @param string $sku Product SKU
-     * @param array $payload Product data to update
+     * @param  string  $sku  Product SKU
+     * @param  array  $payload  Product data to update
      * @return array Updated product data
      */
     public function updateProduct(string $sku, array $payload): array
@@ -175,7 +176,7 @@ class MagentoApiClient
     /**
      * Get attribute metadata including data type
      *
-     * @param string $attributeCode Attribute code
+     * @param  string  $attributeCode  Attribute code
      * @return array Attribute metadata
      */
     public function getAttribute(string $attributeCode): array
@@ -190,7 +191,7 @@ class MagentoApiClient
     /**
      * Get attribute options for select/multiselect attributes
      *
-     * @param string $attributeCode Attribute code
+     * @param  string  $attributeCode  Attribute code
      * @return array Array of options with 'label' and 'value'
      */
     public function getAttributeOptions(string $attributeCode): array
@@ -202,14 +203,14 @@ class MagentoApiClient
         $options = $response->json();
 
         // Filter out the default empty option that Magento returns
-        return array_filter($options, fn($opt) => !empty($opt['value']));
+        return array_filter($options, fn ($opt) => ! empty($opt['value']));
     }
 
     /**
      * Create a new attribute option
      *
-     * @param string $attributeCode Attribute code
-     * @param string $label Option label
+     * @param  string  $attributeCode  Attribute code
+     * @param  string  $label  Option label
      * @return array Created option data
      */
     public function createAttributeOption(string $attributeCode, string $label): array
@@ -231,10 +232,10 @@ class MagentoApiClient
     /**
      * Upload an image to Magento from a URL
      *
-     * @param string $sku Product SKU
-     * @param string $imageUrl URL of the image to download and upload
-     * @param string $filename Desired filename
-     * @param array $types Image types (base, small, thumbnail, etc.)
+     * @param  string  $sku  Product SKU
+     * @param  string  $imageUrl  URL of the image to download and upload
+     * @param  string  $filename  Desired filename
+     * @param  array  $types  Image types (base, small, thumbnail, etc.)
      * @return array Uploaded media entry data
      */
     public function uploadImage(string $sku, string $imageUrl, string $filename, array $types = []): array
@@ -273,14 +274,14 @@ class MagentoApiClient
     /**
      * Download an image from a URL
      *
-     * @param string $url Image URL
+     * @param  string  $url  Image URL
      * @return string Image binary content
      */
     private function downloadImage(string $url): string
     {
         $response = Http::timeout(30)->get($url);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new RuntimeException("Failed to download image from {$url}");
         }
 
@@ -290,14 +291,14 @@ class MagentoApiClient
     /**
      * Get MIME type from URL
      *
-     * @param string $url Image URL
+     * @param  string  $url  Image URL
      * @return string MIME type
      */
     private function getMimeTypeFromUrl(string $url): string
     {
         $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
 
-        return match($extension) {
+        return match ($extension) {
             'jpg', 'jpeg' => 'image/jpeg',
             'png' => 'image/png',
             'gif' => 'image/gif',
@@ -308,11 +309,6 @@ class MagentoApiClient
 
     /**
      * Build Magento search criteria from filters with pagination
-     *
-     * @param array $filters
-     * @param int $currentPage
-     * @param int $pageSize
-     * @return array
      */
     private function buildSearchCriteriaWithPagination(array $filters, int $currentPage, int $pageSize): array
     {
@@ -323,7 +319,7 @@ class MagentoApiClient
         $criteria['searchCriteria[pageSize]'] = $pageSize;
 
         // Add filters if provided
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $filterIndex = 0;
             foreach ($filters as $field => $value) {
                 $criteria["searchCriteria[filterGroups][{$filterIndex}][filters][0][field]"] = $field;
@@ -336,17 +332,16 @@ class MagentoApiClient
         return $criteria;
     }
 
-
     /**
      * Ensure the response was successful, throw exception if not
      *
-     * @param Response $response
-     * @param string $message Error message
+     * @param  string  $message  Error message
+     *
      * @throws RuntimeException
      */
     private function ensureSuccessful(Response $response, string $message): void
     {
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             $error = $response->json('message') ?? $response->body();
             Log::error($message, [
                 'status' => $response->status(),
@@ -356,6 +351,3 @@ class MagentoApiClient
         }
     }
 }
-
-
-

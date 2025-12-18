@@ -19,6 +19,7 @@ class GenerateEntityTypeResources extends Command
 
         if ($entityTypes->isEmpty()) {
             $this->warn('No entity types found in the database.');
+
             return self::FAILURE;
         }
 
@@ -27,19 +28,21 @@ class GenerateEntityTypeResources extends Command
         }
 
         $this->info('Entity type resources generated successfully!');
+
         return self::SUCCESS;
     }
 
     protected function generateResource(EntityType $entityType): void
     {
-        $className = Str::studly($entityType->name) . 'Resource';
-        $namespace = 'App\\Filament\\Resources';
-        $directory = app_path('Filament/Resources');
+        $className = Str::studly($entityType->name).'Resource';
+        $namespace = 'App\\Filament\\PimPanel\\Resources';
+        $directory = app_path('Filament/PimPanel/Resources');
         $filePath = "{$directory}/{$className}.php";
 
         // Don't overwrite existing resources
         if (File::exists($filePath)) {
             $this->line("  Skipping {$className} (already exists)");
+
             return;
         }
 
@@ -56,7 +59,7 @@ class GenerateEntityTypeResources extends Command
 
     protected function generatePages(EntityType $entityType, string $resourceClass): void
     {
-        $directory = app_path("Filament/Resources/{$resourceClass}");
+        $directory = app_path("Filament/PimPanel/Resources/{$resourceClass}");
         $pagesDirectory = "{$directory}/Pages";
 
         File::ensureDirectoryExists($pagesDirectory);
@@ -66,41 +69,40 @@ class GenerateEntityTypeResources extends Command
         // List page
         $listPageClass = "List{$pluralStudly}";
         $listPagePath = "{$pagesDirectory}/{$listPageClass}.php";
-        if (!File::exists($listPagePath)) {
+        if (! File::exists($listPagePath)) {
             File::put($listPagePath, $this->getListPageStub($resourceClass, $listPageClass));
         }
 
         // Create page
-        $createPageClass = "Create" . Str::studly($entityType->name);
+        $createPageClass = 'Create'.Str::studly($entityType->name);
         $createPagePath = "{$pagesDirectory}/{$createPageClass}.php";
-        if (!File::exists($createPagePath)) {
+        if (! File::exists($createPagePath)) {
             File::put($createPagePath, $this->getCreatePageStub($resourceClass, $createPageClass));
         }
 
         // Edit page
-        $editPageClass = "Edit" . Str::studly($entityType->name);
+        $editPageClass = 'Edit'.Str::studly($entityType->name);
         $editPagePath = "{$pagesDirectory}/{$editPageClass}.php";
-        if (!File::exists($editPagePath)) {
+        if (! File::exists($editPagePath)) {
             File::put($editPagePath, $this->getEditPageStub($resourceClass, $editPageClass));
         }
     }
-
 
     protected function getResourceStub(EntityType $entityType, string $className, string $namespace): string
     {
         $entityTypeName = $entityType->name;
         $pluralStudly = Str::plural(Str::studly($entityType->name));
         $listPageClass = "List{$pluralStudly}";
-        $createPageClass = "Create" . Str::studly($entityType->name);
-        $editPageClass = "Edit" . Str::studly($entityType->name);
+        $createPageClass = 'Create'.Str::studly($entityType->name);
+        $editPageClass = 'Edit'.Str::studly($entityType->name);
 
         return <<<PHP
 <?php
 
 namespace {$namespace};
 
-use App\Filament\Resources\AbstractEntityTypeResource;
-use App\Filament\Resources\\{$className}\\Pages;
+use App\Filament\PimPanel\Resources\AbstractEntityTypeResource;
+use App\Filament\PimPanel\Resources\\{$className}\\Pages;
 
 class {$className} extends AbstractEntityTypeResource
 {
@@ -127,10 +129,10 @@ PHP;
         return <<<PHP
 <?php
 
-namespace App\\Filament\\Resources\\{$resourceClass}\\Pages;
+namespace App\\Filament\\PimPanel\\Resources\\{$resourceClass}\\Pages;
 
-use App\\Filament\\Resources\\{$resourceClass};
-use App\\Filament\\Resources\\Pages\\AbstractListEntityRecords;
+use App\\Filament\\PimPanel\\Resources\\{$resourceClass};
+use App\\Filament\\Shared\\Pages\\AbstractListEntityRecords;
 
 class {$pageClass} extends AbstractListEntityRecords
 {
@@ -145,10 +147,10 @@ PHP;
         return <<<PHP
 <?php
 
-namespace App\\Filament\\Resources\\{$resourceClass}\\Pages;
+namespace App\\Filament\\PimPanel\\Resources\\{$resourceClass}\\Pages;
 
-use App\\Filament\\Resources\\{$resourceClass};
-use App\\Filament\\Resources\\Pages\\AbstractCreateEntityRecord;
+use App\\Filament\\PimPanel\\Resources\\{$resourceClass};
+use App\\Filament\\Shared\\Pages\\AbstractCreateEntityRecord;
 
 class {$pageClass} extends AbstractCreateEntityRecord
 {
@@ -163,10 +165,10 @@ PHP;
         return <<<PHP
 <?php
 
-namespace App\\Filament\\Resources\\{$resourceClass}\\Pages;
+namespace App\\Filament\\PimPanel\\Resources\\{$resourceClass}\\Pages;
 
-use App\\Filament\\Resources\\{$resourceClass};
-use App\\Filament\\Resources\\Pages\\AbstractEditEntityRecord;
+use App\\Filament\\PimPanel\\Resources\\{$resourceClass};
+use App\\Filament\\Shared\\Pages\\AbstractEditEntityRecord;
 
 class {$pageClass} extends AbstractEditEntityRecord
 {
@@ -176,5 +178,3 @@ class {$pageClass} extends AbstractEditEntityRecord
 PHP;
     }
 }
-
-

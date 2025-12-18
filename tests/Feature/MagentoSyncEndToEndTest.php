@@ -11,8 +11,8 @@ use App\Models\SyncRun;
 use App\Services\EavWriter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -21,10 +21,15 @@ class MagentoSyncEndToEndTest extends TestCase
     use RefreshDatabase;
 
     private EntityType $entityType;
+
     private EavWriter $eavWriter;
+
     private string $skuNew;
+
     private string $skuExisting;
+
     private string $skuBidirectional;
+
     private string $skuTest;
 
     protected function setUp(): void
@@ -37,15 +42,15 @@ class MagentoSyncEndToEndTest extends TestCase
         ]);
 
         $this->entityType = EntityType::create([
-            'name' => 'et_' . Str::lower(Str::random(8)),
+            'name' => 'et_'.Str::lower(Str::random(8)),
             'display_name' => 'Test Type',
             'description' => 'Isolated test entity type',
         ]);
         $this->eavWriter = app(EavWriter::class);
-        $this->skuNew = 'NEW-' . Str::upper(Str::random(8));
-        $this->skuExisting = 'EXISTING-' . Str::upper(Str::random(8));
-        $this->skuBidirectional = 'BIDIRECTIONAL-' . Str::upper(Str::random(8));
-        $this->skuTest = 'TEST-' . Str::upper(Str::random(8));
+        $this->skuNew = 'NEW-'.Str::upper(Str::random(8));
+        $this->skuExisting = 'EXISTING-'.Str::upper(Str::random(8));
+        $this->skuBidirectional = 'BIDIRECTIONAL-'.Str::upper(Str::random(8));
+        $this->skuTest = 'TEST-'.Str::upper(Str::random(8));
     }
 
     #[Test]
@@ -509,4 +514,3 @@ class MagentoSyncEndToEndTest extends TestCase
         $this->assertStringContainsString('error', strtolower($errorResult->error_message));
     }
 }
-

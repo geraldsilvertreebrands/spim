@@ -112,7 +112,7 @@ class SideBySideFormBuilder
      */
     protected function getRelatedEntityOptions(Attribute $attribute): array
     {
-        if (!$attribute->linked_entity_type_id) {
+        if (! $attribute->linked_entity_type_id) {
             return [];
         }
 
@@ -140,7 +140,7 @@ class SideBySideFormBuilder
 
         return [
             'display_name' => $attribute->display_name ?? ucfirst(str_replace('_', ' ', $attribute->name)),
-            'editable_label' => $editableLabel . $syncLabel,
+            'editable_label' => $editableLabel.$syncLabel,
             'data_type' => $attribute->data_type,
             'color_class' => match ($attribute->editable) {
                 'yes' => 'text-blue-600',
@@ -151,6 +151,3 @@ class SideBySideFormBuilder
         ];
     }
 }
-
-
-

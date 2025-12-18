@@ -6,7 +6,6 @@ use App\Models\Attribute;
 use App\Models\Entity;
 use App\Models\EntityType;
 use App\Models\Pipeline;
-use App\Models\PipelineModule;
 use App\Services\EavWriter;
 use App\Services\EntityFormBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,8 +16,11 @@ class PipelineMetadataDisplayTest extends TestCase
     use RefreshDatabase;
 
     protected EntityType $entityType;
+
     protected Entity $entity;
+
     protected Attribute $pipelineAttribute;
+
     protected Pipeline $pipeline;
 
     protected function setUp(): void
@@ -136,7 +138,7 @@ class PipelineMetadataDisplayTest extends TestCase
 
         // Verify components were created
         $this->assertNotEmpty($components);
-        
+
         // The form builder should create components that include pipeline metadata
         // This is a basic check - the actual rendering is tested through the UI
         $this->assertTrue(true);
@@ -231,4 +233,3 @@ class PipelineMetadataDisplayTest extends TestCase
         $this->assertEquals($eval1->id, $existingEval->id);
     }
 }
-

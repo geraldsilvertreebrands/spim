@@ -5,14 +5,13 @@ namespace App\Ui\Attributes;
 use App\Contracts\AttributeUi;
 use App\Models\Attribute;
 use App\Models\Entity;
-use App\Services\AttributeService;
-use App\Services\EavWriter;
 
 class SelectAttributeUi implements AttributeUi
 {
     public function summarise(Entity $entity, Attribute $attribute, string $mode = 'override'): string
     {
         $value = (string) $entity->getAttr($attribute->name, $mode, '');
+
         return $attribute->allowedValues()[$value] ?? $value;
     }
 
@@ -20,6 +19,7 @@ class SelectAttributeUi implements AttributeUi
     {
         $value = (string) $entity->getAttr($attribute->name, $mode, '');
         $label = $attribute->allowedValues()[$value] ?? $value;
+
         return $value === $label ? $label : "{$label} ({$value})";
     }
 

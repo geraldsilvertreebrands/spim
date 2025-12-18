@@ -21,4 +21,3 @@ class AttributeSection extends Model
         return $this->hasMany(Attribute::class, 'attribute_section_id')->orderBy('sort_order');
     }
 }
-
