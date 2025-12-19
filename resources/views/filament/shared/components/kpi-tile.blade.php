@@ -1,7 +1,7 @@
 <div class="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10">
     <div class="flex items-start justify-between">
         <div class="flex-1">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
+            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {{ $label }}
             </p>
 
@@ -10,7 +10,7 @@
                     <span class="text-sm text-gray-500 dark:text-gray-400">{{ $prefix }}</span>
                 @endif
 
-                <span class="text-2xl font-semibold text-gray-900 dark:text-white">
+                <span class="text-3xl font-bold text-gray-900 dark:text-white">
                     {{ is_numeric($value) ? number_format($value) : $value }}
                 </span>
 

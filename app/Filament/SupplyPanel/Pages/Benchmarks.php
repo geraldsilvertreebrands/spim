@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Models\BrandCompetitor;
 use App\Services\BigQueryService;
@@ -10,6 +11,8 @@ use Livewire\Attributes\Url;
 
 class Benchmarks extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-scale';
 
     protected static ?string $navigationLabel = 'Benchmarks';
@@ -19,14 +22,70 @@ class Benchmarks extends Page
     protected string $view = 'filament.supply-panel.pages.benchmarks';
 
     #[Url]
-    public ?int $brandId = null;
-
-    #[Url]
     public string $period = '30d';
 
     public bool $loading = true;
 
     public ?string $error = null;
+
+    public bool $showTrendAsTable = false;
+
+    /**
+     * Toggle between chart and table view for trend comparison.
+     */
+    public function toggleTrendView(): void
+    {
+        $this->showTrendAsTable = ! $this->showTrendAsTable;
+
+        // If switching back to chart view, dispatch event to re-initialize chart
+        if (! $this->showTrendAsTable) {
+            $this->dispatch('benchmarks-data-updated',
+                revenueData: $this->revenueComparisonData,
+                trendData: $this->trendComparisonData
+            );
+        }
+    }
+
+    /**
+     * Get trend comparison data formatted for table display.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getTrendTableData(): array
+    {
+        if (empty($this->trendComparisonData['labels']) || empty($this->trendComparisonData['datasets'])) {
+            return [];
+        }
+
+        $data = [];
+        $labels = $this->trendComparisonData['labels'];
+        $datasets = $this->trendComparisonData['datasets'];
+
+        foreach ($labels as $index => $month) {
+            $row = ['month' => $month];
+            foreach ($datasets as $dataset) {
+                $label = $dataset['label'] ?? 'Unknown';
+                $row[$label] = $dataset['data'][$index] ?? 0;
+            }
+            $data[] = $row;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get dataset labels for table header.
+     *
+     * @return array<string>
+     */
+    public function getTrendDatasetLabels(): array
+    {
+        if (empty($this->trendComparisonData['datasets'])) {
+            return [];
+        }
+
+        return array_map(fn ($ds) => $ds['label'] ?? 'Unknown', $this->trendComparisonData['datasets']);
+    }
 
     /** @var array{labels: array<string>, datasets: array<array<string, mixed>>} */
     public array $revenueComparisonData = ['labels' => [], 'datasets' => []];
@@ -50,22 +109,18 @@ class Benchmarks extends Page
 
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
+
+            return;
         }
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
+        $this->loadData();
+    }
 
-                return;
-            }
-        }
-
+    protected function onBrandContextChanged(): void
+    {
         $this->loadData();
     }
 
@@ -174,7 +229,18 @@ class Benchmarks extends Page
             }
         }
 
-        $colors = ['#006654', '#3B82F6', '#F59E0B', '#EF4444'];
+        $competitorColors = config('charts.competitors', [
+            'your_brand' => '#264653',
+            'competitor_a' => '#2a9d8f',
+            'competitor_b' => '#e9c46a',
+            'competitor_c' => '#e36040',
+        ]);
+        $colors = [
+            $competitorColors['your_brand'],
+            $competitorColors['competitor_a'],
+            $competitorColors['competitor_b'],
+            $competitorColors['competitor_c'],
+        ];
 
         return [
             'labels' => $labels,
@@ -196,22 +262,6 @@ class Benchmarks extends Page
     public function updatedPeriod(): void
     {
         $this->loadData();
-    }
-
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
-    {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
-
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
     }
 
     /**

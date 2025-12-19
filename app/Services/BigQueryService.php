@@ -32,6 +32,49 @@ class BigQueryService
     }
 
     /**
+     * Get chart colors from config.
+     *
+     * @return array<int, string>
+     */
+    public function getChartColors(): array
+    {
+        return config('charts.colors', [
+            '#264653', '#287271', '#2a9d8f', '#8ab17d', '#e9c46a',
+            '#f4a261', '#ec8151', '#e36040', '#bc6b85', '#9576c9',
+        ]);
+    }
+
+    /**
+     * Get chart background colors (with transparency).
+     *
+     * @return array<int, string>
+     */
+    public function getChartBackgrounds(): array
+    {
+        return config('charts.backgrounds', [
+            'rgba(38, 70, 83, 0.1)', 'rgba(40, 114, 113, 0.1)', 'rgba(42, 157, 143, 0.1)',
+            'rgba(138, 177, 125, 0.1)', 'rgba(233, 196, 106, 0.1)', 'rgba(244, 162, 97, 0.1)',
+            'rgba(236, 129, 81, 0.1)', 'rgba(227, 96, 64, 0.1)', 'rgba(188, 107, 133, 0.1)',
+            'rgba(149, 118, 201, 0.1)',
+        ]);
+    }
+
+    /**
+     * Get competitor chart colors.
+     *
+     * @return array<string, string>
+     */
+    public function getCompetitorColors(): array
+    {
+        return config('charts.competitors', [
+            'your_brand' => '#264653',
+            'competitor_a' => '#2a9d8f',
+            'competitor_b' => '#e9c46a',
+            'competitor_c' => '#e36040',
+        ]);
+    }
+
+    /**
      * Initialize the BigQuery client if credentials are available.
      */
     private function initializeClient(): void
@@ -144,7 +187,13 @@ class BigQueryService
 
             $rows = [];
             foreach ($queryResults as $row) {
-                $rows[] = $row;
+                // Convert BigQuery row to plain array with primitive values
+                // to ensure Livewire can serialize the data
+                $plainRow = [];
+                foreach ($row as $key => $value) {
+                    $plainRow[$key] = $this->convertBigQueryValue($value);
+                }
+                $rows[] = $plainRow;
 
                 $elapsed = microtime(true) - $startTime;
                 if ($elapsed > $timeout) {
@@ -163,6 +212,62 @@ class BigQueryService
 
             throw $e;
         }
+    }
+
+    /**
+     * Convert BigQuery value to a primitive type that can be serialized by Livewire.
+     *
+     * @param  mixed  $value
+     * @return mixed
+     */
+    private function convertBigQueryValue($value)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        // Handle Google Cloud BigQuery Numeric type
+        if ($value instanceof \Google\Cloud\BigQuery\Numeric) {
+            return (float) (string) $value;
+        }
+
+        // Handle Google Cloud Core Date type
+        if ($value instanceof \Google\Cloud\Core\Date) {
+            return $value->formatAsString();
+        }
+
+        // Handle Google Cloud BigQuery Date type
+        if ($value instanceof \Google\Cloud\BigQuery\Date) {
+            return (string) $value;
+        }
+
+        // Handle Google Cloud BigQuery Timestamp type
+        if ($value instanceof \Google\Cloud\BigQuery\Timestamp) {
+            return $value->formatAsString();
+        }
+
+        // Handle Google Cloud BigQuery Time type
+        if ($value instanceof \Google\Cloud\BigQuery\Time) {
+            return (string) $value;
+        }
+
+        // Handle Google Cloud BigQuery Bytes type
+        if ($value instanceof \Google\Cloud\BigQuery\Bytes) {
+            return base64_encode((string) $value);
+        }
+
+        // Handle any other objects by converting to string
+        if (is_object($value)) {
+            return (string) $value;
+        }
+
+        // Handle arrays recursively
+        if (is_array($value)) {
+            return array_map([$this, 'convertBigQueryValue'], $value);
+        }
+
+        // Return primitive types as-is
+        return $value;
     }
 
     /**
@@ -420,8 +525,8 @@ class BigQueryService
                 [
                     'label' => $brand,
                     'data' => array_map(fn ($r) => $this->toFloat($r['revenue']), $results),
-                    'borderColor' => '#006654',
-                    'backgroundColor' => 'rgba(0, 102, 84, 0.1)',
+                    'borderColor' => $this->getChartColors()[0],
+                    'backgroundColor' => $this->getChartBackgrounds()[0],
                 ],
             ],
         ];
@@ -460,8 +565,8 @@ class BigQueryService
                 [
                     'label' => 'Avg Order Value',
                     'data' => array_map(fn ($r) => round($this->toFloat($r['aov']), 2), $results),
-                    'borderColor' => '#F59E0B',
-                    'backgroundColor' => 'rgba(245, 158, 11, 0.1)',
+                    'borderColor' => $this->getChartColors()[4], // Gold
+                    'backgroundColor' => $this->getChartBackgrounds()[4],
                 ],
             ],
         ];
@@ -638,7 +743,13 @@ class BigQueryService
         sort($months);
 
         $datasets = [];
-        $colors = ['#006654', '#3B82F6', '#F59E0B', '#EF4444'];
+        $competitorColors = $this->getCompetitorColors();
+        $colors = [
+            $competitorColors['your_brand'],
+            $competitorColors['competitor_a'],
+            $competitorColors['competitor_b'],
+            $competitorColors['competitor_c'],
+        ];
         $competitorLabels = ['Competitor A', 'Competitor B', 'Competitor C'];
 
         foreach ($allBrands as $i => $b) {
@@ -650,8 +761,8 @@ class BigQueryService
             $datasets[] = [
                 'label' => $label,
                 'data' => $data,
-                'borderColor' => $colors[$i] ?? '#6B7280',
-                'backgroundColor' => $colors[$i] ?? '#6B7280',
+                'borderColor' => $colors[$i] ?? $this->getChartColors()[0],
+                'backgroundColor' => $colors[$i] ?? $this->getChartColors()[0],
             ];
         }
 
@@ -766,7 +877,14 @@ class BigQueryService
                 oi.order_id,
                 oi.order_date,
                 oi.qty_ordered as quantity,
-                oi.revenue_realised_subtotal_excl as revenue
+                oi.revenue_realised_subtotal_excl as revenue,
+                oi.price_excl,
+                -- Detect discount: if actual revenue < expected revenue (qty * price)
+                CASE
+                    WHEN oi.revenue_realised_subtotal_excl < (oi.qty_ordered * oi.price_excl * 0.99)
+                    THEN oi.qty_ordered
+                    ELSE 0
+                END as discounted_units
             FROM `{$this->dataset}.fact_order_item` oi
             JOIN `{$this->dataset}.dim_product` p ON oi.sku = p.sku AND oi.company_id = p.company_id
             WHERE p.brand = @brand
@@ -787,7 +905,9 @@ class BigQueryService
             SELECT
                 o.sku,
                 ANY_VALUE(o.name) as name,
-                AVG(o.quantity) as avg_qty_per_order
+                AVG(o.quantity) as avg_qty_per_order,
+                SUM(o.quantity) as total_units,
+                SUM(o.discounted_units) as total_discounted_units
             FROM order_stats o
             GROUP BY o.sku
         ),
@@ -805,7 +925,8 @@ class BigQueryService
             pm.avg_qty_per_order,
             COALESCE(rs.reorder_rate, 0) as reorder_rate,
             rs.avg_frequency_months,
-            0 as promo_intensity
+            -- Promo intensity: % of units sold on discount
+            COALESCE(SAFE_DIVIDE(pm.total_discounted_units, pm.total_units) * 100, 0) as promo_intensity
         FROM product_metrics pm
         LEFT JOIN reorder_stats rs ON pm.sku = rs.sku
         ORDER BY pm.sku
@@ -823,7 +944,7 @@ class BigQueryService
             'avg_qty_per_order' => round($this->toFloat($row['avg_qty_per_order'] ?? 0), 2),
             'reorder_rate' => round($this->toFloat($row['reorder_rate'] ?? 0), 1),
             'avg_frequency_months' => isset($row['avg_frequency_months']) ? round($this->toFloat($row['avg_frequency_months']), 1) : null,
-            'promo_intensity' => 0,
+            'promo_intensity' => round($this->toFloat($row['promo_intensity'] ?? 0), 1),
         ], $results);
     }
 
@@ -833,33 +954,85 @@ class BigQueryService
      */
     public function getStockSupply(string $brand, int $months = 12): array
     {
-        // Get products with their stock info from dim_product
-        $sql = <<<SQL
+        // Get sell-out data (units sold by month) from fact_order_item
+        $sellOutSql = <<<SQL
         SELECT
             p.sku,
             p.name,
-            COALESCE(p.total_stock_on_hand, 0) as stock_on_hand,
-            COALESCE(p.stock_cpt_live, 0) + COALESCE(p.stock_jhb_live, 0) as live_stock
-        FROM `{$this->dataset}.dim_product` p
+            FORMAT_DATE('%Y-%m', oi.order_date) as month,
+            SUM(oi.qty_shipped) as units
+        FROM `{$this->dataset}.fact_order_item` oi
+        JOIN `{$this->dataset}.dim_product` p ON oi.sku = p.sku AND oi.company_id = p.company_id
         WHERE p.brand = @brand
           AND p.company_id = @company_id
-        ORDER BY p.sku
-        LIMIT 100
+          AND oi.order_date >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+        GROUP BY p.sku, p.name, month
+        ORDER BY p.sku, month
         SQL;
 
-        $results = $this->queryCached("stock_supply:{$this->companyId}:{$brand}:{$months}", $sql, [
+        $sellOutResults = $this->queryCached("sell_out:{$this->companyId}:{$brand}:{$months}", $sellOutSql, [
             'brand' => $brand,
             'company_id' => $this->companyId,
+            'months' => $months,
         ]);
 
+        // Transform sell-out results into product-centric format
+        $sellOutByProduct = [];
+        foreach ($sellOutResults as $row) {
+            $sku = $row['sku'];
+            if (! isset($sellOutByProduct[$sku])) {
+                $sellOutByProduct[$sku] = [
+                    'sku' => $sku,
+                    'name' => $row['name'],
+                    'months' => [],
+                ];
+            }
+            $sellOutByProduct[$sku]['months'][$row['month']] = $this->toInt($row['units']);
+        }
+
+        // Get closing stock data from stock snapshot (FtN-specific dataset)
+        // Note: This uses a different dataset (ftn_dw_prod) for stock snapshots
+        $stockDataset = 'ftn_dw_prod';
+        $closingStockSql = <<<SQL
+        SELECT
+            p.sku,
+            p.name,
+            FORMAT_DATE('%Y-%m', s.cycle_date) as month,
+            AVG(s.stock_on_hand) as stock_on_hand
+        FROM `silvertreepoc.{$stockDataset}.fact_ac_stock_snapshot` s
+        JOIN `{$this->dataset}.dim_product` p ON s.sku = p.sku AND p.company_id = @company_id
+        WHERE p.brand = @brand
+          AND p.company_id = @company_id
+          AND s.cycle_date >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+          AND EXTRACT(DAY FROM s.cycle_date) BETWEEN 1 AND 7
+        GROUP BY p.sku, p.name, month
+        ORDER BY p.sku, month
+        SQL;
+
+        $closingStockResults = $this->queryCached("closing_stock:{$this->companyId}:{$brand}:{$months}", $closingStockSql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $months,
+        ]);
+
+        // Transform closing stock results into product-centric format
+        $closingStockByProduct = [];
+        foreach ($closingStockResults as $row) {
+            $sku = $row['sku'];
+            if (! isset($closingStockByProduct[$sku])) {
+                $closingStockByProduct[$sku] = [
+                    'sku' => $sku,
+                    'name' => $row['name'],
+                    'months' => [],
+                ];
+            }
+            $closingStockByProduct[$sku]['months'][$row['month']] = $this->toInt($row['stock_on_hand']);
+        }
+
         return [
-            'sell_in' => [],
-            'sell_out' => [],
-            'closing_stock' => array_map(fn ($row) => [
-                'sku' => $row['sku'],
-                'name' => $row['name'],
-                'current_stock' => $this->toInt($row['stock_on_hand']),
-            ], $results),
+            'sell_in' => [], // Purchase receipts data not available
+            'sell_out' => array_values($sellOutByProduct),
+            'closing_stock' => array_values($closingStockByProduct),
         ];
     }
 
@@ -915,17 +1088,23 @@ class BigQueryService
             'months' => $historyMonths,
         ]);
 
-        // Simple forecast: use average of last 3 months
-        $recentRevenue = array_slice(array_column($historical, 'revenue'), -3);
+        // Convert BigQuery Numeric types to float before using array_sum
+        $revenues = array_map(fn ($row) => $this->toFloat($row['revenue']), $historical);
+        $recentRevenue = array_slice($revenues, -3);
         $avgRevenue = count($recentRevenue) > 0 ? array_sum($recentRevenue) / count($recentRevenue) : 0;
 
+        // Generate forecast with baseline, optimistic, and pessimistic scenarios
         $forecast = [];
         for ($i = 1; $i <= $forecastMonths; $i++) {
             $forecastMonth = now()->addMonths($i)->format('Y-m');
+            $baseline = round($avgRevenue * (1 + (rand(-5, 5) / 100)), 2);
             $forecast[] = [
                 'month' => $forecastMonth,
-                'revenue' => round($avgRevenue * (1 + (rand(-10, 10) / 100)), 2), // Add some variance
-                'units' => 0,
+                'baseline' => $baseline,
+                'optimistic' => round($baseline * 1.15, 2),
+                'pessimistic' => round($baseline * 0.90, 2),
+                'lower_bound' => round($baseline * 0.85, 2),
+                'upper_bound' => round($baseline * 1.20, 2),
                 'is_forecast' => true,
             ];
         }
@@ -996,6 +1175,7 @@ class BigQueryService
             WHERE p.brand = @brand
               AND p.company_id = @company_id
             GROUP BY oi.customer_id
+            HAVING MIN(oi.order_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
         ),
         customer_activity AS (
             SELECT
@@ -1027,19 +1207,77 @@ class BigQueryService
             'months' => $monthsBack,
         ]);
 
-        $cohorts = [];
+        // Collect all unique months for column headers
+        $allMonths = [];
+        $rawCohorts = [];
+
         foreach ($results as $row) {
             $cohort = $row['cohort_month'];
-            if (! isset($cohorts[$cohort])) {
-                $cohorts[$cohort] = ['cohort' => $cohort, 'periods' => []];
+            $activityMonth = $row['activity_month'];
+            $allMonths[$activityMonth] = true;
+
+            if (! isset($rawCohorts[$cohort])) {
+                $rawCohorts[$cohort] = [
+                    'cohort' => $cohort,
+                    'periods' => [],
+                    'initial_customers' => 0,
+                ];
             }
-            $cohorts[$cohort]['periods'][$row['activity_month']] = [
-                'customers' => $this->toInt($row['customers']),
+            $customers = $this->toInt($row['customers']);
+            $rawCohorts[$cohort]['periods'][$activityMonth] = [
+                'customers' => $customers,
                 'revenue' => $this->toFloat($row['revenue']),
+            ];
+
+            // Track initial customers (cohort month = activity month)
+            if ($cohort === $activityMonth) {
+                $rawCohorts[$cohort]['initial_customers'] = $customers;
+            }
+        }
+
+        // Sort months chronologically
+        $months = array_keys($allMonths);
+        sort($months);
+
+        // Transform to retention format expected by the page
+        // Each cohort has: initial_customers, retention[0..N] as percentages
+        $cohortData = [];
+        foreach ($rawCohorts as $cohortMonth => $data) {
+            $initialCustomers = $data['initial_customers'] ?: 1; // Avoid division by zero
+
+            // Build retention array indexed by period number (0 = acquisition month, 1 = first month after, etc.)
+            $retention = [];
+            $sortedPeriods = array_keys($data['periods']);
+            sort($sortedPeriods);
+
+            foreach ($sortedPeriods as $periodIndex => $periodMonth) {
+                $customers = $data['periods'][$periodMonth]['customers'];
+                $retentionRate = ($customers / $initialCustomers) * 100;
+                $retention[$periodIndex] = round($retentionRate, 1);
+            }
+
+            // Build customers and revenue arrays indexed by period number for the view
+            $customersArray = [];
+            $revenueArray = [];
+            foreach ($sortedPeriods as $periodIndex => $periodMonth) {
+                $customersArray[$periodIndex] = $data['periods'][$periodMonth]['customers'];
+                $revenueArray[$periodIndex] = $data['periods'][$periodMonth]['revenue'];
+            }
+
+            $cohortData[$cohortMonth] = [
+                'size' => $initialCustomers,
+                'initial_customers' => $initialCustomers,
+                'retention' => $retention,
+                'customers' => $customersArray,
+                'revenue' => $revenueArray,
+                'periods' => $data['periods'],
             ];
         }
 
-        return array_values($cohorts);
+        return [
+            'cohorts' => $cohortData,
+            'months' => $months,
+        ];
     }
 
     /**
@@ -1090,13 +1328,117 @@ class BigQueryService
             'months' => $monthsBack,
         ]);
 
-        return array_map(fn ($row) => [
-            'segment' => $row['rfm_segment'],
-            'customer_count' => $this->toInt($row['customer_count']),
-            'avg_recency' => round($this->toFloat($row['avg_recency']), 1),
-            'avg_frequency' => round($this->toFloat($row['avg_frequency']), 2),
-            'avg_monetary' => round($this->toFloat($row['avg_monetary']), 2),
-        ], $results);
+        // Build matrix data (for visualization)
+        $matrix = [];
+
+        // Initialize segment accumulators for calculating averages
+        $segmentNames = [
+            'Champions', 'Loyal Customers', 'Potential Loyalists', 'New Customers',
+            'Promising', 'Need Attention', 'About to Sleep', 'At Risk', 'Hibernating', 'Lost',
+        ];
+        $segmentAccum = [];
+        foreach ($segmentNames as $name) {
+            $segmentAccum[$name] = [
+                'count' => 0,
+                'total_revenue' => 0,
+                'total_r' => 0,
+                'total_f' => 0,
+                'total_m' => 0,
+            ];
+        }
+
+        foreach ($results as $row) {
+            $rfmCode = $row['rfm_segment'] ?? '';
+            $r = (int) substr($rfmCode, 0, 1);
+            $f = (int) substr($rfmCode, 1, 1);
+            $m = (int) substr($rfmCode, 2, 1);
+            $count = $this->toInt($row['customer_count']);
+            $avgMonetary = $this->toFloat($row['avg_monetary']);
+
+            // Add to matrix
+            $matrix[] = [
+                'r_score' => $r,
+                'f_score' => $f,
+                'm_score' => $m,
+                'count' => $count,
+                'avg_recency' => round($this->toFloat($row['avg_recency']), 1),
+                'avg_frequency' => round($this->toFloat($row['avg_frequency']), 2),
+                'avg_monetary' => round($avgMonetary, 2),
+            ];
+
+            // Map to named segment and accumulate
+            $segmentName = $this->mapRfmToSegment($r, $f, $m);
+            $segmentAccum[$segmentName]['count'] += $count;
+            $segmentAccum[$segmentName]['total_revenue'] += $avgMonetary * $count;
+            $segmentAccum[$segmentName]['total_r'] += $r * $count;
+            $segmentAccum[$segmentName]['total_f'] += $f * $count;
+            $segmentAccum[$segmentName]['total_m'] += $m * $count;
+        }
+
+        // Build final segments with averages
+        $segments = [];
+        foreach ($segmentNames as $name) {
+            $acc = $segmentAccum[$name];
+            $count = $acc['count'];
+            $segments[$name] = [
+                'count' => $count,
+                'avg_revenue' => $count > 0 ? round($acc['total_revenue'] / $count, 2) : 0,
+                'r_avg' => $count > 0 ? round($acc['total_r'] / $count, 1) : 0,
+                'f_avg' => $count > 0 ? round($acc['total_f'] / $count, 1) : 0,
+                'm_avg' => $count > 0 ? round($acc['total_m'] / $count, 1) : 0,
+            ];
+        }
+
+        return [
+            'segments' => $segments,
+            'matrix' => $matrix,
+        ];
+    }
+
+    /**
+     * Map RFM scores to segment name.
+     */
+    private function mapRfmToSegment(int $r, int $f, int $m): string
+    {
+        // Champions: Recent, frequent, high spenders
+        if ($r >= 4 && $f >= 4 && $m >= 4) {
+            return 'Champions';
+        }
+        // Loyal Customers: Good across all dimensions
+        if ($r >= 3 && $f >= 4 && $m >= 3) {
+            return 'Loyal Customers';
+        }
+        // Potential Loyalists: Recent with moderate F/M
+        if ($r >= 4 && $f >= 2 && $f <= 4 && $m >= 2) {
+            return 'Potential Loyalists';
+        }
+        // New Customers: Very recent, low frequency
+        if ($r >= 4 && $f <= 2) {
+            return 'New Customers';
+        }
+        // Promising: Recent-ish with low F/M
+        if ($r >= 3 && $r <= 4 && $f <= 2) {
+            return 'Promising';
+        }
+        // At Risk: Were valuable but haven't bought recently
+        if ($r <= 2 && $f >= 3 && $m >= 3) {
+            return 'At Risk';
+        }
+        // Need Attention: Average customers declining
+        if ($r >= 2 && $r <= 3 && $f >= 2 && $f <= 3 && $m >= 2) {
+            return 'Need Attention';
+        }
+        // About to Sleep: Below average, at risk of churning
+        if ($r >= 2 && $r <= 3 && $f <= 2) {
+            return 'About to Sleep';
+        }
+        // Hibernating: Long gone, low value
+        if ($r <= 2 && $f <= 2 && $m >= 2) {
+            return 'Hibernating';
+        }
+
+        // Lost: Lowest across all
+        return 'Lost';
     }
 
     /**
@@ -1142,12 +1484,26 @@ class BigQueryService
             'months' => $monthsBack,
         ]);
 
-        return array_map(fn ($row) => [
-            'period' => $row['month'],
-            'total_customers' => $this->toInt($row['total_customers']),
-            'retained_customers' => $this->toInt($row['retained_customers']),
-            'retention_rate' => round($this->toFloat($row['retention_rate'] ?? 0), 1),
-        ], $results);
+        // Transform data to match page expectations
+        $retentionData = array_map(function ($row) {
+            $totalCustomers = $this->toInt($row['total_customers']);
+            $retainedCustomers = $this->toInt($row['retained_customers']);
+            $churnedCustomers = $totalCustomers - $retainedCustomers;
+            $retentionRate = round($this->toFloat($row['retention_rate'] ?? 0), 1);
+            $churnRate = round(100 - $retentionRate, 1);
+
+            return [
+                'month' => $row['month'],
+                'retained' => $retainedCustomers,
+                'churned' => $churnedCustomers,
+                'retention_rate' => $retentionRate,
+                'churn_rate' => $churnRate,
+            ];
+        }, $results);
+
+        return [
+            'retention' => $retentionData,
+        ];
     }
 
     /**
@@ -1196,6 +1552,7 @@ class BigQueryService
             p.name,
             p.brand,
             COALESCE(p.primary_category, 'Uncategorized') as category,
+            COALESCE(p.secondary_category, '') as subcategory,
             p.price,
             p.cost_price,
             COALESCE(p.total_stock_on_hand, 0) as stock
@@ -1205,52 +1562,224 @@ class BigQueryService
         LIMIT 1
         SQL;
 
-        $productResult = $this->queryCached("product_info:{$this->companyId}:{$sku}", $productSql, [
+        $productResult = $this->queryCached("product_info_v2:{$this->companyId}:{$sku}", $productSql, [
             'sku' => $sku,
             'company_id' => $this->companyId,
         ]);
 
         $product = $productResult[0] ?? null;
         if (! $product) {
-            return ['product' => null, 'sales_trend' => [], 'metrics' => []];
+            return [
+                'product_info' => [],
+                'performance' => [],
+                'customer' => [],
+                'price' => [],
+                'trend' => [],
+                'comparison' => [],
+            ];
         }
 
-        // Get monthly sales trend
-        $trendSql = <<<SQL
+        // Get comprehensive product metrics
+        $metricsSql = <<<SQL
         SELECT
-            FORMAT_DATE('%Y-%m', oi.order_date) as month,
-            SUM(oi.revenue_realised_subtotal_excl) as revenue,
-            SUM(oi.qty_ordered) as units
+            -- Performance metrics
+            SUM(oi.revenue_realised_subtotal_excl) as total_revenue,
+            COUNT(DISTINCT o.order_id) as total_orders,
+            SUM(oi.qty_ordered) as total_units,
+            AVG(oi.revenue_realised_subtotal_excl) as avg_order_value,
+            AVG(oi.price_realised_excl) as avg_price,
+            -- Customer metrics
+            COUNT(DISTINCT o.customer_id) as unique_customers,
+            AVG(oi.qty_ordered) as avg_qty_per_order,
+            -- Price metrics
+            MIN(oi.price_realised_excl) as min_price,
+            MAX(oi.price_realised_excl) as max_price,
+            -- Promo analysis
+            COUNT(DISTINCT CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != '' THEN o.order_id END) as promo_orders,
+            AVG(CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != '' THEN o.discount_excl ELSE NULL END) as avg_discount
         FROM `{$this->dataset}.fact_order_item` oi
+        JOIN `{$this->dataset}.fact_order` o ON oi.order_id = o.order_id AND oi.company_id = o.company_id
         WHERE oi.sku = @sku
           AND oi.company_id = @company_id
           AND oi.order_date >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
-        GROUP BY month
-        ORDER BY month
+          AND o.is_cancelled = FALSE
         SQL;
 
-        $trendResults = $this->queryCached("product_trend:{$this->companyId}:{$sku}:{$monthsBack}", $trendSql, [
+        $metricsResults = $this->queryCached("product_metrics_v2:{$this->companyId}:{$sku}:{$monthsBack}", $metricsSql, [
             'sku' => $sku,
             'company_id' => $this->companyId,
             'months' => $monthsBack,
         ]);
 
+        $metrics = $metricsResults[0] ?? [];
+        $totalOrders = $this->toInt($metrics['total_orders'] ?? 0);
+        $promoOrders = $this->toInt($metrics['promo_orders'] ?? 0);
+        $uniqueCustomers = $this->toInt($metrics['unique_customers'] ?? 0);
+
+        // Calculate reorder rate - customers who bought more than once
+        $reorderSql = <<<SQL
+        SELECT
+            COUNT(DISTINCT customer_id) as repeat_customers
+        FROM (
+            SELECT
+                o.customer_id,
+                COUNT(DISTINCT o.order_id) as order_count
+            FROM `{$this->dataset}.fact_order_item` oi
+            JOIN `{$this->dataset}.fact_order` o ON oi.order_id = o.order_id AND oi.company_id = o.company_id
+            WHERE oi.sku = @sku
+              AND oi.company_id = @company_id
+              AND oi.order_date >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+              AND o.is_cancelled = FALSE
+            GROUP BY o.customer_id
+            HAVING order_count > 1
+        )
+        SQL;
+
+        $reorderResults = $this->queryCached("product_reorder_v2:{$this->companyId}:{$sku}:{$monthsBack}", $reorderSql, [
+            'sku' => $sku,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+        $repeatCustomers = $this->toInt($reorderResults[0]['repeat_customers'] ?? 0);
+        $reorderRate = $uniqueCustomers > 0 ? round(($repeatCustomers / $uniqueCustomers) * 100, 1) : 0;
+
+        // Calculate average customer span (days between first and last purchase)
+        $spanSql = <<<SQL
+        SELECT
+            AVG(DATE_DIFF(last_purchase, first_purchase, DAY)) as avg_span
+        FROM (
+            SELECT
+                o.customer_id,
+                MIN(DATE(o.order_datetime)) as first_purchase,
+                MAX(DATE(o.order_datetime)) as last_purchase
+            FROM `{$this->dataset}.fact_order_item` oi
+            JOIN `{$this->dataset}.fact_order` o ON oi.order_id = o.order_id AND oi.company_id = o.company_id
+            WHERE oi.sku = @sku
+              AND oi.company_id = @company_id
+              AND oi.order_date >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+              AND o.is_cancelled = FALSE
+            GROUP BY o.customer_id
+        )
+        SQL;
+
+        $spanResults = $this->queryCached("product_span_v2:{$this->companyId}:{$sku}:{$monthsBack}", $spanSql, [
+            'sku' => $sku,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+        $avgSpanDays = $this->toInt($spanResults[0]['avg_span'] ?? 0);
+
+        // Get monthly sales trend with orders count
+        $trendSql = <<<SQL
+        SELECT
+            FORMAT_DATE('%Y-%m', oi.order_date) as month,
+            SUM(oi.revenue_realised_subtotal_excl) as revenue,
+            COUNT(DISTINCT oi.order_id) as orders,
+            SUM(oi.qty_ordered) as units
+        FROM `{$this->dataset}.fact_order_item` oi
+        JOIN `{$this->dataset}.fact_order` o ON oi.order_id = o.order_id AND oi.company_id = o.company_id
+        WHERE oi.sku = @sku
+          AND oi.company_id = @company_id
+          AND oi.order_date >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+          AND o.is_cancelled = FALSE
+        GROUP BY month
+        ORDER BY month
+        SQL;
+
+        $trendResults = $this->queryCached("product_trend_v2:{$this->companyId}:{$sku}:{$monthsBack}", $trendSql, [
+            'sku' => $sku,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+
+        // Get brand averages for comparison
+        $brandAvgSql = <<<SQL
+        SELECT
+            AVG(product_revenue) as avg_revenue,
+            AVG(product_orders) as avg_orders,
+            AVG(product_units) as avg_units
+        FROM (
+            SELECT
+                oi.sku,
+                SUM(oi.revenue_realised_subtotal_excl) as product_revenue,
+                COUNT(DISTINCT o.order_id) as product_orders,
+                SUM(oi.qty_ordered) as product_units
+            FROM `{$this->dataset}.fact_order_item` oi
+            JOIN `{$this->dataset}.fact_order` o ON oi.order_id = o.order_id AND oi.company_id = o.company_id
+            JOIN `{$this->dataset}.dim_product` p ON oi.sku = p.sku AND oi.company_id = p.company_id
+            WHERE p.brand = @brand
+              AND p.company_id = @company_id
+              AND oi.order_date >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+              AND o.is_cancelled = FALSE
+            GROUP BY oi.sku
+        )
+        SQL;
+
+        $brandAvgResults = $this->queryCached("brand_avg_v2:{$this->companyId}:{$brand}:{$monthsBack}", $brandAvgSql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+
+        $brandAvg = $brandAvgResults[0] ?? [];
+        $brandAvgRevenue = $this->toFloat($brandAvg['avg_revenue'] ?? 0);
+        $brandAvgOrders = $this->toFloat($brandAvg['avg_orders'] ?? 0);
+        $brandAvgUnits = $this->toFloat($brandAvg['avg_units'] ?? 0);
+
+        $productRevenue = $this->toFloat($metrics['total_revenue'] ?? 0);
+        $productOrders = $this->toInt($metrics['total_orders'] ?? 0);
+        $productUnits = $this->toInt($metrics['total_units'] ?? 0);
+
         return [
-            'product' => [
+            'product_info' => [
                 'sku' => $product['sku'],
                 'name' => $product['name'],
                 'brand' => $product['brand'],
                 'category' => $product['category'],
-                'price' => $this->toFloat($product['price'] ?? 0),
-                'cost_price' => $this->toFloat($product['cost_price'] ?? 0),
-                'stock' => $this->toInt($product['stock'] ?? 0),
+                'subcategory' => $product['subcategory'],
             ],
-            'sales_trend' => array_map(fn ($row) => [
+            'performance' => [
+                'total_revenue' => $productRevenue,
+                'total_orders' => $productOrders,
+                'total_units' => $productUnits,
+                'avg_order_value' => round($this->toFloat($metrics['avg_order_value'] ?? 0), 2),
+                'avg_price' => round($this->toFloat($metrics['avg_price'] ?? 0), 2),
+            ],
+            'customer' => [
+                'unique_customers' => $uniqueCustomers,
+                'avg_qty_per_customer' => $uniqueCustomers > 0
+                    ? round($productUnits / $uniqueCustomers, 1)
+                    : 0,
+                'reorder_rate' => $reorderRate,
+                'avg_customer_span_days' => $avgSpanDays,
+            ],
+            'price' => [
+                'min_price' => round($this->toFloat($metrics['min_price'] ?? 0), 2),
+                'max_price' => round($this->toFloat($metrics['max_price'] ?? 0), 2),
+                'avg_price' => round($this->toFloat($metrics['avg_price'] ?? 0), 2),
+                'promo_rate' => $totalOrders > 0 ? round(($promoOrders / $totalOrders) * 100, 1) : 0,
+                'avg_discount' => round($this->toFloat($metrics['avg_discount'] ?? 0), 2),
+            ],
+            'trend' => array_map(fn ($row) => [
                 'month' => $row['month'],
                 'revenue' => $this->toFloat($row['revenue']),
+                'orders' => $this->toInt($row['orders']),
                 'units' => $this->toInt($row['units']),
             ], $trendResults),
-            'metrics' => [],
+            'comparison' => [
+                'revenue_vs_avg' => $brandAvgRevenue > 0
+                    ? round((($productRevenue - $brandAvgRevenue) / $brandAvgRevenue) * 100, 1)
+                    : 0,
+                'orders_vs_avg' => $brandAvgOrders > 0
+                    ? round((($productOrders - $brandAvgOrders) / $brandAvgOrders) * 100, 1)
+                    : 0,
+                'units_vs_avg' => $brandAvgUnits > 0
+                    ? round((($productUnits - $brandAvgUnits) / $brandAvgUnits) * 100, 1)
+                    : 0,
+                'brand_avg_revenue' => $brandAvgRevenue,
+                'brand_avg_orders' => round($brandAvgOrders, 0),
+                'brand_avg_units' => round($brandAvgUnits, 0),
+            ],
         ];
     }
 
@@ -1259,40 +1788,379 @@ class BigQueryService
      */
     public function getMarketingAnalytics(string $brand, int $monthsBack = 12): array
     {
-        $sql = <<<SQL
+        // Summary stats - promo vs regular orders
+        $summarySql = <<<SQL
         SELECT
-            COALESCE(o.channel, 'Unknown') as channel,
-            COALESCE(o.source, 'Unknown') as source,
-            COALESCE(o.medium, 'Unknown') as medium,
-            COUNT(DISTINCT o.order_id) as orders,
-            SUM(oi.revenue_realised_subtotal_excl) as revenue,
-            COUNT(DISTINCT o.customer_id) as customers
+            COUNT(DISTINCT o.order_id) as total_orders,
+            SUM(oi.revenue_realised_subtotal_excl) as total_revenue,
+            COUNT(DISTINCT CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != '' THEN o.order_id END) as promo_orders,
+            SUM(CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != '' THEN oi.revenue_realised_subtotal_excl ELSE 0 END) as promo_revenue,
+            SUM(COALESCE(o.discount_excl, 0)) as total_discount,
+            COUNT(DISTINCT o.customer_id) as total_customers,
+            AVG(CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != '' THEN o.discount_excl ELSE NULL END) as avg_promo_discount,
+            AVG(CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != ''
+                THEN SAFE_DIVIDE(o.discount_excl, NULLIF(o.revenue_realised_excl + o.discount_excl, 0)) * 100
+                ELSE NULL END) as avg_discount_pct
         FROM `{$this->dataset}.fact_order` o
         JOIN `{$this->dataset}.fact_order_item` oi ON o.order_id = oi.order_id AND o.company_id = oi.company_id
         JOIN `{$this->dataset}.dim_product` p ON oi.sku = p.sku AND oi.company_id = p.company_id
         WHERE p.brand = @brand
           AND p.company_id = @company_id
-          AND o.order_datetime >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @months MONTH)
+          AND DATE(o.order_datetime) >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
           AND o.is_cancelled = FALSE
-        GROUP BY channel, source, medium
-        ORDER BY revenue DESC
-        LIMIT 50
         SQL;
 
-        $results = $this->queryCached("marketing:{$this->companyId}:{$brand}:{$monthsBack}", $sql, [
+        $summaryResults = $this->queryCached("marketing_summary_v2:{$this->companyId}:{$brand}:{$monthsBack}", $summarySql, [
             'brand' => $brand,
             'company_id' => $this->companyId,
             'months' => $monthsBack,
         ]);
 
-        return array_map(fn ($row) => [
-            'channel' => $row['channel'],
-            'source' => $row['source'],
-            'medium' => $row['medium'],
+        $summaryRow = $summaryResults[0] ?? [];
+        $totalOrders = $this->toInt($summaryRow['total_orders'] ?? 0);
+        $totalRevenue = $this->toFloat($summaryRow['total_revenue'] ?? 0);
+        $promoOrders = $this->toInt($summaryRow['promo_orders'] ?? 0);
+        $promoRevenue = $this->toFloat($summaryRow['promo_revenue'] ?? 0);
+        $totalDiscount = $this->toFloat($summaryRow['total_discount'] ?? 0);
+
+        $summary = [
+            'total_orders' => $totalOrders,
+            'total_revenue' => $totalRevenue,
+            'promo_orders' => $promoOrders,
+            'promo_revenue' => $promoRevenue,
+            'regular_orders' => $totalOrders - $promoOrders,
+            'regular_revenue' => $totalRevenue - $promoRevenue,
+            'promo_order_pct' => $totalOrders > 0 ? round(($promoOrders / $totalOrders) * 100, 1) : 0,
+            'promo_revenue_pct' => $totalRevenue > 0 ? round(($promoRevenue / $totalRevenue) * 100, 1) : 0,
+            'total_discount' => $totalDiscount,
+            'total_discount_given' => $totalDiscount,
+            'avg_discount_amount' => $promoOrders > 0 ? round($this->toFloat($summaryRow['avg_promo_discount'] ?? 0), 2) : 0,
+            'avg_discount_pct' => round($this->toFloat($summaryRow['avg_discount_pct'] ?? 0), 1),
+            'total_customers' => $this->toInt($summaryRow['total_customers'] ?? 0),
+        ];
+
+        // Discount tier breakdown - for "campaigns" variable used in Discount Tier Performance table
+        $discountTierSql = <<<SQL
+        SELECT
+            CASE
+                WHEN SAFE_DIVIDE(o.discount_excl, NULLIF(o.revenue_realised_excl + o.discount_excl, 0)) * 100 = 0 THEN '0-10%'
+                WHEN SAFE_DIVIDE(o.discount_excl, NULLIF(o.revenue_realised_excl + o.discount_excl, 0)) * 100 <= 10 THEN '0-10%'
+                WHEN SAFE_DIVIDE(o.discount_excl, NULLIF(o.revenue_realised_excl + o.discount_excl, 0)) * 100 <= 20 THEN '10-20%'
+                WHEN SAFE_DIVIDE(o.discount_excl, NULLIF(o.revenue_realised_excl + o.discount_excl, 0)) * 100 <= 30 THEN '20-30%'
+                WHEN SAFE_DIVIDE(o.discount_excl, NULLIF(o.revenue_realised_excl + o.discount_excl, 0)) * 100 <= 50 THEN '30-50%'
+                ELSE '50%+'
+            END as discount_tier,
+            COUNT(DISTINCT o.order_id) as orders,
+            SUM(oi.revenue_realised_subtotal_excl) as revenue,
+            SUM(oi.qty_ordered) as units,
+            SUM(o.discount_excl) as discount_given,
+            AVG(SAFE_DIVIDE(o.discount_excl, NULLIF(o.revenue_realised_excl + o.discount_excl, 0)) * 100) as effective_discount_pct
+        FROM `{$this->dataset}.fact_order` o
+        JOIN `{$this->dataset}.fact_order_item` oi ON o.order_id = oi.order_id AND o.company_id = oi.company_id
+        JOIN `{$this->dataset}.dim_product` p ON oi.sku = p.sku AND oi.company_id = p.company_id
+        WHERE p.brand = @brand
+          AND p.company_id = @company_id
+          AND DATE(o.order_datetime) >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+          AND o.is_cancelled = FALSE
+        GROUP BY discount_tier
+        ORDER BY
+            CASE discount_tier
+                WHEN '0-10%' THEN 1
+                WHEN '10-20%' THEN 2
+                WHEN '20-30%' THEN 3
+                WHEN '30-50%' THEN 4
+                WHEN '50%+' THEN 5
+            END
+        SQL;
+
+        $discountTierResults = $this->queryCached("marketing_discount_tiers_v2:{$this->companyId}:{$brand}:{$monthsBack}", $discountTierSql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+
+        $campaigns = array_map(fn ($row) => [
+            'discount_tier' => $row['discount_tier'],
             'orders' => $this->toInt($row['orders']),
             'revenue' => $this->toFloat($row['revenue']),
-            'customers' => $this->toInt($row['customers']),
+            'units' => $this->toInt($row['units']),
+            'discount_given' => $this->toFloat($row['discount_given']),
+            'effective_discount_pct' => round($this->toFloat($row['effective_discount_pct']), 1),
+        ], $discountTierResults);
+
+        // Promo vs Regular comparison for discount_analysis section
+        $comparisonSql = <<<SQL
+        SELECT
+            CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != '' THEN 'promo' ELSE 'regular' END as order_type,
+            AVG(oi.revenue_realised_subtotal_excl) as avg_order_value,
+            AVG(oi.qty_ordered) as avg_units_per_order,
+            COUNT(DISTINCT o.customer_id) as unique_customers
+        FROM `{$this->dataset}.fact_order` o
+        JOIN `{$this->dataset}.fact_order_item` oi ON o.order_id = oi.order_id AND o.company_id = oi.company_id
+        JOIN `{$this->dataset}.dim_product` p ON oi.sku = p.sku AND oi.company_id = p.company_id
+        WHERE p.brand = @brand
+          AND p.company_id = @company_id
+          AND DATE(o.order_datetime) >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+          AND o.is_cancelled = FALSE
+        GROUP BY order_type
+        SQL;
+
+        $comparisonResults = $this->queryCached("marketing_comparison_v2:{$this->companyId}:{$brand}:{$monthsBack}", $comparisonSql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+
+        $discountAnalysis = [
+            'promo' => [
+                'avg_order_value' => 0,
+                'avg_units_per_order' => 0,
+                'unique_customers' => 0,
+            ],
+            'regular' => [
+                'avg_order_value' => 0,
+                'avg_units_per_order' => 0,
+                'unique_customers' => 0,
+            ],
+        ];
+
+        foreach ($comparisonResults as $row) {
+            $type = $row['order_type'];
+            if (isset($discountAnalysis[$type])) {
+                $discountAnalysis[$type] = [
+                    'avg_order_value' => round($this->toFloat($row['avg_order_value']), 2),
+                    'avg_units_per_order' => round($this->toFloat($row['avg_units_per_order']), 1),
+                    'unique_customers' => $this->toInt($row['unique_customers']),
+                ];
+            }
+        }
+
+        // Monthly trend - promo vs regular
+        $trendSql = <<<SQL
+        SELECT
+            FORMAT_DATE('%Y-%m', DATE(o.order_datetime)) as month,
+            COUNT(DISTINCT CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != '' THEN o.order_id END) as promo_orders,
+            COUNT(DISTINCT CASE WHEN o.coupon_code IS NULL OR TRIM(o.coupon_code) = '' THEN o.order_id END) as regular_orders,
+            SUM(CASE WHEN o.coupon_code IS NOT NULL AND TRIM(o.coupon_code) != '' THEN oi.revenue_realised_subtotal_excl ELSE 0 END) as promo_revenue,
+            SUM(CASE WHEN o.coupon_code IS NULL OR TRIM(o.coupon_code) = '' THEN oi.revenue_realised_subtotal_excl ELSE 0 END) as regular_revenue
+        FROM `{$this->dataset}.fact_order` o
+        JOIN `{$this->dataset}.fact_order_item` oi ON o.order_id = oi.order_id AND o.company_id = oi.company_id
+        JOIN `{$this->dataset}.dim_product` p ON oi.sku = p.sku AND oi.company_id = p.company_id
+        WHERE p.brand = @brand
+          AND p.company_id = @company_id
+          AND DATE(o.order_datetime) >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+          AND o.is_cancelled = FALSE
+        GROUP BY month
+        ORDER BY month
+        SQL;
+
+        $trendResults = $this->queryCached("marketing_trend:{$this->companyId}:{$brand}:{$monthsBack}", $trendSql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+
+        $monthlyTrend = array_map(fn ($row) => [
+            'month' => $row['month'],
+            'promo_orders' => $this->toInt($row['promo_orders']),
+            'regular_orders' => $this->toInt($row['regular_orders']),
+            'promo_revenue' => $this->toFloat($row['promo_revenue']),
+            'regular_revenue' => $this->toFloat($row['regular_revenue']),
+        ], $trendResults);
+
+        return [
+            'summary' => $summary,
+            'campaigns' => $campaigns,
+            'discount_analysis' => $discountAnalysis,
+            'monthly_trend' => $monthlyTrend,
+        ];
+    }
+
+    /**
+     * Get promo campaigns list with statistics.
+     *
+     * @return array<int, array{coupon_code: string, description: string, orders: int, revenue: float, units: int, discount_given: float, avg_discount_pct: float, first_used: string, last_used: string}>
+     */
+    public function getPromoCampaigns(string $brand, int $monthsBack = 12, int $limit = 20): array
+    {
+        $sql = <<<SQL
+        SELECT
+            UPPER(TRIM(o.coupon_code)) as coupon_code,
+            MAX(o.discount_description) as description,
+            COUNT(DISTINCT o.order_id) as orders,
+            SUM(oi.revenue_realised_subtotal_excl) as revenue,
+            SUM(oi.qty_ordered) as units,
+            SUM(o.discount_excl) as discount_given,
+            AVG(SAFE_DIVIDE(o.discount_excl, NULLIF(o.revenue_realised_excl + o.discount_excl, 0)) * 100) as avg_discount_pct,
+            MIN(DATE(o.order_datetime)) as first_used,
+            MAX(DATE(o.order_datetime)) as last_used
+        FROM `{$this->dataset}.fact_order` o
+        JOIN `{$this->dataset}.fact_order_item` oi ON o.order_id = oi.order_id AND o.company_id = oi.company_id
+        JOIN `{$this->dataset}.dim_product` p ON oi.sku = p.sku AND oi.company_id = p.company_id
+        WHERE p.brand = @brand
+          AND p.company_id = @company_id
+          AND DATE(o.order_datetime) >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+          AND o.is_cancelled = FALSE
+          AND o.coupon_code IS NOT NULL
+          AND TRIM(o.coupon_code) != ''
+        GROUP BY UPPER(TRIM(o.coupon_code))
+        HAVING orders >= 5
+        ORDER BY revenue DESC
+        LIMIT @limit
+        SQL;
+
+        $results = $this->queryCached("promo_campaigns:{$this->companyId}:{$brand}:{$monthsBack}:{$limit}", $sql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+            'limit' => $limit,
+        ]);
+
+        return array_map(fn ($row) => [
+            'coupon_code' => $row['coupon_code'] ?? '',
+            'description' => $row['description'] ?? $row['coupon_code'] ?? '',
+            'orders' => $this->toInt($row['orders']),
+            'revenue' => $this->toFloat($row['revenue']),
+            'units' => $this->toInt($row['units']),
+            'discount_given' => $this->toFloat($row['discount_given']),
+            'avg_discount_pct' => $this->toFloat($row['avg_discount_pct']),
+            'first_used' => $row['first_used'] ?? '',
+            'last_used' => $row['last_used'] ?? '',
         ], $results);
+    }
+
+    /**
+     * Get personalised offers statistics for a brand.
+     * Data from ftn_reporting.ftn_personalised_discounts_listed table.
+     *
+     * @return array{summary: array<string, mixed>, weekly_trend: array<int, array<string, mixed>>, top_products: array<int, array<string, mixed>>}
+     */
+    public function getPersonalisedOffers(string $brand, int $monthsBack = 6): array
+    {
+        // Note: This query only works for FtN (company_id = 3) as the personalised discounts
+        // table is FtN-specific and stored in the ftn_reporting dataset
+        $pdDataset = 'ftn_reporting';
+        $pdTable = 'ftn_personalised_discounts_listed';
+
+        // Summary stats
+        $summarySql = <<<SQL
+        WITH parsed_offers AS (
+            SELECT
+                pd.customer_id,
+                pd.date_from,
+                pd.discount_perc,
+                TRIM(REPLACE(REPLACE(sku_item, "'", ''), ' ', '')) as clean_sku
+            FROM `silvertreepoc.{$pdDataset}.{$pdTable}` pd,
+            UNNEST(SPLIT(pd.sku, ',')) as sku_item
+            WHERE pd.date_from >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+        )
+        SELECT
+            COUNT(*) as total_offers,
+            COUNT(DISTINCT po.customer_id) as unique_customers,
+            COUNT(DISTINCT po.clean_sku) as products_featured,
+            AVG(po.discount_perc) * 100 as avg_discount_pct,
+            COUNT(DISTINCT po.date_from) as campaigns_count
+        FROM parsed_offers po
+        JOIN `{$this->dataset}.dim_product` p ON po.clean_sku = p.sku AND p.company_id = @company_id
+        WHERE p.brand = @brand
+        SQL;
+
+        $summaryResults = $this->queryCached("pd_summary:{$this->companyId}:{$brand}:{$monthsBack}", $summarySql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+
+        $summary = ! empty($summaryResults) ? [
+            'total_offers' => $this->toInt($summaryResults[0]['total_offers']),
+            'unique_customers' => $this->toInt($summaryResults[0]['unique_customers']),
+            'products_featured' => $this->toInt($summaryResults[0]['products_featured']),
+            'avg_discount_pct' => round($this->toFloat($summaryResults[0]['avg_discount_pct']), 1),
+            'campaigns_count' => $this->toInt($summaryResults[0]['campaigns_count']),
+        ] : [
+            'total_offers' => 0,
+            'unique_customers' => 0,
+            'products_featured' => 0,
+            'avg_discount_pct' => 0,
+            'campaigns_count' => 0,
+        ];
+
+        // Weekly trend
+        $trendSql = <<<SQL
+        WITH parsed_offers AS (
+            SELECT
+                pd.customer_id,
+                pd.date_from,
+                TRIM(REPLACE(REPLACE(sku_item, "'", ''), ' ', '')) as clean_sku
+            FROM `silvertreepoc.{$pdDataset}.{$pdTable}` pd,
+            UNNEST(SPLIT(pd.sku, ',')) as sku_item
+            WHERE pd.date_from >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+        )
+        SELECT
+            FORMAT_DATE('%Y-%m-%d', po.date_from) as week_start,
+            COUNT(*) as offers,
+            COUNT(DISTINCT po.customer_id) as customers
+        FROM parsed_offers po
+        JOIN `{$this->dataset}.dim_product` p ON po.clean_sku = p.sku AND p.company_id = @company_id
+        WHERE p.brand = @brand
+        GROUP BY po.date_from
+        ORDER BY po.date_from DESC
+        LIMIT 12
+        SQL;
+
+        $trendResults = $this->queryCached("pd_trend:{$this->companyId}:{$brand}:{$monthsBack}", $trendSql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+
+        $weeklyTrend = array_map(fn ($row) => [
+            'week_start' => $row['week_start'],
+            'offers' => $this->toInt($row['offers']),
+            'customers' => $this->toInt($row['customers']),
+        ], array_reverse($trendResults));
+
+        // Top products featured in personalised offers
+        $topProductsSql = <<<SQL
+        WITH parsed_offers AS (
+            SELECT
+                pd.customer_id,
+                TRIM(REPLACE(REPLACE(sku_item, "'", ''), ' ', '')) as clean_sku
+            FROM `silvertreepoc.{$pdDataset}.{$pdTable}` pd,
+            UNNEST(SPLIT(pd.sku, ',')) as sku_item
+            WHERE pd.date_from >= DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH)
+        )
+        SELECT
+            p.sku,
+            p.name,
+            COUNT(*) as times_featured,
+            COUNT(DISTINCT po.customer_id) as unique_customers
+        FROM parsed_offers po
+        JOIN `{$this->dataset}.dim_product` p ON po.clean_sku = p.sku AND p.company_id = @company_id
+        WHERE p.brand = @brand
+        GROUP BY p.sku, p.name
+        ORDER BY times_featured DESC
+        LIMIT 10
+        SQL;
+
+        $topProductsResults = $this->queryCached("pd_top_products:{$this->companyId}:{$brand}:{$monthsBack}", $topProductsSql, [
+            'brand' => $brand,
+            'company_id' => $this->companyId,
+            'months' => $monthsBack,
+        ]);
+
+        $topProducts = array_map(fn ($row) => [
+            'sku' => $row['sku'],
+            'name' => $row['name'],
+            'times_featured' => $this->toInt($row['times_featured']),
+            'unique_customers' => $this->toInt($row['unique_customers']),
+        ], $topProductsResults);
+
+        return [
+            'summary' => $summary,
+            'weekly_trend' => $weeklyTrend,
+            'top_products' => $topProducts,
+        ];
     }
 
     /**

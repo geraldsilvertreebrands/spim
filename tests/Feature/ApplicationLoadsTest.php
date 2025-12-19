@@ -117,6 +117,13 @@ class ApplicationLoadsTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_brands_page_loads(): void
+    {
+        $response = $this->actingAs($this->admin)->get('/pim/brands');
+
+        $response->assertStatus(200);
+    }
+
     public function test_no_php_errors_on_dashboard(): void
     {
         $response = $this->actingAs($this->admin)->get('/pim');

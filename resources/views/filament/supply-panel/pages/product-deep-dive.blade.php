@@ -59,6 +59,17 @@
                     </select>
                 </div>
             </div>
+
+            {{-- Export Buttons --}}
+            @if(!$loading && !$error && $sku)
+                @include('filament.shared.components.export-buttons', [
+                    'showCsv' => false,
+                    'showChart' => true,
+                    'chartId' => 'productTrendChart',
+                    'chartFilename' => 'product_deep_dive',
+                    'showPrint' => true,
+                ])
+            @endif
         </div>
 
         {{-- Error Message --}}
@@ -80,7 +91,7 @@
         {{-- No Product Selected State --}}
         @if(!$loading && !$error && !$sku)
             <div class="rounded-lg bg-gray-50 p-6 text-center dark:bg-gray-800">
-                <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg width="32" height="32" class="mx-auto h-8 w-8 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <h3 class="mt-3 text-sm font-medium text-gray-900 dark:text-white">Select a Product</h3>

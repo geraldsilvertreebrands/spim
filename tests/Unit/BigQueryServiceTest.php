@@ -266,7 +266,7 @@ class BigQueryServiceTest extends BaseTestCase
         $this->assertCount(1, $result['datasets']);
         $this->assertEquals('TestBrand', $result['datasets'][0]['label']);
         $this->assertEquals([10000.0, 12000.0, 15000.0], $result['datasets'][0]['data']);
-        $this->assertEquals('#006654', $result['datasets'][0]['borderColor']);
+        $this->assertEquals('#264653', $result['datasets'][0]['borderColor']);
     }
 
     public function test_get_top_products_returns_formatted_array(): void
@@ -370,7 +370,7 @@ class BigQueryServiceTest extends BaseTestCase
                 'avg_qty_per_order' => 2.345,
                 'reorder_rate' => 35.678,
                 'avg_frequency_months' => 2.5,
-                'promo_intensity' => 0, // Promo data not available in BigQuery
+                'promo_intensity' => 25.456, // % of units sold on discount
             ],
         ];
 
@@ -384,7 +384,7 @@ class BigQueryServiceTest extends BaseTestCase
         $this->assertEquals(2.35, $result[0]['avg_qty_per_order']);
         $this->assertEquals(35.7, $result[0]['reorder_rate']);
         $this->assertEquals(2.5, $result[0]['avg_frequency_months']);
-        $this->assertEquals(0, $result[0]['promo_intensity']); // Hardcoded to 0 since no promo data
+        $this->assertEquals(25.5, $result[0]['promo_intensity']); // Calculated from BigQuery: (discounted units / total units) * 100
     }
 
     public function test_get_stock_supply_returns_stub_structure(): void
@@ -401,7 +401,7 @@ class BigQueryServiceTest extends BaseTestCase
         Config::set('bigquery.dataset', 'test_dataset');
         Config::set('bigquery.company_id', 3);
 
-        $service = new BigQueryService();
+        $service = new BigQueryService;
 
         $result = $service->getPurchaseOrders('TestBrand', 12);
 
@@ -425,7 +425,7 @@ class BigQueryServiceTest extends BaseTestCase
         Config::set('bigquery.dataset', 'test_dataset');
         Config::set('bigquery.company_id', 3);
 
-        $service = new BigQueryService();
+        $service = new BigQueryService;
 
         $result = $service->getPurchaseOrderLines('PO001');
 
@@ -511,7 +511,7 @@ class BigQueryServiceTest extends BaseTestCase
         Config::set('bigquery.dataset', 'test_dataset');
         Config::set('bigquery.company_id', 3);
 
-        $service = new BigQueryService();
+        $service = new BigQueryService;
 
         $result = $service->getPriceHistory('PROD001', null, '90d');
 
@@ -540,7 +540,7 @@ class BigQueryServiceTest extends BaseTestCase
         Config::set('bigquery.dataset', 'test_dataset');
         Config::set('bigquery.company_id', 3);
 
-        $service = new BigQueryService();
+        $service = new BigQueryService;
 
         $result = $service->getCompetitorPrices(null, null, 100);
 
@@ -585,7 +585,7 @@ class BigQueryServiceTest extends BaseTestCase
         Config::set('bigquery.dataset', 'test_dataset');
         Config::set('bigquery.company_id', 3);
 
-        $service = new BigQueryService();
+        $service = new BigQueryService;
 
         $result = $service->getPriceAlertTriggers(null, '7d');
 
@@ -606,7 +606,7 @@ class BigQueryServiceTest extends BaseTestCase
         Config::set('bigquery.dataset', 'test_dataset');
         Config::set('bigquery.company_id', 3);
 
-        $service = new BigQueryService();
+        $service = new BigQueryService;
 
         $result = $service->getPricingKpis();
 

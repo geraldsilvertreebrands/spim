@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Services\BigQueryService;
 use Filament\Pages\Page;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class Forecasting extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chart-bar-square';
 
     protected static ?string $navigationLabel = 'Forecasting';
@@ -16,9 +19,6 @@ class Forecasting extends Page
     protected static ?int $navigationSort = 8;
 
     protected string $view = 'filament.supply-panel.pages.forecasting';
-
-    #[Url]
-    public ?int $brandId = null;
 
     #[Url]
     public string $scenario = 'baseline';
@@ -44,22 +44,18 @@ class Forecasting extends Page
 
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
+
+            return;
         }
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
+        $this->loadData();
+    }
 
-                return;
-            }
-        }
-
+    protected function onBrandContextChanged(): void
+    {
         $this->loadData();
     }
 
@@ -95,6 +91,9 @@ class Forecasting extends Page
             $this->summaryStats = $this->calculateSummaryStats();
 
             $this->loading = false;
+
+            // Dispatch event to initialize/update chart
+            $this->dispatch('forecast-data-updated', chartData: $this->chartData);
         } catch (\Exception $e) {
             $this->error = 'Failed to load forecast data: '.$e->getMessage();
             $this->loading = false;
@@ -268,22 +267,6 @@ class Forecasting extends Page
     public function updatedForecastMonths(): void
     {
         $this->loadData();
-    }
-
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
-    {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
-
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
     }
 
     /**

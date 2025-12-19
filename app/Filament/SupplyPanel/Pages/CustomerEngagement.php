@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Services\BigQueryService;
 use Filament\Pages\Page;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class CustomerEngagement extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
     protected static ?string $navigationLabel = 'Customer Engagement';
@@ -16,9 +19,6 @@ class CustomerEngagement extends Page
     protected static ?int $navigationSort = 7;
 
     protected string $view = 'filament.supply-panel.pages.customer-engagement';
-
-    #[Url]
-    public ?int $brandId = null;
 
     #[Url]
     public string $period = '12m';
@@ -29,31 +29,36 @@ class CustomerEngagement extends Page
     #[Url]
     public string $sortDirection = 'asc';
 
+    #[Url]
+    public string $minReorderRate = '';
+
+    #[Url]
+    public string $maxPromoIntensity = '';
+
     public bool $loading = true;
 
     public ?string $error = null;
+
+    /** @var array<int, array<string, mixed>> */
+    public array $allEngagementData = [];
 
     /** @var array<int, array<string, mixed>> */
     public array $engagementData = [];
 
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
+
+            return;
         }
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
+        $this->loadData();
+    }
 
-                return;
-            }
-        }
-
+    protected function onBrandContextChanged(): void
+    {
         $this->loadData();
     }
 
@@ -77,16 +82,46 @@ class CustomerEngagement extends Page
             }
 
             // Load customer engagement data from BigQuery
-            $this->engagementData = $bq->getCustomerEngagement($brand->name, $this->period);
+            $this->allEngagementData = $bq->getCustomerEngagement($brand->name, $this->period);
 
-            // Sort the data
-            $this->sortData();
+            // Apply filters and sort
+            $this->applyFilters();
 
             $this->loading = false;
         } catch (\Exception $e) {
             $this->error = 'Failed to load customer engagement data: '.$e->getMessage();
             $this->loading = false;
         }
+    }
+
+    /**
+     * Apply metric threshold filters and sorting.
+     */
+    protected function applyFilters(): void
+    {
+        $this->engagementData = $this->allEngagementData;
+
+        // Filter by minimum reorder rate
+        if ($this->minReorderRate !== '') {
+            $minRate = (float) $this->minReorderRate;
+            $this->engagementData = array_filter($this->engagementData, function (array $product) use ($minRate) {
+                return ($product['reorder_rate'] ?? 0) >= $minRate;
+            });
+        }
+
+        // Filter by maximum promo intensity
+        if ($this->maxPromoIntensity !== '') {
+            $maxIntensity = (float) $this->maxPromoIntensity;
+            $this->engagementData = array_filter($this->engagementData, function (array $product) use ($maxIntensity) {
+                return ($product['promo_intensity'] ?? 0) <= $maxIntensity;
+            });
+        }
+
+        // Re-index array
+        $this->engagementData = array_values($this->engagementData);
+
+        // Sort the data
+        $this->sortData();
     }
 
     /**
@@ -142,20 +177,24 @@ class CustomerEngagement extends Page
         $this->loadData();
     }
 
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
+    public function updatedMinReorderRate(): void
     {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
+        $this->applyFilters();
+    }
 
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
+    public function updatedMaxPromoIntensity(): void
+    {
+        $this->applyFilters();
+    }
+
+    /**
+     * Clear all metric filters.
+     */
+    public function clearFilters(): void
+    {
+        $this->minReorderRate = '';
+        $this->maxPromoIntensity = '';
+        $this->applyFilters();
     }
 
     /**
@@ -169,6 +208,50 @@ class CustomerEngagement extends Page
             '6m' => 'Last 6 Months',
             '12m' => 'Last 12 Months',
         ];
+    }
+
+    /**
+     * Get reorder rate filter options.
+     *
+     * @return array<string, string>
+     */
+    public function getReorderRateOptions(): array
+    {
+        /** @var array<string, string> */
+        return [
+            '' => 'Any',
+            '5' => '≥ 5%',
+            '10' => '≥ 10%',
+            '15' => '≥ 15%',
+            '20' => '≥ 20%',
+            '30' => '≥ 30%',
+        ];
+    }
+
+    /**
+     * Get promo intensity filter options.
+     *
+     * @return array<string, string>
+     */
+    public function getPromoIntensityOptions(): array
+    {
+        /** @var array<string, string> */
+        return [
+            '' => 'Any',
+            '20' => '≤ 20%',
+            '30' => '≤ 30%',
+            '40' => '≤ 40%',
+            '50' => '≤ 50%',
+            '75' => '≤ 75%',
+        ];
+    }
+
+    /**
+     * Check if any filters are active.
+     */
+    public function hasActiveFilters(): bool
+    {
+        return $this->minReorderRate !== '' || $this->maxPromoIntensity !== '';
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Services\BigQueryService;
 use Filament\Pages\Page;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class PurchaseOrders extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'Purchase Orders';
@@ -16,9 +19,6 @@ class PurchaseOrders extends Page
     protected static ?int $navigationSort = 7;
 
     protected string $view = 'filament.supply-panel.pages.purchase-orders';
-
-    #[Url]
-    public ?int $brandId = null;
 
     #[Url]
     public string $period = '12m';
@@ -54,22 +54,18 @@ class PurchaseOrders extends Page
 
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
+
+            return;
         }
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
+        $this->loadData();
+    }
 
-                return;
-            }
-        }
-
+    protected function onBrandContextChanged(): void
+    {
         $this->loadData();
     }
 
@@ -213,22 +209,6 @@ class PurchaseOrders extends Page
         $this->selectedPoNumber = null;
         $this->selectedPoLines = [];
         $this->selectedPoDetails = null;
-    }
-
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
-    {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
-
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
     }
 
     /**

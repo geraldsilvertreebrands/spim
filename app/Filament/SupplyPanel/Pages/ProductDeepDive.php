@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Services\BigQueryService;
 use Filament\Pages\Page;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class ProductDeepDive extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-magnifying-glass-circle';
 
     protected static ?string $navigationLabel = 'Product Deep Dive';
@@ -16,9 +19,6 @@ class ProductDeepDive extends Page
     protected static ?int $navigationSort = 12;
 
     protected string $view = 'filament.supply-panel.pages.product-deep-dive';
-
-    #[Url]
-    public ?int $brandId = null;
 
     #[Url]
     public ?string $sku = null;
@@ -56,20 +56,11 @@ class ProductDeepDive extends Page
 
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
-        }
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
-
-                return;
-            }
+            return;
         }
 
         $this->loadAvailableProducts();
@@ -79,6 +70,11 @@ class ProductDeepDive extends Page
         } else {
             $this->loading = false;
         }
+    }
+
+    protected function onBrandContextChanged(): void
+    {
+        $this->loadData();
     }
 
     public function loadAvailableProducts(): void
@@ -230,22 +226,6 @@ class ProductDeepDive extends Page
         $this->comparisonData = [];
         $this->chartData = [];
         $this->loading = false;
-    }
-
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
-    {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
-
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
     }
 
     /**

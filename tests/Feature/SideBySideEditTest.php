@@ -285,12 +285,14 @@ class SideBySideEditTest extends TestCase
     /** @test */
     public function it_handles_mixed_entity_types_correctly()
     {
-        // Create another entity type
-        $otherEntityType = EntityType::create([
-            'name' => 'Category',
-            'display_name' => 'Categories',
-            'description' => 'Test categories',
-        ]);
+        // Use a unique entity type name to avoid conflicts with seeder
+        $otherEntityType = EntityType::query()->firstOrCreate(
+            ['name' => 'test-other-type'],
+            [
+                'display_name' => 'Test Other Type',
+                'description' => 'Test entity type for mixed type handling',
+            ]
+        );
 
         $otherEntity = Entity::create([
             'id' => (string) \Illuminate\Support\Str::ulid(),

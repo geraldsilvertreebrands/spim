@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Services\BigQueryService;
 use Filament\Pages\Page;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class Marketing extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-megaphone';
 
     protected static ?string $navigationLabel = 'Marketing';
@@ -16,9 +19,6 @@ class Marketing extends Page
     protected static ?int $navigationSort = 13;
 
     protected string $view = 'filament.supply-panel.pages.marketing';
-
-    #[Url]
-    public ?int $brandId = null;
 
     #[Url]
     public int $monthsBack = 12;
@@ -33,6 +33,9 @@ class Marketing extends Page
     /** @var array<int, array<string, mixed>> */
     public array $campaigns = [];
 
+    /** @var array<int, array{coupon_code: string, description: string, orders: int, revenue: float, units: int, discount_given: float, avg_discount_pct: float, first_used: string, last_used: string}> */
+    public array $promoCampaigns = [];
+
     /** @var array<string, mixed> */
     public array $discountAnalysis = [];
 
@@ -42,24 +45,27 @@ class Marketing extends Page
     /** @var array<string, mixed> */
     public array $chartData = [];
 
+    /** @var array{summary: array<string, mixed>, weekly_trend: array<int, array<string, mixed>>, top_products: array<int, array<string, mixed>>} */
+    public array $personalisedOffers = [
+        'summary' => [],
+        'weekly_trend' => [],
+        'top_products' => [],
+    ];
+
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
+
+            return;
         }
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
+        $this->loadData();
+    }
 
-                return;
-            }
-        }
-
+    protected function onBrandContextChanged(): void
+    {
         $this->loadData();
     }
 
@@ -89,6 +95,12 @@ class Marketing extends Page
             $this->campaigns = $data['campaigns'];
             $this->discountAnalysis = $data['discount_analysis'];
             $this->monthlyTrend = $data['monthly_trend'];
+
+            // Load promo campaigns (coupon codes)
+            $this->promoCampaigns = $bq->getPromoCampaigns($brand->name, $this->monthsBack, 20);
+
+            // Load personalised offers data
+            $this->personalisedOffers = $bq->getPersonalisedOffers($brand->name, $this->monthsBack);
 
             // Build chart data
             $this->chartData = $this->buildChartData();
@@ -170,22 +182,6 @@ class Marketing extends Page
     public function updatedMonthsBack(): void
     {
         $this->loadData();
-    }
-
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
-    {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
-
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
     }
 
     /**
@@ -329,5 +325,67 @@ class Marketing extends Page
     public function hasCampaignData(): bool
     {
         return ! empty($this->campaigns);
+    }
+
+    /**
+     * Check if has promo campaigns data.
+     */
+    public function hasPromoCampaigns(): bool
+    {
+        return ! empty($this->promoCampaigns);
+    }
+
+    /**
+     * Format date for display.
+     */
+    public function formatDate(string $date): string
+    {
+        if (empty($date)) {
+            return '-';
+        }
+
+        try {
+            return \Carbon\Carbon::parse($date)->format('d M Y');
+        } catch (\Exception) {
+            return $date;
+        }
+    }
+
+    /**
+     * Check if has personalised offers data.
+     */
+    public function hasPersonalisedOffers(): bool
+    {
+        return ! empty($this->personalisedOffers['summary']) && ($this->personalisedOffers['summary']['total_offers'] ?? 0) > 0;
+    }
+
+    /**
+     * Get personalised offers summary.
+     *
+     * @return array<string, mixed>
+     */
+    public function getPersonalisedOffersSummary(): array
+    {
+        return $this->personalisedOffers['summary'] ?? [];
+    }
+
+    /**
+     * Get personalised offers weekly trend.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getPersonalisedOffersWeeklyTrend(): array
+    {
+        return $this->personalisedOffers['weekly_trend'] ?? [];
+    }
+
+    /**
+     * Get top products in personalised offers.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getPersonalisedOffersTopProducts(): array
+    {
+        return $this->personalisedOffers['top_products'] ?? [];
     }
 }

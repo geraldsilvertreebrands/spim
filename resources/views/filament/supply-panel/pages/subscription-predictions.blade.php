@@ -52,8 +52,8 @@
             <div class="mb-6 grid gap-4 grid-cols-2 md:grid-cols-4">
                 {{-- Next 7 Days --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Deliveries (7 Days)</div>
-                    <div class="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Deliveries (7 Days)</div>
+                    <div class="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">
                         {{ $this->formatNumber($summary['deliveries_next_7_days'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -63,8 +63,8 @@
 
                 {{-- Next 30 Days --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Deliveries (30 Days)</div>
-                    <div class="mt-2 text-2xl font-bold text-green-600 dark:text-green-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Deliveries (30 Days)</div>
+                    <div class="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">
                         {{ $this->formatNumber($summary['deliveries_next_30_days'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -74,8 +74,8 @@
 
                 {{-- At Risk Count --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">At Risk Subscriptions</div>
-                    <div class="mt-2 text-2xl font-bold {{ ($summary['at_risk_count'] ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">At Risk Subscriptions</div>
+                    <div class="mt-2 text-3xl font-bold {{ ($summary['at_risk_count'] ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">
                         {{ $this->formatNumber($summary['at_risk_count'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -85,8 +85,8 @@
 
                 {{-- Revenue Forecast --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">30-Day Revenue Forecast</div>
-                    <div class="mt-2 text-2xl font-bold text-purple-600 dark:text-purple-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">30-Day Revenue Forecast</div>
+                    <div class="mt-2 text-3xl font-bold text-purple-600 dark:text-purple-400">
                         {{ $this->formatCurrency($summary['revenue_next_30_days'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">

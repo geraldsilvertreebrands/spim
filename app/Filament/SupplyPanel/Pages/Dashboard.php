@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Services\BigQueryService;
 use Filament\Pages\Page;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class Dashboard extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-home';
 
     protected static ?string $navigationLabel = 'Overview';
@@ -16,9 +19,6 @@ class Dashboard extends Page
     protected static ?int $navigationSort = 1;
 
     protected string $view = 'filament.supply-panel.pages.dashboard';
-
-    #[Url]
-    public ?int $brandId = null;
 
     #[Url]
     public string $period = '30d';
@@ -33,24 +33,64 @@ class Dashboard extends Page
 
     public ?string $error = null;
 
+    public bool $showChartAsTable = false;
+
+    /**
+     * Toggle between chart and table view.
+     */
+    public function toggleChartView(): void
+    {
+        $this->showChartAsTable = ! $this->showChartAsTable;
+
+        // If switching back to chart view, dispatch event to re-initialize chart
+        if (! $this->showChartAsTable) {
+            $this->dispatch('dashboard-data-updated', chartData: $this->chartData);
+        }
+    }
+
+    /**
+     * Get chart data formatted for table display.
+     *
+     * @return array<int, array{month: string, revenue: float}>
+     */
+    public function getChartTableData(): array
+    {
+        if (empty($this->chartData['labels']) || empty($this->chartData['datasets'])) {
+            return [];
+        }
+
+        $data = [];
+        $labels = $this->chartData['labels'];
+        $values = $this->chartData['datasets'][0]['data'] ?? [];
+
+        foreach ($labels as $index => $month) {
+            $data[] = [
+                'month' => $month,
+                'revenue' => $values[$index] ?? 0,
+            ];
+        }
+
+        return $data;
+    }
+
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
+        // Initialize brand from sidebar/session/URL
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
+
+            return;
         }
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
+        $this->loadData();
+    }
 
-                return;
-            }
-        }
-
+    /**
+     * Handle brand change from sidebar selector.
+     */
+    protected function onBrandContextChanged(): void
+    {
         $this->loadData();
     }
 
@@ -100,22 +140,6 @@ class Dashboard extends Page
     public function updatedPeriod(): void
     {
         $this->loadData();
-    }
-
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
-    {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
-
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
     }
 
     /**

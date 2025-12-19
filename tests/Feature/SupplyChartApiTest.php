@@ -150,12 +150,15 @@ class SupplyChartApiTest extends TestCase
     public function test_sales_trend_accepts_months_parameter(): void
     {
         $mockData = ['labels' => [], 'datasets' => []];
-        $mockService = $this->mockBigQueryService('getSalesTrend', $mockData);
 
+        // Set up mock with specific expectation for months=6
+        $mockService = Mockery::mock(BigQueryService::class);
         $mockService->shouldReceive('getSalesTrend')
             ->with('Test Brand', 6)
             ->once()
             ->andReturn($mockData);
+
+        $this->app->instance(BigQueryService::class, $mockService);
 
         $response = $this->actingAs($this->supplierUser)
             ->getJson('/api/supply/charts/sales-trend?brand_id='.$this->brand->id.'&months=6');

@@ -52,9 +52,20 @@
             </select>
         </div>
 
+        @if(!$loading && count($categories) > 0)
+            <div class="w-48">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Category</label>
+                <select wire:model.live="categoryFilter" class="w-full text-sm rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-1.5">
+                    @foreach($this->getCategoryOptions() as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
+
         @if(!$loading && !$error && count($products) > 0)
             <div class="flex gap-2 ml-auto">
-                <button wire:click="exportCsv" class="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded">
+                <button wire:click="exportToCsv" class="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded">
                     CSV
                 </button>
                 <button onclick="window.print()" class="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded">
@@ -84,7 +95,13 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
             <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Product Revenue by Month</h3>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ count($products) }} products found</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    @if($categoryFilter)
+                        {{ count($products) }} of {{ count($allProducts) }} products (filtered)
+                    @else
+                        {{ count($products) }} products found
+                    @endif
+                </p>
             </div>
 
             <div class="overflow-x-auto" style="max-height: 70vh;">
@@ -122,14 +139,28 @@
                                 @foreach($months as $month)
                                     <td class="col-month text-gray-700 dark:text-gray-300 tabular-nums border-r border-gray-100 dark:border-gray-700">
                                         @if(isset($product['months'][$month]) && $product['months'][$month] > 0)
-                                            R{{ number_format($product['months'][$month] / 1000, 0) }}k
+                                            @php $val = $product['months'][$month]; @endphp
+                                            @if($val >= 1000000)
+                                                R{{ number_format($val / 1000000, 1) }}M
+                                            @elseif($val >= 1000)
+                                                R{{ number_format($val / 1000, 0) }}k
+                                            @else
+                                                R{{ number_format($val, 0) }}
+                                            @endif
                                         @else
                                             <span class="text-gray-300 dark:text-gray-600">-</span>
                                         @endif
                                     </td>
                                 @endforeach
                                 <td class="col-total text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 tabular-nums">
-                                    R{{ number_format(($product['total'] ?? 0) / 1000, 0) }}k
+                                    @php $total = $product['total'] ?? 0; @endphp
+                                    @if($total >= 1000000)
+                                        R{{ number_format($total / 1000000, 1) }}M
+                                    @elseif($total >= 1000)
+                                        R{{ number_format($total / 1000, 0) }}k
+                                    @else
+                                        R{{ number_format($total, 0) }}
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -141,10 +172,6 @@
                         @endforelse
                     </tbody>
                 </table>
-            </div>
-
-            <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500">
-                Scroll horizontally to see all months →
             </div>
         </div>
     @endif

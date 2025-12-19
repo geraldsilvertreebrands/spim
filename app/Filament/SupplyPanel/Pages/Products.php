@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Services\BigQueryService;
 use Filament\Pages\Page;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class Products extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cube';
 
     protected static ?string $navigationLabel = 'Products';
@@ -18,14 +21,17 @@ class Products extends Page
     protected string $view = 'filament.supply-panel.pages.products';
 
     #[Url]
-    public ?int $brandId = null;
+    public string $period = '12m';
 
     #[Url]
-    public string $period = '12m';
+    public string $categoryFilter = '';
 
     public bool $loading = true;
 
     public ?string $error = null;
+
+    /** @var array<int, array<string, mixed>> */
+    public array $allProducts = [];
 
     /** @var array<int, array<string, mixed>> */
     public array $products = [];
@@ -33,24 +39,23 @@ class Products extends Page
     /** @var array<string> */
     public array $months = [];
 
+    /** @var array<string> */
+    public array $categories = [];
+
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
+
+            return;
         }
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
+        $this->loadData();
+    }
 
-                return;
-            }
-        }
-
+    protected function onBrandContextChanged(): void
+    {
         $this->loadData();
     }
 
@@ -76,19 +81,31 @@ class Products extends Page
             // Load product performance table with monthly breakdown
             $rawProducts = $bq->getProductPerformanceTable($brand->name, $this->period);
 
-            // Extract months from the data
+            // Store all products
+            $this->allProducts = $rawProducts;
+
+            // Extract months and categories from the data
             $this->months = [];
+            $categorySet = [];
             foreach ($rawProducts as $product) {
                 foreach (array_keys($product['months']) as $month) {
                     if (! in_array($month, $this->months)) {
                         $this->months[] = $month;
                     }
                 }
+                // Extract category
+                $category = $product['category'] ?? '';
+                if ($category !== '' && ! isset($categorySet[$category])) {
+                    $categorySet[$category] = true;
+                }
             }
             sort($this->months);
+            $this->categories = array_keys($categorySet);
+            sort($this->categories);
 
-            // Format products for display
-            $this->products = $rawProducts;
+            // Apply category filter
+            $this->applyFilters();
+
             $this->loading = false;
         } catch (\Exception $e) {
             $this->error = 'Failed to load product data: '.$e->getMessage();
@@ -96,8 +113,31 @@ class Products extends Page
         }
     }
 
+    /**
+     * Apply filters to the product list.
+     */
+    protected function applyFilters(): void
+    {
+        if ($this->categoryFilter === '') {
+            $this->products = $this->allProducts;
+
+            return;
+        }
+
+        $this->products = array_filter($this->allProducts, function (array $product) {
+            $category = $product['category'] ?? '';
+
+            // Check if category matches (supports both exact match and partial match for subcategories)
+            return $category === $this->categoryFilter || str_starts_with($category, $this->categoryFilter.'/');
+        });
+
+        // Re-index array
+        $this->products = array_values($this->products);
+    }
+
     public function updatedBrandId(): void
     {
+        $this->categoryFilter = ''; // Reset category filter when brand changes
         $this->loadData();
     }
 
@@ -106,20 +146,9 @@ class Products extends Page
         $this->loadData();
     }
 
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
+    public function updatedCategoryFilter(): void
     {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
-
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
+        $this->applyFilters();
     }
 
     /**
@@ -134,6 +163,24 @@ class Products extends Page
             '6m' => 'Last 6 Months',
             '12m' => 'Last 12 Months',
         ];
+    }
+
+    /**
+     * Get category options for the filter.
+     *
+     * @return array<string, string>
+     */
+    public function getCategoryOptions(): array
+    {
+        $options = ['' => 'All Categories'];
+        foreach ($this->categories as $category) {
+            // Get the last part of the category path for display
+            $parts = explode('/', $category);
+            $displayName = end($parts);
+            $options[$category] = $displayName;
+        }
+
+        return $options;
     }
 
     /**

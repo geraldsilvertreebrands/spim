@@ -162,7 +162,7 @@ class ErrorHandlingTest extends TestCase
             ->assertSet('callbackExecuted', true)
             ->assertSet('resultWasTrue', true)
             ->assertSet('isLoading', false)
-            ->assertSet('loadError', null)
+            ->assertSet('loadErrorMessage', null)
             ->assertSet('retryCount', 0);
     }
 
@@ -195,9 +195,8 @@ class ErrorHandlingTest extends TestCase
             ->assertSet('resultWasFalse', true)
             ->assertSet('isLoading', false);
 
-        // Verify error was stored
-        $this->assertInstanceOf(Exception::class, $livewire->get('loadError'));
-        $this->assertEquals('Test error', $livewire->get('loadError')->getMessage());
+        // Verify error message was stored
+        $this->assertEquals('Test error', $livewire->get('loadErrorMessage'));
     }
 
     /** @test */
@@ -309,7 +308,7 @@ class ErrorHandlingTest extends TestCase
 
             public function test_timeout(): void
             {
-                $this->loadError = new Exception('Query timed out');
+                $this->loadErrorMessage = 'Query timed out';
                 $this->errorMessageResult = $this->getErrorMessage();
             }
 
@@ -320,7 +319,7 @@ class ErrorHandlingTest extends TestCase
         };
 
         Livewire::test($component::class)
-            ->call('testTimeout')
+            ->call('test_timeout')
             ->assertSet('errorMessageResult', 'The query took too long. Try selecting a shorter time period.');
     }
 
@@ -335,7 +334,7 @@ class ErrorHandlingTest extends TestCase
 
             public function test_quota(): void
             {
-                $this->loadError = new Exception('Rate limit exceeded');
+                $this->loadErrorMessage = 'Rate limit exceeded';
                 $this->errorMessageResult = $this->getErrorMessage();
             }
 
@@ -346,7 +345,7 @@ class ErrorHandlingTest extends TestCase
         };
 
         Livewire::test($component::class)
-            ->call('testQuota')
+            ->call('test_quota')
             ->assertSet('errorMessageResult', 'Too many requests. Please wait a moment and try again.');
     }
 
@@ -359,7 +358,7 @@ class ErrorHandlingTest extends TestCase
 
             public function test_clear(): void
             {
-                $this->loadError = new Exception('Test error');
+                $this->loadErrorMessage = 'Test error';
                 $this->retryCount = 2;
 
                 $this->clearError();
@@ -372,8 +371,8 @@ class ErrorHandlingTest extends TestCase
         };
 
         Livewire::test($component::class)
-            ->call('testClear')
-            ->assertSet('loadError', null)
+            ->call('test_clear')
+            ->assertSet('loadErrorMessage', null)
             ->assertSet('retryCount', 0);
     }
 
@@ -424,7 +423,7 @@ class ErrorHandlingTest extends TestCase
 
             public function checkError(): void
             {
-                $this->loadError = new Exception('Test');
+                $this->loadErrorMessage = 'Test';
                 $this->errorStateResult = $this->hasLoadError();
             }
 

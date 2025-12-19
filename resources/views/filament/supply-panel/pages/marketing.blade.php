@@ -43,6 +43,17 @@
                     </select>
                 </div>
             </div>
+
+            {{-- Export Buttons --}}
+            @if(!$loading && !$error && $brandId)
+                @include('filament.shared.components.export-buttons', [
+                    'showCsv' => false,
+                    'showChart' => true,
+                    'chartId' => 'revenueChart',
+                    'chartFilename' => 'marketing_revenue',
+                    'showPrint' => true,
+                ])
+            @endif
         </div>
 
         {{-- Error Message --}}
@@ -63,12 +74,25 @@
 
         {{-- Marketing Content --}}
         @if(!$loading && !$error && $brandId)
+            {{-- Section Navigation --}}
+            <x-section-nav :sections="[
+                ['id' => 'kpis', 'label' => 'KPIs'],
+                ['id' => 'campaigns', 'label' => 'Promo Campaigns'],
+                ['id' => 'personalised', 'label' => 'Personalised Offers'],
+                ['id' => 'revenue', 'label' => 'Revenue'],
+                ['id' => 'tiers', 'label' => 'Discount Tiers'],
+                ['id' => 'comparison', 'label' => 'Comparison'],
+                ['id' => 'volume', 'label' => 'Volume'],
+                ['id' => 'insights', 'label' => 'Insights'],
+                ['id' => 'boost', 'label' => 'Boost Your Brand'],
+            ]" />
+
             {{-- Summary KPIs --}}
-            <div class="mb-6 grid gap-4 grid-cols-2 md:grid-cols-4">
+            <div id="section-kpis" class="mb-6 grid gap-4 grid-cols-2 md:grid-cols-4">
                 {{-- Total Revenue --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</div>
-                    <div class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Total Revenue</div>
+                    <div class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
                         {{ $this->formatCurrency($summaryStats['total_revenue'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -78,8 +102,8 @@
 
                 {{-- Promo Revenue % --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Promo Revenue %</div>
-                    <div class="mt-2 text-2xl font-bold {{ $this->getPromoIntensityColorClass($summaryStats['promo_revenue_pct'] ?? 0) }}">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Promo Revenue %</div>
+                    <div class="mt-2 text-3xl font-bold {{ $this->getPromoIntensityColorClass($summaryStats['promo_revenue_pct'] ?? 0) }}">
                         {{ $this->formatPercent($summaryStats['promo_revenue_pct'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -89,8 +113,8 @@
 
                 {{-- Total Discount Given --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Discounts</div>
-                    <div class="mt-2 text-2xl font-bold text-orange-600 dark:text-orange-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Total Discounts</div>
+                    <div class="mt-2 text-3xl font-bold text-orange-600 dark:text-orange-400">
                         {{ $this->formatCurrency($summaryStats['total_discount_given'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -100,8 +124,8 @@
 
                 {{-- Avg Discount % --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Discount %</div>
-                    <div class="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Avg Discount %</div>
+                    <div class="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">
                         {{ $this->formatPercent($summaryStats['avg_discount_pct'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -110,8 +134,199 @@
                 </div>
             </div>
 
+            {{-- Promo Campaigns Table --}}
+            <x-filament::section id="section-campaigns" class="mb-6">
+                <x-slot name="heading">
+                    Promotional Campaigns
+                </x-slot>
+                <x-slot name="description">
+                    Coupon codes and promotional campaigns used with your brand's products
+                </x-slot>
+
+                @if($this->hasPromoCampaigns())
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Coupon Code</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Description</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Orders</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Revenue</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Units</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Discount Given</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Avg %</th>
+                                    <th class="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-300">Date Range</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                @foreach($promoCampaigns as $campaign)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                        <td class="px-4 py-3">
+                                            <span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-800 dark:text-gray-200">
+                                                {{ $campaign['coupon_code'] }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-48 truncate" title="{{ $campaign['description'] }}">
+                                            {{ Str::limit($campaign['description'], 30) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                                            {{ $this->formatNumber($campaign['orders']) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">
+                                            {{ $this->formatCurrency($campaign['revenue']) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                                            {{ $this->formatNumber($campaign['units']) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-orange-600 dark:text-orange-400">
+                                            {{ $this->formatCurrency($campaign['discount_given']) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                                            {{ $this->formatPercent($campaign['avg_discount_pct']) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $this->formatDate($campaign['first_used']) }} - {{ $this->formatDate($campaign['last_used']) }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                        Showing top {{ count($promoCampaigns) }} campaigns by revenue. Campaigns with fewer than 5 orders are excluded.
+                    </p>
+                @else
+                    <div class="py-8 text-center text-gray-500 dark:text-gray-400">
+                        <x-heroicon-o-ticket class="mx-auto h-8 w-8 mb-2 text-gray-400" />
+                        <p>No promotional campaigns found for this brand in the selected period</p>
+                    </div>
+                @endif
+            </x-filament::section>
+
+            {{-- Personalised Offers Section --}}
+            <x-filament::section id="section-personalised" class="mb-6">
+                <x-slot name="heading">
+                    <span class="flex items-center gap-2">
+                        <x-heroicon-o-gift class="w-5 h-5 text-purple-500" />
+                        Personalised Offers
+                    </span>
+                </x-slot>
+                <x-slot name="description">
+                    Statistics on how often your products are featured in personalised discounts sent to customers
+                </x-slot>
+
+                @if($this->hasPersonalisedOffers())
+                    @php
+                        $pdSummary = $this->getPersonalisedOffersSummary();
+                        $pdTrend = $this->getPersonalisedOffersWeeklyTrend();
+                        $pdTopProducts = $this->getPersonalisedOffersTopProducts();
+                    @endphp
+
+                    {{-- Summary Stats --}}
+                    <div class="mb-6 grid gap-4 grid-cols-2 md:grid-cols-5">
+                        <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
+                            <div class="text-xs font-medium uppercase tracking-wide text-purple-600 dark:text-purple-400">Total Offers</div>
+                            <div class="mt-1 text-2xl font-bold text-purple-700 dark:text-purple-300">
+                                {{ number_format($pdSummary['total_offers'] ?? 0) }}
+                            </div>
+                        </div>
+                        <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
+                            <div class="text-xs font-medium uppercase tracking-wide text-purple-600 dark:text-purple-400">Unique Customers</div>
+                            <div class="mt-1 text-2xl font-bold text-purple-700 dark:text-purple-300">
+                                {{ number_format($pdSummary['unique_customers'] ?? 0) }}
+                            </div>
+                        </div>
+                        <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
+                            <div class="text-xs font-medium uppercase tracking-wide text-purple-600 dark:text-purple-400">Products Featured</div>
+                            <div class="mt-1 text-2xl font-bold text-purple-700 dark:text-purple-300">
+                                {{ number_format($pdSummary['products_featured'] ?? 0) }}
+                            </div>
+                        </div>
+                        <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
+                            <div class="text-xs font-medium uppercase tracking-wide text-purple-600 dark:text-purple-400">Campaigns</div>
+                            <div class="mt-1 text-2xl font-bold text-purple-700 dark:text-purple-300">
+                                {{ number_format($pdSummary['campaigns_count'] ?? 0) }}
+                            </div>
+                        </div>
+                        <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
+                            <div class="text-xs font-medium uppercase tracking-wide text-purple-600 dark:text-purple-400">Avg Discount</div>
+                            <div class="mt-1 text-2xl font-bold text-purple-700 dark:text-purple-300">
+                                {{ number_format($pdSummary['avg_discount_pct'] ?? 0, 1) }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Weekly Trend --}}
+                    @if(count($pdTrend) > 0)
+                        <div class="mb-6">
+                            <h4 class="mb-3 font-semibold text-gray-900 dark:text-white">Weekly Offers Trend</h4>
+                            <div class="overflow-x-auto">
+                                <div class="flex gap-2 min-w-max pb-2">
+                                    @foreach($pdTrend as $week)
+                                        <div class="flex-shrink-0 w-24 rounded-lg bg-gray-50 p-3 dark:bg-gray-800 text-center">
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::parse($week['week_start'])->format('d M') }}</div>
+                                            <div class="mt-1 text-lg font-bold text-purple-600 dark:text-purple-400">{{ number_format($week['offers']) }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ number_format($week['customers']) }} customers</div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Top Products --}}
+                    @if(count($pdTopProducts) > 0)
+                        <div>
+                            <h4 class="mb-3 font-semibold text-gray-900 dark:text-white">Top Products in Personalised Offers</h4>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b border-gray-200 dark:border-gray-700">
+                                            <th class="px-4 py-2 text-left font-semibold text-gray-600 dark:text-gray-300">SKU</th>
+                                            <th class="px-4 py-2 text-left font-semibold text-gray-600 dark:text-gray-300">Product Name</th>
+                                            <th class="px-4 py-2 text-right font-semibold text-gray-600 dark:text-gray-300">Times Featured</th>
+                                            <th class="px-4 py-2 text-right font-semibold text-gray-600 dark:text-gray-300">Unique Customers</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                        @foreach($pdTopProducts as $product)
+                                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                                <td class="px-4 py-2">
+                                                    <span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-800 dark:text-gray-200">
+                                                        {{ $product['sku'] }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-2 text-gray-700 dark:text-gray-300">
+                                                    {{ Str::limit($product['name'], 40) }}
+                                                </td>
+                                                <td class="px-4 py-2 text-right font-medium text-purple-600 dark:text-purple-400">
+                                                    {{ number_format($product['times_featured']) }}
+                                                </td>
+                                                <td class="px-4 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {{ number_format($product['unique_customers']) }}
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
+
+                    <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                        Personalised offers data is based on automated email campaigns that feature products tailored to each customer's preferences and purchase history.
+                    </p>
+                @else
+                    <div class="py-8 text-center text-gray-500 dark:text-gray-400">
+                        <x-heroicon-o-gift class="mx-auto h-8 w-8 mb-2 text-gray-400" />
+                        <p>No personalised offers data available for this brand</p>
+                        <p class="text-xs mt-1">This feature is currently available for Faithful to Nature brands only</p>
+                    </div>
+                @endif
+            </x-filament::section>
+
             {{-- Revenue Trend Chart --}}
-            <x-filament::section class="mb-6">
+            <x-filament::section id="section-revenue" class="mb-6">
                 <x-slot name="heading">
                     Promo vs Regular Revenue
                 </x-slot>
@@ -211,7 +426,7 @@
             </x-filament::section>
 
             {{-- Discount Tier Breakdown --}}
-            <x-filament::section class="mb-6">
+            <x-filament::section id="section-tiers" class="mb-6">
                 <x-slot name="heading">
                     Discount Tier Performance
                 </x-slot>
@@ -269,7 +484,7 @@
             </x-filament::section>
 
             {{-- Promo vs Regular Comparison --}}
-            <x-filament::section class="mb-6">
+            <x-filament::section id="section-comparison" class="mb-6">
                 <x-slot name="heading">
                     Promo vs Regular Price Comparison
                 </x-slot>
@@ -331,7 +546,7 @@
             </x-filament::section>
 
             {{-- Monthly Orders Chart --}}
-            <x-filament::section class="mb-6">
+            <x-filament::section id="section-volume" class="mb-6">
                 <x-slot name="heading">
                     Order Volume Breakdown
                 </x-slot>
@@ -421,7 +636,7 @@
             </x-filament::section>
 
             {{-- Insights Section --}}
-            <x-filament::section>
+            <x-filament::section id="section-insights">
                 <x-slot name="heading">
                     Marketing Insights
                 </x-slot>
@@ -470,6 +685,112 @@
 
                     <p class="text-xs text-gray-500 dark:text-gray-500 mt-4">
                         Note: Marketing analytics are based on historical sales data. Use these insights to optimize your promotional strategies.
+                    </p>
+                </div>
+            </x-filament::section>
+
+            {{-- Rate Card / Upsell Section --}}
+            <x-filament::section id="section-boost" class="mt-6">
+                <x-slot name="heading">
+                    <span class="flex items-center gap-2">
+                        <x-heroicon-o-rocket-launch class="w-5 h-5 text-primary-500" />
+                        Boost Your Brand
+                    </span>
+                </x-slot>
+                <x-slot name="description">
+                    Partner with us to amplify your brand's visibility and reach more customers
+                </x-slot>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    {{-- Featured Placement --}}
+                    <div class="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-6 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
+                        <div class="flex items-start gap-4">
+                            <div class="rounded-lg bg-primary-100 p-3 dark:bg-primary-900/30">
+                                <x-heroicon-o-star class="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Featured Placement</h3>
+                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    Get premium visibility on our homepage, category pages, and search results. Ideal for new product launches or seasonal campaigns.
+                                </p>
+                                <a href="mailto:sales@silvertreebrands.com?subject=Featured%20Placement%20Inquiry&body=Hi%2C%0A%0AI'm%20interested%20in%20learning%20more%20about%20featured%20placement%20opportunities%20for%20my%20brand.%0A%0ABrand%3A%20%0AContact%20Name%3A%20%0APhone%3A%20"
+                                   class="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 transition-colors">
+                                    <x-heroicon-o-envelope class="w-4 h-4" />
+                                    Contact Us
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Newsletter Inclusion --}}
+                    <div class="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-6 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
+                        <div class="flex items-start gap-4">
+                            <div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/30">
+                                <x-heroicon-o-envelope-open class="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Newsletter Inclusion</h3>
+                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    Reach our engaged subscriber base directly. Feature your products in our weekly or monthly newsletters to thousands of potential customers.
+                                </p>
+                                <a href="mailto:sales@silvertreebrands.com?subject=Newsletter%20Inclusion%20Inquiry&body=Hi%2C%0A%0AI'm%20interested%20in%20featuring%20my%20products%20in%20your%20newsletter.%0A%0ABrand%3A%20%0AContact%20Name%3A%20%0APhone%3A%20"
+                                   class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+                                    <x-heroicon-o-envelope class="w-4 h-4" />
+                                    Contact Us
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Social Media Promotion --}}
+                    <div class="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-6 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
+                        <div class="flex items-start gap-4">
+                            <div class="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/30">
+                                <x-heroicon-o-share class="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Social Media Promotion</h3>
+                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    Leverage our social media presence across Instagram, Facebook, and TikTok. Includes sponsored posts, stories, and influencer collaborations.
+                                </p>
+                                <a href="mailto:sales@silvertreebrands.com?subject=Social%20Media%20Promotion%20Inquiry&body=Hi%2C%0A%0AI'm%20interested%20in%20social%20media%20promotion%20opportunities.%0A%0ABrand%3A%20%0AContact%20Name%3A%20%0APhone%3A%20"
+                                   class="mt-4 inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 transition-colors">
+                                    <x-heroicon-o-envelope class="w-4 h-4" />
+                                    Contact Us
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Co-Branded Campaigns --}}
+                    <div class="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-6 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
+                        <div class="flex items-start gap-4">
+                            <div class="rounded-lg bg-orange-100 p-3 dark:bg-orange-900/30">
+                                <x-heroicon-o-sparkles class="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Co-Branded Campaigns</h3>
+                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    Partner with us for exclusive co-branded marketing campaigns. Perfect for limited editions, seasonal promotions, or cause marketing initiatives.
+                                </p>
+                                <a href="mailto:sales@silvertreebrands.com?subject=Co-Branded%20Campaign%20Inquiry&body=Hi%2C%0A%0AI'm%20interested%20in%20exploring%20co-branded%20campaign%20opportunities.%0A%0ABrand%3A%20%0AContact%20Name%3A%20%0APhone%3A%20"
+                                   class="mt-4 inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 transition-colors">
+                                    <x-heroicon-o-envelope class="w-4 h-4" />
+                                    Contact Us
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 rounded-lg bg-gray-100 p-4 dark:bg-gray-800">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 text-center">
+                        <span class="font-medium text-gray-900 dark:text-white">Have a custom idea?</span>
+                        We're always open to creative partnerships.
+                        <a href="mailto:sales@silvertreebrands.com?subject=Custom%20Marketing%20Partnership" class="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium">
+                            Get in touch
+                        </a>
+                        to discuss your vision.
                     </p>
                 </div>
             </x-filament::section>

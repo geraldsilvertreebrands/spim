@@ -2,6 +2,7 @@
 
 namespace App\Filament\SupplyPanel\Pages;
 
+use App\Filament\SupplyPanel\Concerns\HasBrandContext;
 use App\Models\Brand;
 use App\Services\BigQueryService;
 use Filament\Pages\Page;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class SupplyChain extends Page
 {
+    use HasBrandContext;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-truck';
 
     protected static ?string $navigationLabel = 'Supply Chain';
@@ -16,9 +19,6 @@ class SupplyChain extends Page
     protected static ?int $navigationSort = 6;
 
     protected string $view = 'filament.supply-panel.pages.supply-chain';
-
-    #[Url]
-    public ?int $brandId = null;
 
     #[Url]
     public string $period = '12m';
@@ -41,22 +41,18 @@ class SupplyChain extends Page
 
     public function mount(): void
     {
-        // Default to user's first brand if not specified
-        if (! $this->brandId) {
-            $this->brandId = auth()->user()->accessibleBrandIds()[0] ?? null;
+        if (! $this->initializeBrandContext()) {
+            $this->error = 'You do not have access to this brand.';
+            $this->loading = false;
+
+            return;
         }
 
-        // Verify user can access this brand
-        if ($this->brandId) {
-            $brand = Brand::find($this->brandId);
-            if (! $brand || ! auth()->user()->canAccessBrand($brand)) {
-                $this->error = 'You do not have access to this brand.';
-                $this->loading = false;
+        $this->loadData();
+    }
 
-                return;
-            }
-        }
-
+    protected function onBrandContextChanged(): void
+    {
         $this->loadData();
     }
 
@@ -88,9 +84,10 @@ class SupplyChain extends Page
             $this->sellOutData = $stockData['sell_out'];
             $this->closingStockData = $stockData['closing_stock'];
 
-            // Extract months from the data
+            // Extract months from ALL data sources (sell_in, sell_out, closing_stock)
             $this->months = [];
-            foreach ($this->sellInData as $product) {
+            $allData = array_merge($this->sellInData, $this->sellOutData, $this->closingStockData);
+            foreach ($allData as $product) {
                 foreach (array_keys($product['months'] ?? []) as $month) {
                     if (! in_array($month, $this->months)) {
                         $this->months[] = $month;
@@ -128,22 +125,6 @@ class SupplyChain extends Page
     public function updatedPeriod(): void
     {
         $this->loadData();
-    }
-
-    /**
-     * Get available brands for the current user.
-     *
-     * @return array<int, string>
-     */
-    public function getAvailableBrands(): array
-    {
-        $user = auth()->user();
-        $brandIds = $user->accessibleBrandIds();
-
-        return Brand::whereIn('id', $brandIds)
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->toArray();
     }
 
     /**

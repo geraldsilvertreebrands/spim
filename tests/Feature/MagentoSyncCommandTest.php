@@ -145,7 +145,11 @@ class MagentoSyncCommandTest extends TestCase
     {
         Queue::fake();
 
-        $categoryType = EntityType::factory()->create(['name' => 'category']);
+        // Use firstOrCreate to avoid duplicate key errors if TestBaseSeeder ran
+        $categoryType = EntityType::query()->firstOrCreate(
+            ['name' => 'category'],
+            ['display_name' => 'Categories', 'description' => 'Category entities']
+        );
 
         $this->artisan('sync:magento:options', ['entityType' => 'category'])
             ->assertExitCode(0);

@@ -72,10 +72,10 @@ class SupplyPanelPagesTest extends TestCase
         $this->premiumUser = User::factory()->create();
         $this->premiumUser->assignRole('supplier-premium');
 
-        // Create brands
-        $this->brand = Brand::factory()->create(['name' => 'Test Brand']);
-        $this->competitorBrand = Brand::factory()->create(['name' => 'Competitor Brand']);
-        $this->petHeavenBrand = Brand::factory()->create(['name' => 'Pet Heaven Test', 'company_id' => 5]);
+        // Create brands (explicitly non-Pet Heaven for consistent testing)
+        $this->brand = Brand::factory()->create(['name' => 'Test Brand', 'company_id' => 3]); // FtN
+        $this->competitorBrand = Brand::factory()->create(['name' => 'Competitor Brand', 'company_id' => 3]); // FtN
+        $this->petHeavenBrand = Brand::factory()->create(['name' => 'Pet Heaven Test', 'company_id' => 9]); // 9 = Pet Heaven
 
         // Create Pet Heaven premium user
         $this->petHeavenPremiumUser = User::factory()->create();
@@ -520,6 +520,16 @@ class SupplyPanelPagesTest extends TestCase
         ]);
 
         $this->app->instance(BigQueryService::class, $mockBQ);
+    }
+
+    /**
+     * Configure the application as a Pet Heaven deployment.
+     * Required for subscription page tests since CompanyService::isPetHeaven()
+     * checks the application config, not the brand.
+     */
+    protected function setUpPetHeavenDeployment(): void
+    {
+        config(['bigquery.company_id' => 9]); // 9 = Pet Heaven
     }
 
     // =====================================================
@@ -2625,6 +2635,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_loads_for_pet_heaven_premium(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id])
@@ -2635,6 +2646,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_loads_summary_data(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2648,6 +2660,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_loads_monthly_trend(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2659,6 +2672,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_loads_frequency_breakdown(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2670,6 +2684,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_format_currency(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2681,6 +2696,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_format_percent(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2691,6 +2707,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_churn_color_class(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2703,6 +2720,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_denies_non_pet_heaven_brand(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         // Create a non-Pet Heaven brand (company_id = 3 is FtN)
@@ -2715,6 +2733,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_admin_can_access(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->adminUser);
 
         Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id])
@@ -2724,6 +2743,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscriptions_overview_has_subscription_data_check(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionsOverview::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2737,6 +2757,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_loads_for_pet_heaven_premium(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id])
@@ -2747,6 +2768,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_loads_product_data(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2758,6 +2780,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_calculates_totals(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2770,6 +2793,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_sorting(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2790,6 +2814,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_sort_icon(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2802,6 +2827,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_format_percent(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2811,6 +2837,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_churn_color_class(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2823,6 +2850,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_months_back_options(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2836,6 +2864,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_denies_non_pet_heaven_brand(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         // Give access to a non-Pet Heaven brand
@@ -2847,6 +2876,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_products_admin_can_access(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->adminUser);
 
         Livewire::test(SubscriptionProducts::class, ['brandId' => $this->petHeavenBrand->id])
@@ -2860,6 +2890,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_loads_for_pet_heaven_premium(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id])
@@ -2870,6 +2901,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_loads_upcoming_deliveries(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2882,6 +2914,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_loads_at_risk(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2894,6 +2927,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_loads_summary(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2906,6 +2940,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_format_date(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2916,6 +2951,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_urgency_color_class(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2930,6 +2966,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_risk_reason_class(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2942,6 +2979,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_has_upcoming_check(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2951,6 +2989,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_has_at_risk_check(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2960,6 +2999,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_has_data_check(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         $component = Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id]);
@@ -2969,6 +3009,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_denies_non_pet_heaven_brand(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         // Give access to a non-Pet Heaven brand
@@ -2980,6 +3021,7 @@ class SupplyPanelPagesTest extends TestCase
 
     public function test_subscription_predictions_admin_can_access(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->adminUser);
 
         Livewire::test(SubscriptionPredictions::class, ['brandId' => $this->petHeavenBrand->id])

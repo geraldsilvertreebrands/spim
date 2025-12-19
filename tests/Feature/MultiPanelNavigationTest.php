@@ -301,7 +301,8 @@ class MultiPanelNavigationTest extends TestCase
 
         $response = $this->actingAs($admin)->get('/pim');
 
-        $response->assertSee('Silvertree PIM');
+        // Corporate branding: Silvertree Brands
+        $response->assertSee('Silvertree Brands');
     }
 
     public function test_supply_panel_has_correct_branding(): void
@@ -311,6 +312,7 @@ class MultiPanelNavigationTest extends TestCase
 
         $response = $this->actingAs($admin)->followingRedirects()->get('/supply');
 
+        // Supply panel has dynamic branding per company
         $response->assertSee('Supplier Portal');
     }
 
@@ -321,6 +323,7 @@ class MultiPanelNavigationTest extends TestCase
 
         $response = $this->actingAs($admin)->followingRedirects()->get('/pricing');
 
-        $response->assertSee('Pricing Tool');
+        // Corporate branding: Silvertree Brands
+        $response->assertSee('Silvertree Brands');
     }
 }

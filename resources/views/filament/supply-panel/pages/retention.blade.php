@@ -1,4 +1,8 @@
 <x-filament-panels::page>
+    @push('styles')
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @endpush
+
     {{-- Premium Feature Gate --}}
     @unless(auth()->user()->hasRole('supplier-premium') || auth()->user()->hasRole('admin'))
         <x-premium-gate feature="Retention Analysis">
@@ -58,6 +62,17 @@
                     </select>
                 </div>
             </div>
+
+            {{-- Export Buttons --}}
+            @if(!$loading && !$error && $brandId)
+                @include('filament.shared.components.export-buttons', [
+                    'showCsv' => false,
+                    'showChart' => true,
+                    'chartId' => 'retentionChart',
+                    'chartFilename' => 'retention_analysis',
+                    'showPrint' => true,
+                ])
+            @endif
         </div>
 
         {{-- Error Message --}}
@@ -141,7 +156,7 @@
                     @if($summaryStats['best_period'])
                         <div class="rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
                             <div class="flex items-center gap-2">
-                                <svg class="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg width="20" height="20" class="w-5 h-5 flex-shrink-0 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <span class="font-medium text-green-800 dark:text-green-200">Best Retention Period</span>
@@ -155,7 +170,7 @@
                     @if($summaryStats['worst_period'])
                         <div class="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
                             <div class="flex items-center gap-2">
-                                <svg class="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg width="20" height="20" class="w-5 h-5 flex-shrink-0 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                                 <span class="font-medium text-amber-800 dark:text-amber-200">Lowest Retention Period</span>
@@ -178,88 +193,12 @@
                 </x-slot>
 
                 @if(count($retentionData) >= 2)
-                    <div class="h-80">
-                        <canvas id="retentionChart" wire:ignore></canvas>
+                    <div class="h-80" wire:ignore>
+                        <canvas id="retentionChart"></canvas>
                     </div>
-
-                    <script>
-                        document.addEventListener('livewire:navigated', function() {
-                            initRetentionChart();
-                        });
-
-                        document.addEventListener('DOMContentLoaded', function() {
-                            initRetentionChart();
-                        });
-
-                        function initRetentionChart() {
-                            const ctx = document.getElementById('retentionChart');
-                            if (!ctx) return;
-
-                            // Destroy existing chart if it exists
-                            if (window.retentionChartInstance) {
-                                window.retentionChartInstance.destroy();
-                            }
-
-                            const chartData = @json($chartData);
-
-                            window.retentionChartInstance = new Chart(ctx, {
-                                type: 'line',
-                                data: chartData,
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    interaction: {
-                                        mode: 'index',
-                                        intersect: false,
-                                    },
-                                    plugins: {
-                                        legend: {
-                                            display: true,
-                                            position: 'top',
-                                        },
-                                        tooltip: {
-                                            callbacks: {
-                                                label: function(context) {
-                                                    return context.dataset.label + ': ' + context.raw + '%';
-                                                }
-                                            }
-                                        }
-                                    },
-                                    scales: {
-                                        x: {
-                                            display: true,
-                                            title: {
-                                                display: true,
-                                                text: 'Period'
-                                            }
-                                        },
-                                        y: {
-                                            display: true,
-                                            title: {
-                                                display: true,
-                                                text: 'Rate (%)'
-                                            },
-                                            min: 0,
-                                            max: 100,
-                                            ticks: {
-                                                callback: function(value) {
-                                                    return value + '%';
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-                        }
-
-                        // Re-initialize chart when Livewire updates
-                        Livewire.on('chartDataUpdated', function() {
-                            initRetentionChart();
-                        });
-                    </script>
                 @else
                     <div class="py-8 text-center text-gray-500 dark:text-gray-400">
-                        <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg width="32" height="32" class="mx-auto w-8 h-8 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                         <p class="mt-2 text-sm">Insufficient data for retention chart</p>
@@ -366,6 +305,88 @@
                     </p>
                 </div>
             </x-filament::section>
+
+            @script
+            <script>
+                let retentionChartInstance = null;
+
+                function destroyRetentionChart() {
+                    if (retentionChartInstance) {
+                        retentionChartInstance.destroy();
+                        retentionChartInstance = null;
+                    }
+                }
+
+                function initRetentionChart(chartData) {
+                    const ctx = document.getElementById('retentionChart');
+                    if (!ctx) return;
+
+                    destroyRetentionChart();
+
+                    retentionChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (ctx) => ctx.dataset.label + ': ' + ctx.raw + '%'
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    display: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Period'
+                                    }
+                                },
+                                y: {
+                                    display: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Rate (%)'
+                                    },
+                                    min: 0,
+                                    max: 100,
+                                    ticks: {
+                                        callback: (v) => v + '%'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Initialize on page load
+                const initialChartData = @js($chartData);
+                if (typeof Chart !== 'undefined') {
+                    initRetentionChart(initialChartData);
+                } else {
+                    document.addEventListener('DOMContentLoaded', () => {
+                        initRetentionChart(initialChartData);
+                    });
+                }
+
+                // Listen for Livewire updates
+                $wire.on('retention-data-updated', (event) => {
+                    setTimeout(() => {
+                        initRetentionChart(event.chartData);
+                    }, 100);
+                });
+            </script>
+            @endscript
         @endif
 
         {{-- No Brand Selected --}}

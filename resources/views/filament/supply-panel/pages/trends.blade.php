@@ -70,19 +70,71 @@
     {{-- Charts --}}
     @if(!$loading && !$error && $brandId)
         <div class="grid gap-6">
-            {{-- Revenue Trend Chart --}}
+            {{-- Revenue Trend Chart/Table --}}
             <x-filament::section>
                 <x-slot name="heading">
-                    Revenue Trend
+                    <div class="flex items-center justify-between w-full">
+                        <span>Revenue Trend</span>
+                        <button
+                            wire:click="toggleRevenueView"
+                            type="button"
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                            @if($showRevenueAsTable)
+                                <x-heroicon-o-chart-bar class="h-4 w-4" />
+                                <span>View Chart</span>
+                            @else
+                                <x-heroicon-o-table-cells class="h-4 w-4" />
+                                <span>View Table</span>
+                            @endif
+                        </button>
+                    </div>
                 </x-slot>
                 <x-slot name="description">
                     Monthly revenue over the selected period
                 </x-slot>
 
-                <div class="p-4">
-                    <div class="relative h-64 md:h-80" wire:ignore>
-                        <canvas id="revenueTrendChart"></canvas>
-                    </div>
+                <div class="p-4" wire:key="revenue-view-{{ $showRevenueAsTable ? 'table' : 'chart' }}">
+                    @if($showRevenueAsTable)
+                        {{-- Table View --}}
+                        <div class="overflow-x-auto">
+                            <table class="w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead>
+                                    <tr class="bg-gray-50 dark:bg-gray-800">
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                            Month
+                                        </th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                            Revenue
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                    @forelse($this->getRevenueTableData() as $row)
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                            <td class="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                                                {{ $row['month'] }}
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-300">
+                                                R{{ number_format($row['revenue'], 0) }}
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="2" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                No data available
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        {{-- Chart View --}}
+                        <div class="relative h-64 md:h-80" wire:ignore>
+                            <canvas id="revenueTrendChart"></canvas>
+                        </div>
+                    @endif
                 </div>
             </x-filament::section>
 

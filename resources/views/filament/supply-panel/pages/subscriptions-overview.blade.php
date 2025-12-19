@@ -43,6 +43,17 @@
                     </select>
                 </div>
             </div>
+
+            {{-- Export Buttons --}}
+            @if(!$loading && !$error && $brandId)
+                @include('filament.shared.components.export-buttons', [
+                    'showCsv' => false,
+                    'showChart' => true,
+                    'chartId' => 'subscriptionTrendChart',
+                    'chartFilename' => 'subscription_trends',
+                    'showPrint' => true,
+                ])
+            @endif
         </div>
 
         {{-- Error Message --}}
@@ -63,12 +74,20 @@
 
         {{-- Subscription Content --}}
         @if(!$loading && !$error && $brandId && $this->hasSubscriptionData())
+            {{-- Section Navigation --}}
+            <x-section-nav :sections="[
+                ['id' => 'kpis', 'label' => 'KPIs'],
+                ['id' => 'trends', 'label' => 'Trends'],
+                ['id' => 'frequency', 'label' => 'Frequency'],
+                ['id' => 'movement', 'label' => 'Monthly Movement'],
+            ]" />
+
             {{-- Summary KPIs --}}
-            <div class="mb-6 grid gap-4 grid-cols-2 md:grid-cols-4">
+            <div id="section-kpis" class="mb-6 grid gap-4 grid-cols-2 md:grid-cols-4">
                 {{-- Active Subscriptions --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Subscriptions</div>
-                    <div class="mt-2 text-2xl font-bold text-green-600 dark:text-green-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Active Subscriptions</div>
+                    <div class="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">
                         {{ $this->formatNumber($summary['active_subscriptions'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -78,8 +97,8 @@
 
                 {{-- MRR --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Monthly Recurring Revenue</div>
-                    <div class="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Monthly Recurring Revenue</div>
+                    <div class="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">
                         {{ $this->formatCurrency($summary['mrr'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -89,8 +108,8 @@
 
                 {{-- Churn Rate --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Churn Rate</div>
-                    <div class="mt-2 text-2xl font-bold {{ $this->getChurnColorClass($summary['churn_rate'] ?? 0) }}">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Churn Rate</div>
+                    <div class="mt-2 text-3xl font-bold {{ $this->getChurnColorClass($summary['churn_rate'] ?? 0) }}">
                         {{ $this->formatPercent($summary['churn_rate'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -100,8 +119,8 @@
 
                 {{-- Average LTV --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Average LTV</div>
-                    <div class="mt-2 text-2xl font-bold text-purple-600 dark:text-purple-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Average LTV</div>
+                    <div class="mt-2 text-3xl font-bold text-purple-600 dark:text-purple-400">
                         {{ $this->formatCurrency($summary['avg_ltv'] ?? 0) }}
                     </div>
                     <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -114,31 +133,31 @@
             <div class="mb-6 grid gap-4 sm:grid-cols-3">
                 {{-- Retention Rate --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Retention Rate</div>
-                    <div class="mt-2 text-2xl font-bold {{ $this->getRetentionColorClass($summary['retention_rate'] ?? 0) }}">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Retention Rate</div>
+                    <div class="mt-2 text-3xl font-bold {{ $this->getRetentionColorClass($summary['retention_rate'] ?? 0) }}">
                         {{ $this->formatPercent($summary['retention_rate'] ?? 0) }}
                     </div>
                 </div>
 
                 {{-- Avg Subscription Value --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Subscription Value</div>
-                    <div class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Avg Subscription Value</div>
+                    <div class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
                         {{ $this->formatCurrency($summary['avg_subscription_value'] ?? 0) }}
                     </div>
                 </div>
 
                 {{-- Paused Subscriptions --}}
                 <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Paused Subscriptions</div>
-                    <div class="mt-2 text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Paused Subscriptions</div>
+                    <div class="mt-2 text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                         {{ $this->formatNumber($summary['paused_subscriptions'] ?? 0) }}
                     </div>
                 </div>
             </div>
 
             {{-- Subscription Trend Chart --}}
-            <x-filament::section class="mb-6">
+            <x-filament::section id="section-trends" class="mb-6">
                 <x-slot name="heading">
                     Subscription Trends
                 </x-slot>
@@ -216,7 +235,7 @@
             </x-filament::section>
 
             {{-- Delivery Frequency Breakdown --}}
-            <x-filament::section class="mb-6">
+            <x-filament::section id="section-frequency" class="mb-6">
                 <x-slot name="heading">
                     Subscription Frequency
                 </x-slot>
@@ -306,7 +325,7 @@
             </x-filament::section>
 
             {{-- Monthly Table --}}
-            <x-filament::section>
+            <x-filament::section id="section-movement">
                 <x-slot name="heading">
                     Monthly Subscription Movement
                 </x-slot>

@@ -3,25 +3,8 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     @endpush
 
-    {{-- Brand and Period Filters --}}
+    {{-- Period Filter and Export --}}
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {{-- Brand Selector --}}
-        @if(count($this->getAvailableBrands()) > 1)
-            <div class="w-full sm:w-64">
-                <label for="brandSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Brand
-                </label>
-                <select
-                    wire:model.live="brandId"
-                    id="brandSelect"
-                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                    @foreach($this->getAvailableBrands() as $id => $name)
-                        <option value="{{ $id }}">{{ $name }}</option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-
         {{-- Period Filter --}}
         <div class="w-full sm:w-64">
             <label for="periodSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -134,16 +117,68 @@
             </x-filament::section>
         </div>
 
-        {{-- Revenue Trend Chart --}}
+        {{-- Revenue Trend Chart/Table --}}
         <x-filament::section class="mb-6">
             <x-slot name="heading">
-                Revenue Trend (12 Months)
+                <div class="flex items-center justify-between w-full">
+                    <span>Revenue Trend (12 Months)</span>
+                    <button
+                        wire:click="toggleChartView"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                    >
+                        @if($showChartAsTable)
+                            <x-heroicon-o-chart-bar class="h-4 w-4" />
+                            <span>View Chart</span>
+                        @else
+                            <x-heroicon-o-table-cells class="h-4 w-4" />
+                            <span>View Table</span>
+                        @endif
+                    </button>
+                </div>
             </x-slot>
 
-            <div class="p-4">
-                <div class="relative h-64 md:h-80" wire:ignore>
-                    <canvas id="revenueTrendChart"></canvas>
-                </div>
+            <div class="p-4" wire:key="dashboard-view-{{ $showChartAsTable ? 'table' : 'chart' }}">
+                @if($showChartAsTable)
+                    {{-- Table View --}}
+                    <div class="overflow-x-auto">
+                        <table class="w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead>
+                                <tr class="bg-gray-50 dark:bg-gray-800">
+                                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Month
+                                    </th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Revenue
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                @forelse($this->getChartTableData() as $row)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                        <td class="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                                            {{ $row['month'] }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-300">
+                                            R{{ number_format($row['revenue'], 0) }}
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="2" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                                            No data available
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    {{-- Chart View --}}
+                    <div class="relative h-64 md:h-80" wire:ignore>
+                        <canvas id="revenueTrendChart"></canvas>
+                    </div>
+                @endif
             </div>
         </x-filament::section>
 

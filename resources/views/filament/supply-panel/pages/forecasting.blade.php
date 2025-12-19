@@ -1,4 +1,8 @@
 <x-filament-panels::page>
+    @push('styles')
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @endpush
+
     {{-- Premium Feature Gate --}}
     @unless(auth()->user()->hasRole('supplier-premium') || auth()->user()->hasRole('admin'))
         <x-premium-gate feature="Sales Forecasting">
@@ -58,6 +62,17 @@
                     </select>
                 </div>
             </div>
+
+            {{-- Export Buttons --}}
+            @if(!$loading && !$error && $brandId)
+                @include('filament.shared.components.export-buttons', [
+                    'showCsv' => false,
+                    'showChart' => true,
+                    'chartId' => 'forecastChart',
+                    'chartFilename' => 'sales_forecast',
+                    'showPrint' => true,
+                ])
+            @endif
         </div>
 
         {{-- Error Message --}}
@@ -144,31 +159,23 @@
                 </x-slot>
 
                 @if(count($historicalData) >= 3)
-                    <div class="h-64 md:h-80 lg:h-96">
-                        <canvas id="forecastChart" wire:ignore></canvas>
+                    <div class="relative h-64 md:h-80 lg:h-96" wire:ignore>
+                        <canvas id="forecastChart"></canvas>
                     </div>
 
+                    @script
                     <script>
-                        document.addEventListener('livewire:navigated', function() {
-                            initForecastChart();
-                        });
+                        let forecastChartInstance = null;
 
-                        document.addEventListener('DOMContentLoaded', function() {
-                            initForecastChart();
-                        });
-
-                        function initForecastChart() {
+                        function initForecastChart(chartData) {
                             const ctx = document.getElementById('forecastChart');
-                            if (!ctx) return;
+                            if (!ctx || !chartData || !chartData.labels) return;
 
-                            // Destroy existing chart if it exists
-                            if (window.forecastChartInstance) {
-                                window.forecastChartInstance.destroy();
+                            if (forecastChartInstance) {
+                                forecastChartInstance.destroy();
                             }
 
-                            const chartData = @json($chartData);
-
-                            window.forecastChartInstance = new Chart(ctx, {
+                            forecastChartInstance = new Chart(ctx, {
                                 type: 'line',
                                 data: chartData,
                                 options: {
@@ -184,7 +191,6 @@
                                             position: 'top',
                                             labels: {
                                                 filter: function(item) {
-                                                    // Hide Lower Bound from legend
                                                     return item.text !== 'Lower Bound';
                                                 }
                                             }
@@ -228,14 +234,25 @@
                             });
                         }
 
-                        // Re-initialize chart when Livewire updates
-                        Livewire.on('chartDataUpdated', function() {
-                            initForecastChart();
+                        // Initialize on page load
+                        const initialData = @js($chartData);
+                        if (typeof Chart !== 'undefined') {
+                            initForecastChart(initialData);
+                        } else {
+                            document.addEventListener('DOMContentLoaded', () => initForecastChart(initialData));
+                        }
+
+                        // Listen for Livewire updates
+                        $wire.on('forecast-data-updated', (event) => {
+                            setTimeout(() => {
+                                initForecastChart(event.chartData);
+                            }, 100);
                         });
                     </script>
+                    @endscript
                 @else
                     <div class="py-8 text-center text-gray-500 dark:text-gray-400">
-                        <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg width="32" height="32" class="mx-auto w-8 h-8 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                         <p class="mt-2 text-sm">Insufficient historical data for forecasting</p>

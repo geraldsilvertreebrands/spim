@@ -9,11 +9,11 @@
         </x-premium-gate>
     @else
         {{-- Brand and Period Filters --}}
-        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div class="flex flex-wrap gap-4 items-end">
                 {{-- Brand Selector --}}
                 @if(count($this->getAvailableBrands()) > 1)
-                    <div class="w-full sm:w-64">
+                    <div class="w-full sm:w-48">
                         <label for="brandSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Brand
                         </label>
@@ -29,7 +29,7 @@
                 @endif
 
                 {{-- Period Filter --}}
-                <div class="w-full sm:w-48">
+                <div class="w-full sm:w-40">
                     <label for="periodSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Time Period
                     </label>
@@ -42,6 +42,48 @@
                         @endforeach
                     </select>
                 </div>
+
+                {{-- Metric Threshold Filters --}}
+                @if(!$loading && count($allEngagementData) > 0)
+                    <div class="w-full sm:w-36">
+                        <label for="minReorderRate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Min Reorder Rate
+                        </label>
+                        <select
+                            wire:model.live="minReorderRate"
+                            id="minReorderRate"
+                            class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            @foreach($this->getReorderRateOptions() as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="w-full sm:w-36">
+                        <label for="maxPromoIntensity" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Max Promo %
+                        </label>
+                        <select
+                            wire:model.live="maxPromoIntensity"
+                            id="maxPromoIntensity"
+                            class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            @foreach($this->getPromoIntensityOptions() as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    @if($this->hasActiveFilters())
+                        <button
+                            wire:click="clearFilters"
+                            class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Clear
+                        </button>
+                    @endif
+                @endif
             </div>
 
             {{-- Export Button --}}
@@ -80,7 +122,11 @@
                     Customer Engagement Metrics
                 </x-slot>
                 <x-slot name="description">
-                    Analyze customer behavior patterns for each product in your catalog
+                    @if($this->hasActiveFilters())
+                        Showing {{ count($engagementData) }} of {{ count($allEngagementData) }} products (filtered)
+                    @else
+                        Analyze customer behavior patterns for each product in your catalog
+                    @endif
                 </x-slot>
 
                 @if(count($engagementData) > 0)
@@ -235,6 +281,58 @@
                         <p class="mt-2 text-sm">No customer engagement data available for this brand</p>
                     </div>
                 @endif
+            </x-filament::section>
+
+            {{-- Customer Demographics - Coming Soon --}}
+            <x-filament::section class="mt-6">
+                <x-slot name="heading">
+                    <div class="flex items-center gap-2">
+                        <svg width="20" height="20" class="w-5 h-5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        Customer Demographics
+                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                            Coming Soon
+                        </span>
+                    </div>
+                </x-slot>
+
+                <div class="py-8 text-center">
+                    <div class="mx-auto w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                        <svg width="32" height="32" class="w-8 h-8 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                        Customer Insights Coming Soon
+                    </h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">
+                        We're working on bringing you detailed customer demographics including age distribution,
+                        geographic breakdown, and purchase frequency patterns.
+                    </p>
+                    <div class="flex flex-wrap justify-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                        <span class="inline-flex items-center gap-1">
+                            <svg width="16" height="16" class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Geographic Distribution
+                        </span>
+                        <span class="inline-flex items-center gap-1">
+                            <svg width="16" height="16" class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Purchase Frequency
+                        </span>
+                        <span class="inline-flex items-center gap-1">
+                            <svg width="16" height="16" class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Customer Segments
+                        </span>
+                    </div>
+                </div>
             </x-filament::section>
         @endif
 

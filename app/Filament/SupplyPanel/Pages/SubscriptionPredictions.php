@@ -4,6 +4,7 @@ namespace App\Filament\SupplyPanel\Pages;
 
 use App\Models\Brand;
 use App\Services\BigQueryService;
+use App\Services\CompanyService;
 use Filament\Pages\Page;
 use Livewire\Attributes\Url;
 
@@ -37,17 +38,22 @@ class SubscriptionPredictions extends Page
 
     /**
      * Determine if this page should be shown in navigation.
-     * Only visible for Pet Heaven Premium users.
+     * Only visible for Pet Heaven deployments with Premium users.
      */
     public static function shouldRegisterNavigation(): bool
     {
+        // Only show in Pet Heaven deployments
+        if (! CompanyService::isPetHeaven()) {
+            return false;
+        }
+
         $user = auth()->user();
 
         if (! $user) {
             return false;
         }
 
-        // Admin can always see
+        // Admin can always see (in PH deployment)
         if ($user->hasRole('admin')) {
             return true;
         }
@@ -60,7 +66,7 @@ class SubscriptionPredictions extends Page
         // Must have access to a Pet Heaven brand
         $brandIds = $user->accessibleBrandIds();
         $hasPetHeavenBrand = Brand::whereIn('id', $brandIds)
-            ->where('company_id', 5)
+            ->where('company_id', CompanyService::COMPANY_PET_HEAVEN)
             ->exists();
 
         return $hasPetHeavenBrand;
@@ -68,6 +74,11 @@ class SubscriptionPredictions extends Page
 
     public function mount(): void
     {
+        // Block access if not a Pet Heaven deployment
+        if (! CompanyService::isPetHeaven()) {
+            abort(403, 'This feature is only available for Pet Heaven.');
+        }
+
         // Default to user's first Pet Heaven brand
         if (! $this->brandId) {
             $petHeavenBrands = $this->getPetHeavenBrands();
@@ -142,7 +153,7 @@ class SubscriptionPredictions extends Page
         $brandIds = $user->accessibleBrandIds();
 
         return Brand::whereIn('id', $brandIds)
-            ->where('company_id', 5)
+            ->where('company_id', CompanyService::COMPANY_PET_HEAVEN)
             ->orderBy('name')
             ->pluck('name', 'id')
             ->toArray();

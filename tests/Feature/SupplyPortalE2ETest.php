@@ -83,7 +83,7 @@ class SupplyPortalE2ETest extends TestCase
         $this->brand = Brand::factory()->create(['name' => 'Test Brand', 'company_id' => 3]);
         $this->brand2 = Brand::factory()->create(['name' => 'Second Brand', 'company_id' => 3]);
         $this->competitorBrand = Brand::factory()->create(['name' => 'Competitor Brand', 'company_id' => 3]);
-        $this->petHeavenBrand = Brand::factory()->create(['name' => 'Pet Heaven Brand', 'company_id' => 5]);
+        $this->petHeavenBrand = Brand::factory()->create(['name' => 'Pet Heaven Brand', 'company_id' => 9]); // 9 = Pet Heaven
 
         // Create Pet Heaven premium user
         $this->petHeavenPremiumUser = User::factory()->create(['is_active' => true]);
@@ -237,6 +237,16 @@ class SupplyPortalE2ETest extends TestCase
         $this->app->instance(BigQueryService::class, $mockBQ);
     }
 
+    /**
+     * Configure the application as a Pet Heaven deployment.
+     * Required for subscription page tests since CompanyService::isPetHeaven()
+     * checks the application config, not the brand.
+     */
+    protected function setUpPetHeavenDeployment(): void
+    {
+        config(['bigquery.company_id' => 9]); // 9 = Pet Heaven
+    }
+
     // ========================================
     // BASIC USER FLOW TESTS
     // ========================================
@@ -276,7 +286,7 @@ class SupplyPortalE2ETest extends TestCase
 
         Livewire::test(Benchmarks::class, ['brandId' => $this->brand->id])
             ->assertSet('error', null)
-            ->assertSee('Benchmark');
+            ->assertSee('Your Brand'); // Benchmark page shows competitor comparison
     }
 
     public function test_basic_user_sees_premium_features_preview(): void
@@ -559,6 +569,7 @@ class SupplyPortalE2ETest extends TestCase
 
     public function test_pet_heaven_premium_user_can_access_subscriptions_overview(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         // Page should load without unhandled exceptions
@@ -568,6 +579,7 @@ class SupplyPortalE2ETest extends TestCase
 
     public function test_pet_heaven_premium_user_can_access_subscription_products(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         // Page should load without unhandled exceptions
@@ -577,6 +589,7 @@ class SupplyPortalE2ETest extends TestCase
 
     public function test_pet_heaven_premium_user_can_access_subscription_predictions(): void
     {
+        $this->setUpPetHeavenDeployment();
         $this->actingAs($this->petHeavenPremiumUser);
 
         // Page should load without unhandled exceptions
@@ -626,8 +639,8 @@ class SupplyPortalE2ETest extends TestCase
 
         $component = Livewire::test(Products::class, ['brandId' => $this->brand->id]);
 
-        // Products page should have export button
-        $component->assertSee('Export');
+        // Products page should have export button (CSV button)
+        $component->assertSee('CSV');
     }
 
     public function test_supply_chain_page_has_export_functionality(): void
@@ -636,7 +649,7 @@ class SupplyPortalE2ETest extends TestCase
 
         $component = Livewire::test(SupplyChain::class, ['brandId' => $this->brand->id]);
 
-        // Supply chain page should have export capability
+        // Supply chain page should have export capability (Export button)
         $component->assertSee('Export');
     }
 

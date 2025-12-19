@@ -43,7 +43,7 @@
                     wire:model.live.debounce.300ms="search"
                     type="text"
                     id="searchInput"
-                    placeholder="Type to filter..."
+                    placeholder="Search categories..."
                     class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
             </div>
         </div>
@@ -54,7 +54,7 @@
                 <button
                     wire:click="expandAll"
                     class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg width="16" height="16" class="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                     Expand All
@@ -62,7 +62,7 @@
                 <button
                     wire:click="collapseAll"
                     class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg width="16" height="16" class="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
                     </svg>
                     Collapse All
@@ -138,7 +138,7 @@
                                 <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         @if(count($data['children']) > 0)
-                                            <svg class="w-4 h-4 text-gray-400 transition-transform {{ $this->isExpanded($category) ? 'rotate-90' : '' }}"
+                                            <svg width="16" height="16" class="w-4 h-4 text-gray-400 transition-transform flex-shrink-0 {{ $this->isExpanded($category) ? 'rotate-90' : '' }}"
                                                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                             </svg>
